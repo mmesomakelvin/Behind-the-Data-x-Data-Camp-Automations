@@ -1,11 +1,20 @@
 ﻿# Behind the Data x Data Camp Automations
 
-Google Apps Script that automates welcome emails for new registrations captured in a Google Form and tracked in a Google Sheet. It syncs form responses into an "Auto-Reg Email" sheet, sends a branded HTML email with a Discord invite, and can auto-send on new form submissions.
+Google Apps Script that automates welcome emails for new registrations captured in a Google Form and tracked in a Google Sheet. It syncs form responses into an "Auto-Reg Email" sheet, sends a branded HTML email with a Discord invite, and can auto-send on new form submissions. It also assigns a simple sequential ID to each registrant.
 
 ## Files
 - `src/Code.js` registration workflow: setup sheet, sync, send test, send all, trigger creation, onFormSubmit, and custom menu.
 - `src/Emailtemplate.js` HTML and plain-text email templates plus logo URL.
+- `src/IdAssigner.js` ID assignment workflow and trigger.
 - `src/appsscript.json` Apps Script manifest.
+
+## Column Layout (Auto-Reg Email)
+- A: ID (e.g., `BTD-000123`)
+- B: Email Address
+- C: Full Name
+- D: Country
+- E: Status
+- F: Error
 
 ## Configuration
 Edit the `CONFIG` object in `src/Code.js`:
@@ -19,19 +28,21 @@ Edit `LOGO_URL` in `src/Emailtemplate.js` if needed.
 ## Setup (in Google Sheets)
 1. Open the spreadsheet bound to this Apps Script project.
 2. Ensure the sheet names match `CONFIG.sourceSheet` and `CONFIG.destSheet`.
-3. In the Apps Script editor, run:
-   - `setupSheet` to create headers and formatting.
-   - `syncData` to pull existing form responses.
-   - `sendTestEmail` to verify delivery and template.
-   - `createTrigger` to enable automatic sending on form submit.
-4. Grant the required Google permissions when prompted.
-
-A custom menu called "Email Manager" appears when the sheet opens and provides the same steps.
+3. From the sheet menu **Email Manager**:
+   - **Step 0: Add ID Column** (adds column A)
+   - **Step 2: Setup Sheet** (adds headers/formatting)
+   - **Step 3: Sync Data** (pulls existing form responses)
+   - **Step 6: Assign Missing IDs** (fills IDs for existing rows)
+   - **Step 5: Create Trigger** (auto-send emails on new form submit)
+   - **Step 7: Create ID Trigger** (auto-assign IDs on new form submit)
+4. Run **Step 1: Send Test Email** to verify delivery.
+5. Grant the required Google permissions when prompted.
 
 ## Usage
-- Manual batch send: run `sendAllEmails`. It marks each row as Sent or Failed.
-- Automatic send: the `onFormSubmit` trigger sends an email and updates status for new registrations.
+- Manual batch send: run `sendAllEmails`. It marks each row as Sent or Failed and logs errors.
+- Automatic send: `onFormSubmit` sends an email and updates status for new registrations.
+- Automatic ID assignment: `assignIdOnFormSubmit` assigns a sequential ID on new registrations.
 
 ## Notes
 - Emails are sent via `GmailApp`, so Gmail quotas apply.
-- The status column prevents re-sending to the same row.
+- Running **Sync Data** rewrites the sheet and clears IDs; re-run **Assign Missing IDs** after syncing.
