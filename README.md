@@ -46,3 +46,9 @@ Edit `LOGO_URL` in `src/Emailtemplate.js` if needed.
 ## Notes
 - Emails are sent via `GmailApp`, so Gmail quotas apply.
 - Running **Sync Data** rewrites the sheet and clears IDs; re-run **Assign Missing IDs** after syncing.
+
+## Troubleshooting
+- **"Service invoked too many times for one day: email"**: You hit Gmail’s daily send quota. Wait for the next day (timezone: `Africa/Lagos`) or use a higher‑quota account.
+- **ID not assigned on new registration**: Re-run **Step 7: Create ID Trigger**, then submit a new test response. Check Apps Script **Executions** for errors.
+- **IDs missing after Sync Data**: `Sync Data` rewrites the sheet and clears IDs. Run **Step 6: Assign Missing IDs** afterward.
+- **clasp push error about API**: Enable Apps Script API in `https://script.google.com/home/usersettings`.
