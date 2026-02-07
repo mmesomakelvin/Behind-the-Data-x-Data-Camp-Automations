@@ -11,7 +11,9 @@ const DRILL_CONFIG = {
   idSheet: "Auto-Reg Email",
   destSheet: "Data Drill Downs",
   idHeader: "ID",
-  emailHeader: "Email Address"
+  emailHeader: "Email Address",
+  excludeSourceColumns: [1, 2],
+  excludeHeaderNames: ["timestamp"]
 };
 
 function buildDataDrillDowns() {
@@ -74,6 +76,7 @@ function buildDataDrillDowns() {
     const colIndex = i + 1;
 
     if (excludedIndexes.has(colIndex)) continue;
+    if (headerKey && DRILL_CONFIG.excludeHeaderNames.indexOf(headerKey) !== -1) continue;
     if (headerKey && idHeaderSet.has(headerKey)) continue;
 
     includeIndexes.push(colIndex);
@@ -130,12 +133,10 @@ function getSourceEmailCol_(sourceHeaders) {
 }
 
 function getExcludedSourceIndexes_() {
-  const excluded = new Set();
+  const excluded = new Set(DRILL_CONFIG.excludeSourceColumns || []);
   if (typeof CONFIG !== "undefined" && CONFIG.sourceColumns) {
-    Object.keys(CONFIG.sourceColumns).forEach(k => {
-      const idx = CONFIG.sourceColumns[k];
-      if (idx) excluded.add(idx);
-    });
+    if (CONFIG.sourceColumns.email) excluded.add(CONFIG.sourceColumns.email);
+    if (CONFIG.sourceColumns.fullName) excluded.add(CONFIG.sourceColumns.fullName);
   }
   return excluded;
 }

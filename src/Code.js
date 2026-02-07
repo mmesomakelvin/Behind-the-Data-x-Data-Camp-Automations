@@ -11,7 +11,7 @@ const CONFIG = {
   sourceColumns: {
     email: 2,      // Column B
     fullName: 4,   // Column D
-    country: 6     // Column F
+    country: 6     // Column F (used for Location Master)
   },
   senderName: "Behind The Data Academy",
   emailSubject: "Welcome to Behind The Data Academy – Join Our Discord!"
@@ -41,15 +41,16 @@ function sendTestEmail() {
 function setupSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.destSheet);
-  
-  sheet.getRange(1, 1, 1, 6).setValues([["ID", "Email Address", "Full Name", "Country", "Status", "Error"]]);
-  sheet.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#1e2a38").setFontColor("#ffffff");
+
+  removeCountryColumnIfPresent_(sheet);
+
+  sheet.getRange(1, 1, 1, 5).setValues([["ID", "Email Address", "Full Name", "Status", "Error"]]);
+  sheet.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#1e2a38").setFontColor("#ffffff");
   sheet.setColumnWidth(1, 160);
   sheet.setColumnWidth(2, 250);
   sheet.setColumnWidth(3, 180);
-  sheet.setColumnWidth(4, 120);
-  sheet.setColumnWidth(5, 100);
-  sheet.setColumnWidth(6, 360);
+  sheet.setColumnWidth(4, 100);
+  sheet.setColumnWidth(5, 360);
   
   SpreadsheetApp.getUi().alert("✅ Sheet setup complete!");
 }
@@ -62,6 +63,8 @@ function syncData() {
   const source = ss.getSheetByName(CONFIG.sourceSheet);
   const dest = ss.getSheetByName(CONFIG.destSheet);
   
+  removeCountryColumnIfPresent_(dest);
+
   const lastRow = source.getLastRow();
   if (lastRow < 2) {
     SpreadsheetApp.getUi().alert("No data found");
@@ -72,7 +75,7 @@ function syncData() {
   
   // Clear old data (keep header)
   if (dest.getLastRow() > 1) {
-    dest.getRange(2, 1, dest.getLastRow() - 1, 6).clearContent();
+    dest.getRange(2, 1, dest.getLastRow() - 1, 5).clearContent();
   }
   
   // Map to destination format
@@ -80,12 +83,11 @@ function syncData() {
     "",
     row[CONFIG.sourceColumns.email - 1],
     row[CONFIG.sourceColumns.fullName - 1],
-    row[CONFIG.sourceColumns.country - 1],
     "",
     ""
   ]);
   
-  dest.getRange(2, 1, output.length, 6).setValues(output);
+  dest.getRange(2, 1, output.length, 5).setValues(output);
   SpreadsheetApp.getUi().alert("✅ Synced " + output.length + " registrations!");
 }
 
@@ -95,6 +97,8 @@ function syncData() {
 function sendAllEmails() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.destSheet);
+
+  removeCountryColumnIfPresent_(sheet);
   
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
@@ -102,11 +106,11 @@ function sendAllEmails() {
     return;
   }
   
-  const data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  const data = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
   let sent = 0, failed = 0, skipped = 0;
   
   for (let i = 0; i < data.length; i++) {
-    const [id, email, fullName, country, status] = data[i];
+    const [id, email, fullName, status] = data[i];
     
     if (status === "Sent" || !email) {
       skipped++;
@@ -117,12 +121,12 @@ function sendAllEmails() {
     const result = sendEmail(email, fullName);
     
     if (result.ok) {
-      sheet.getRange(row, 5).setValue("Sent").setBackground("#c6efce").setFontColor("#006100");
-      sheet.getRange(row, 6).setValue("");
+      sheet.getRange(row, 4).setValue("Sent").setBackground("#c6efce").setFontColor("#006100");
+      sheet.getRange(row, 5).setValue("");
       sent++;
     } else {
-      sheet.getRange(row, 5).setValue("Failed").setBackground("#ffc7ce").setFontColor("#9c0006");
-      sheet.getRange(row, 6).setValue(result.error || "Unknown error");
+      sheet.getRange(row, 4).setValue("Failed").setBackground("#ffc7ce").setFontColor("#9c0006");
+      sheet.getRange(row, 5).setValue(result.error || "Unknown error");
       failed++;
     }
     
@@ -156,21 +160,22 @@ function createTrigger() {
 function onFormSubmit(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.destSheet);
+
+  removeCountryColumnIfPresent_(sheet);
   
   const email = e.values[CONFIG.sourceColumns.email - 1];
   const fullName = e.values[CONFIG.sourceColumns.fullName - 1];
-  const country = e.values[CONFIG.sourceColumns.country - 1];
   
   const newRow = sheet.getLastRow() + 1;
-  sheet.getRange(newRow, 1, 1, 6).setValues([["", email, fullName, country, "", ""]]);
+  sheet.getRange(newRow, 1, 1, 5).setValues([["", email, fullName, "", ""]]);
   
   const result = sendEmail(email, fullName);
   if (result.ok) {
-    sheet.getRange(newRow, 5).setValue("Sent").setBackground("#c6efce").setFontColor("#006100");
-    sheet.getRange(newRow, 6).setValue("");
+    sheet.getRange(newRow, 4).setValue("Sent").setBackground("#c6efce").setFontColor("#006100");
+    sheet.getRange(newRow, 5).setValue("");
   } else {
-    sheet.getRange(newRow, 5).setValue("Failed").setBackground("#ffc7ce").setFontColor("#9c0006");
-    sheet.getRange(newRow, 6).setValue(result.error || "Unknown error");
+    sheet.getRange(newRow, 4).setValue("Failed").setBackground("#ffc7ce").setFontColor("#9c0006");
+    sheet.getRange(newRow, 5).setValue(result.error || "Unknown error");
   }
 }
 
@@ -204,5 +209,26 @@ function onOpen() {
     .addItem("Step 6: Assign Missing IDs", "assignMissingIds")
     .addItem("Step 7: Create ID Trigger", "createIdTrigger")
     .addItem("Step 8: Build Data Drill Downs", "buildDataDrillDowns")
+    .addItem("Step 9: Build Location Master", "buildLocationMaster")
+    .addItem("Step 10: Clean Case-Sensitive Columns", "cleanCaseSensitiveColumns")
     .addToUi();
+}
+
+function removeCountryColumnIfPresent_(sheet) {
+  if (!sheet) return;
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return;
+
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  let countryCol = -1;
+  for (let i = 0; i < headers.length; i++) {
+    if (String(headers[i]).trim().toLowerCase() === "country") {
+      countryCol = i + 1;
+      break;
+    }
+  }
+
+  if (countryCol !== -1) {
+    sheet.deleteColumn(countryCol);
+  }
 }
