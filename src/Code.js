@@ -155,6 +155,22 @@ function createTrigger() {
 }
 
 // =============================================
+// STEP 5B: Enable auto-build for Drill Downs + Location Master
+// =============================================
+function createDrilldownLocationTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === "onFormSubmitBuildSheets") ScriptApp.deleteTrigger(t);
+  });
+
+  ScriptApp.newTrigger("onFormSubmitBuildSheets")
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onFormSubmit()
+    .create();
+
+  SpreadsheetApp.getUi().alert("✅ Trigger created!\n\nNew registrations will auto-build Drill Downs and Location Master.");
+}
+
+// =============================================
 // AUTO TRIGGER (runs on new form submit)
 // =============================================
 function onFormSubmit(e) {
@@ -177,6 +193,11 @@ function onFormSubmit(e) {
     sheet.getRange(newRow, 4).setValue("Failed").setBackground("#ffc7ce").setFontColor("#9c0006");
     sheet.getRange(newRow, 5).setValue(result.error || "Unknown error");
   }
+}
+
+function onFormSubmitBuildSheets(e) {
+  buildDataDrillDowns();
+  buildLocationMaster();
 }
 
 // =============================================
@@ -211,6 +232,7 @@ function onOpen() {
     .addItem("Step 8: Build Data Drill Downs", "buildDataDrillDowns")
     .addItem("Step 9: Build Location Master", "buildLocationMaster")
     .addItem("Step 10: Clean Case-Sensitive Columns", "cleanCaseSensitiveColumns")
+    .addItem("Step 11: Create Drilldown/Location Trigger", "createDrilldownLocationTrigger")
     .addToUi();
 }
 

@@ -13,7 +13,16 @@ const DRILL_CONFIG = {
   idHeader: "ID",
   emailHeader: "Email Address",
   excludeSourceColumns: [1, 2],
-  excludeHeaderNames: ["timestamp"]
+  excludeHeaderNames: [
+    "timestamp",
+    "country",
+    "country/region",
+    "country or region",
+    "state / region",
+    "state/region",
+    "state",
+    "region"
+  ]
 };
 
 function buildDataDrillDowns() {
