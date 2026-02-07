@@ -1,14 +1,15 @@
 # Behind the Data x Data Camp Automations
 
-Google Apps Script that automates welcome emails for new registrations captured in a Google Form and tracked in a Google Sheet. It syncs form responses into an "Auto-Reg Email" sheet, sends a branded HTML email with a Discord invite, and can auto-send on new form submissions. It also assigns a simple sequential ID to each registrant, builds a Data Drill Downs sheet for the remaining form fields, and a Location Master sheet for country/state.
+Google Apps Script that automates welcome emails for new registrations captured in a Google Form and tracked in a Google Sheet. It syncs form responses into an "Auto-Reg Email" sheet, sends a branded HTML email with a Discord invite, and can auto-send on new form submissions. It also assigns a simple sequential ID to each registrant, builds a Data Drill Downs sheet for the remaining form fields, creates a Location Master sheet for country/state, and tracks selected people.
 
 ## Files
 - `src/Code.js` registration workflow: setup sheet, sync, send test, send all, trigger creation, onFormSubmit, and custom menu.
 - `src/Emailtemplate.js` HTML and plain-text email templates plus logo URL.
 - `src/IdAssigner.js` ID assignment workflow and trigger.
-- `src/DataDrillDowns.js` builds the "Data Drill Downs" sheet by matching IDs to form responses and pulling remaining columns.
+- `src/DataDrillDowns.js` builds the "Data Drill Downs" sheet, preserves selection status, and excludes specific columns.
 - `src/LocationMaster.js` builds the "Location Master" sheet (ID, Country, State / Region).
 - `src/Cleaner.js` normalizes case for Country, Full Name, and State / Region across key sheets.
+- `src/SelectedPeople.js` keeps a "Selected People" sheet in sync based on a selection dropdown.
 - `src/appsscript.json` Apps Script manifest.
 
 ## Column Layout (Auto-Reg Email)
@@ -20,12 +21,19 @@ Google Apps Script that automates welcome emails for new registrations captured 
 
 ## Column Layout (Data Drill Downs)
 - A: ID (matched from Auto-Reg Email via Email Address)
-- B+: remaining columns from `Form responses 1`, excluding fields already present in Auto-Reg Email, plus Timestamp and column 2 from the form responses.
+- B+: remaining columns from `Form responses 1`, excluding fields already present in Auto-Reg Email, plus Timestamp, Column 2, Country, State / Region, Column 19, Column 20, Column 21, Column 22, and "Please confirm the following:".
+- Last column: Selection Status (Selected / Not Selected)
 
 ## Column Layout (Location Master)
 - A: ID (matched from Auto-Reg Email via Email Address)
 - B: Country
 - C: State / Region
+
+## Column Layout (Selected People)
+- A: ID
+- B: Full Name
+- C: Email Address
+- D: LinkedIn Url
 
 ## Configuration
 Edit the `CONFIG` object in `src/Code.js`:
@@ -49,6 +57,8 @@ Edit `LOGO_URL` in `src/Emailtemplate.js` if needed.
    - **Step 8: Build Data Drill Downs** (creates/refreshes the drill-down sheet)
    - **Step 9: Build Location Master** (creates/refreshes the location sheet)
    - **Step 10: Clean Case-Sensitive Columns** (normalizes Country, Full Name, State / Region)
+   - **Step 11: Create Drilldown/Location Trigger** (auto-build drill-downs and location on submit)
+   - **Step 12: Rebuild Selected People** (rebuilds selected people from current selections)
 4. Run **Step 1: Send Test Email** to verify delivery.
 5. Grant the required Google permissions when prompted.
 
@@ -59,11 +69,12 @@ Edit `LOGO_URL` in `src/Emailtemplate.js` if needed.
 - Build Data Drill Downs: run `buildDataDrillDowns` to refresh with current responses and IDs.
 - Build Location Master: run `buildLocationMaster` to refresh with country/state and IDs.
 - Case cleanup: run `cleanCaseSensitiveColumns` to normalize Country, Full Name, State / Region.
+- Selection workflow: use the Selection Status dropdown in Data Drill Downs. Selected rows automatically populate the Selected People sheet.
 
 ## Notes
 - Emails are sent via `GmailApp`, so Gmail quotas apply.
 - Running **Sync Data** rewrites the sheet and clears IDs; re-run **Assign Missing IDs** after syncing.
-- **Data Drill Downs** clears and rebuilds the sheet each time it runs.
+- **Data Drill Downs** clears and rebuilds the sheet each time it runs but preserves Selection Status by ID.
 - **Location Master** clears and rebuilds the sheet each time it runs.
 
 ## Troubleshooting

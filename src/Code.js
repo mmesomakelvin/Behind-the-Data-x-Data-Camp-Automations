@@ -233,6 +233,7 @@ function onOpen() {
     .addItem("Step 9: Build Location Master", "buildLocationMaster")
     .addItem("Step 10: Clean Case-Sensitive Columns", "cleanCaseSensitiveColumns")
     .addItem("Step 11: Create Drilldown/Location Trigger", "createDrilldownLocationTrigger")
+    .addItem("Step 12: Rebuild Selected People", "rebuildSelectedPeopleFromDrillDowns")
     .addToUi();
 }
 

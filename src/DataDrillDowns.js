@@ -12,16 +12,25 @@ const DRILL_CONFIG = {
   destSheet: "Data Drill Downs",
   idHeader: "ID",
   emailHeader: "Email Address",
+  selectionHeader: "Selection Status",
+  selectionValues: ["Selected", "Not Selected"],
   excludeSourceColumns: [1, 2],
   excludeHeaderNames: [
     "timestamp",
+    "column 2",
+    "please confirm the following:",
+    "please confirm the following",
     "country",
     "country/region",
     "country or region",
     "state / region",
     "state/region",
     "state",
-    "region"
+    "region",
+    "column 19",
+    "column 20",
+    "column 21",
+    "column 22"
   ]
 };
 
@@ -114,24 +123,69 @@ function buildDataDrillDowns() {
   }
 
   let dest = ss.getSheetByName(destName);
+  const selectionMap = new Map();
   if (!dest) {
     dest = ss.insertSheet(destName);
   } else {
+    cacheExistingSelections_(dest, selectionMap);
     dest.clearContents();
   }
 
-  const totalCols = 1 + includeHeaders.length;
-  dest.getRange(1, 1, 1, totalCols).setValues([["ID", ...includeHeaders]]);
+  const totalCols = 1 + includeHeaders.length + 1;
+  dest.getRange(1, 1, 1, totalCols).setValues([["ID", ...includeHeaders, DRILL_CONFIG.selectionHeader]]);
   dest.getRange(1, 1, 1, totalCols)
     .setFontWeight("bold")
     .setBackground("#1e2a38")
     .setFontColor("#ffffff");
 
   if (output.length > 0) {
-    dest.getRange(2, 1, output.length, totalCols).setValues(output);
+    const selectionValues = applySelectionValues_(output, selectionMap);
+    dest.getRange(2, 1, output.length, totalCols).setValues(selectionValues);
+    applySelectionValidation_(dest, totalCols, output.length);
   }
 
   SpreadsheetApp.getUi().alert("Data Drill Downs updated: " + output.length + " rows.");
+}
+
+function cacheExistingSelections_(sheet, selectionMap) {
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return;
+
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const selectionCol = findHeaderIndex_(headers, [DRILL_CONFIG.selectionHeader]);
+  if (!selectionCol) return;
+
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const selections = sheet.getRange(2, selectionCol, lastRow - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i][0];
+    const selection = selections[i][0];
+    if (id && selection) {
+      selectionMap.set(String(id), selection);
+    }
+  }
+}
+
+function applySelectionValues_(rows, selectionMap) {
+  const output = [];
+  const defaultValue = DRILL_CONFIG.selectionValues[1];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i].slice();
+    const id = row[0];
+    const selection = id && selectionMap.has(String(id)) ? selectionMap.get(String(id)) : defaultValue;
+    row.push(selection);
+    output.push(row);
+  }
+  return output;
+}
+
+function applySelectionValidation_(sheet, selectionCol, numRows) {
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(DRILL_CONFIG.selectionValues, true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, selectionCol, numRows, 1).setDataValidation(rule);
 }
 
 function getSourceEmailCol_(sourceHeaders) {
