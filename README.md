@@ -1,11 +1,12 @@
-﻿# Behind the Data x Data Camp Automations
+# Behind the Data x Data Camp Automations
 
-Google Apps Script that automates welcome emails for new registrations captured in a Google Form and tracked in a Google Sheet. It syncs form responses into an "Auto-Reg Email" sheet, sends a branded HTML email with a Discord invite, and can auto-send on new form submissions. It also assigns a simple sequential ID to each registrant.
+Google Apps Script that automates welcome emails for new registrations captured in a Google Form and tracked in a Google Sheet. It syncs form responses into an "Auto-Reg Email" sheet, sends a branded HTML email with a Discord invite, and can auto-send on new form submissions. It also assigns a simple sequential ID to each registrant and builds a Data Drill Downs sheet for the remaining form fields.
 
 ## Files
 - `src/Code.js` registration workflow: setup sheet, sync, send test, send all, trigger creation, onFormSubmit, and custom menu.
 - `src/Emailtemplate.js` HTML and plain-text email templates plus logo URL.
 - `src/IdAssigner.js` ID assignment workflow and trigger.
+- `src/DataDrillDowns.js` builds the "Data Drill Downs" sheet by matching IDs to form responses and pulling remaining columns.
 - `src/appsscript.json` Apps Script manifest.
 
 ## Column Layout (Auto-Reg Email)
@@ -15,6 +16,10 @@ Google Apps Script that automates welcome emails for new registrations captured 
 - D: Country
 - E: Status
 - F: Error
+
+## Column Layout (Data Drill Downs)
+- A: ID (matched from Auto-Reg Email via Email Address)
+- B+: remaining columns from `Form responses 1`, excluding fields already present in Auto-Reg Email (and excluding the columns mapped in `CONFIG.sourceColumns`).
 
 ## Configuration
 Edit the `CONFIG` object in `src/Code.js`:
@@ -35,6 +40,7 @@ Edit `LOGO_URL` in `src/Emailtemplate.js` if needed.
    - **Step 6: Assign Missing IDs** (fills IDs for existing rows)
    - **Step 5: Create Trigger** (auto-send emails on new form submit)
    - **Step 7: Create ID Trigger** (auto-assign IDs on new form submit)
+   - **Step 8: Build Data Drill Downs** (creates/refreshes the drill-down sheet)
 4. Run **Step 1: Send Test Email** to verify delivery.
 5. Grant the required Google permissions when prompted.
 
@@ -42,13 +48,15 @@ Edit `LOGO_URL` in `src/Emailtemplate.js` if needed.
 - Manual batch send: run `sendAllEmails`. It marks each row as Sent or Failed and logs errors.
 - Automatic send: `onFormSubmit` sends an email and updates status for new registrations.
 - Automatic ID assignment: `assignIdOnFormSubmit` assigns a sequential ID on new registrations.
+- Build Data Drill Downs: run `buildDataDrillDowns` to refresh with current responses and IDs.
 
 ## Notes
 - Emails are sent via `GmailApp`, so Gmail quotas apply.
 - Running **Sync Data** rewrites the sheet and clears IDs; re-run **Assign Missing IDs** after syncing.
+- **Data Drill Downs** clears and rebuilds the sheet each time it runs.
 
 ## Troubleshooting
-- **"Service invoked too many times for one day: email"**: You hit Gmail’s daily send quota. Wait for the next day (timezone: `Africa/Lagos`) or use a higher‑quota account.
+- **"Service invoked too many times for one day: email"**: You hit Gmail�s daily send quota. Wait for the next day (timezone: `Africa/Lagos`) or use a higher-quota account.
 - **ID not assigned on new registration**: Re-run **Step 7: Create ID Trigger**, then submit a new test response. Check Apps Script **Executions** for errors.
 - **IDs missing after Sync Data**: `Sync Data` rewrites the sheet and clears IDs. Run **Step 6: Assign Missing IDs** afterward.
 - **clasp push error about API**: Enable Apps Script API in `https://script.google.com/home/usersettings`.

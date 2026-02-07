@@ -1,4 +1,4 @@
-﻿/**
+/**
  * =============================================
  * BEHIND THE DATA ACADEMY - AUTO REGISTRATION
  * File 1 of 2: Code.gs
@@ -14,14 +14,14 @@ const CONFIG = {
     country: 6     // Column F
   },
   senderName: "Behind The Data Academy",
-  emailSubject: "Welcome to Behind The Data Academy â€“ Join Our Discord!"
+  emailSubject: "Welcome to Behind The Data Academy – Join Our Discord!"
 };
 
 // =============================================
 // STEP 1: Run this first to test email
 // =============================================
 function sendTestEmail() {
-  const testEmail = "mmesomakelvin@gmail.com";  // â† CHANGE THIS
+  const testEmail = "mmesomakelvin@gmail.com";  // ← CHANGE THIS
   const testName = "Test User";
   
   try {
@@ -29,9 +29,9 @@ function sendTestEmail() {
       name: CONFIG.senderName,
       htmlBody: getEmailHTML(testName)
     });
-    SpreadsheetApp.getUi().alert("âœ… Test email sent to: " + testEmail);
+    SpreadsheetApp.getUi().alert("✅ Test email sent to: " + testEmail);
   } catch (error) {
-    SpreadsheetApp.getUi().alert("âŒ Error: " + error);
+    SpreadsheetApp.getUi().alert("❌ Error: " + error);
   }
 }
 
@@ -51,7 +51,7 @@ function setupSheet() {
   sheet.setColumnWidth(5, 100);
   sheet.setColumnWidth(6, 360);
   
-  SpreadsheetApp.getUi().alert("âœ… Sheet setup complete!");
+  SpreadsheetApp.getUi().alert("✅ Sheet setup complete!");
 }
 
 // =============================================
@@ -86,7 +86,7 @@ function syncData() {
   ]);
   
   dest.getRange(2, 1, output.length, 6).setValues(output);
-  SpreadsheetApp.getUi().alert("âœ… Synced " + output.length + " registrations!");
+  SpreadsheetApp.getUi().alert("✅ Synced " + output.length + " registrations!");
 }
 
 // =============================================
@@ -129,7 +129,7 @@ function sendAllEmails() {
     Utilities.sleep(500);
   }
   
-  SpreadsheetApp.getUi().alert("Done!\n\nâœ… Sent: " + sent + "\nâŒ Failed: " + failed + "\nâ­ï¸ Skipped: " + skipped);
+  SpreadsheetApp.getUi().alert("Done!\n\n✅ Sent: " + sent + "\n❌ Failed: " + failed + "\n⏭️ Skipped: " + skipped);
 }
 
 // =============================================
@@ -147,7 +147,7 @@ function createTrigger() {
     .onFormSubmit()
     .create();
   
-  SpreadsheetApp.getUi().alert("âœ… Trigger created!\n\nNew registrations will auto-receive emails.");
+  SpreadsheetApp.getUi().alert("✅ Trigger created!\n\nNew registrations will auto-receive emails.");
 }
 
 // =============================================
@@ -203,5 +203,6 @@ function onOpen() {
     .addItem("Step 5: Create Trigger", "createTrigger")
     .addItem("Step 6: Assign Missing IDs", "assignMissingIds")
     .addItem("Step 7: Create ID Trigger", "createIdTrigger")
+    .addItem("Step 8: Build Data Drill Downs", "buildDataDrillDowns")
     .addToUi();
 }
