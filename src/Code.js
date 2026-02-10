@@ -18,11 +18,12 @@ const CONFIG = {
 };
 
 const ACCEPTANCE_CONFIG = {
-  sourceSheet: "Selection Map",
+  sourceSheet: "Selection Map Test",
   senderName: "Behind the Data Academy",
   subject: "You are Accepted: Analytics Engineering Fellowship | Behind the Data Academy",
   testEmail: "mmesomakelvin@gmail.com",
   testName: "Test User",
+  triggerHour: 10,
   headers: {
     email: ["Email address", "Email Address", "email", "email address"],
     fullName: ["Full Name", "full name", "Name"],
@@ -244,6 +245,31 @@ function sendAcceptanceEmails() {
   );
 }
 
+function scheduleAcceptanceEmailsAt10AM() {
+  const nextRun = getNextAcceptanceRunAtHour_(ACCEPTANCE_CONFIG.triggerHour || 10);
+  const clearedCount = clearAcceptanceEmailSchedules_();
+
+  ScriptApp.newTrigger("sendAcceptanceEmails")
+    .timeBased()
+    .at(nextRun)
+    .create();
+
+  const timezone = Session.getScriptTimeZone();
+  const formatted = Utilities.formatDate(nextRun, timezone, "EEEE, d MMMM yyyy 'at' h:mm a z");
+
+  SpreadsheetApp.getUi().alert(
+    "Acceptance email trigger scheduled.\n\n" +
+    "Source sheet: " + ACCEPTANCE_CONFIG.sourceSheet + "\n" +
+    "Run time: " + formatted + "\n" +
+    "Old schedule triggers removed: " + clearedCount
+  );
+}
+
+function clearAcceptanceEmailSchedule() {
+  const removed = clearAcceptanceEmailSchedules_();
+  SpreadsheetApp.getUi().alert("Removed acceptance schedule trigger(s): " + removed);
+}
+
 function sendAcceptanceEmail_(email, fullName) {
   try {
     GmailApp.sendEmail(email, ACCEPTANCE_CONFIG.subject, getAcceptancePlainText(fullName), {
@@ -328,6 +354,39 @@ function normalizeAcceptanceValue_(value) {
 
 function truncateAcceptanceError_(value) {
   return String(value || "").slice(0, 500);
+}
+
+function clearAcceptanceEmailSchedules_() {
+  let removed = 0;
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === "sendAcceptanceEmails") {
+      ScriptApp.deleteTrigger(trigger);
+      removed++;
+    }
+  });
+  return removed;
+}
+
+function getNextAcceptanceRunAtHour_(hour24) {
+  const timezone = Session.getScriptTimeZone();
+  const now = new Date();
+
+  const todayYmd = Utilities.formatDate(now, timezone, "yyyy-MM-dd");
+  const todayOffset = Utilities.formatDate(now, timezone, "XXX");
+  let target = new Date(todayYmd + "T" + pad2_(hour24) + ":00:00" + todayOffset);
+
+  if (target.getTime() <= now.getTime()) {
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowYmd = Utilities.formatDate(tomorrow, timezone, "yyyy-MM-dd");
+    const tomorrowOffset = Utilities.formatDate(tomorrow, timezone, "XXX");
+    target = new Date(tomorrowYmd + "T" + pad2_(hour24) + ":00:00" + tomorrowOffset);
+  }
+
+  return target;
+}
+
+function pad2_(value) {
+  return String(value).padStart(2, "0");
 }
 
 // =============================================
@@ -432,6 +491,8 @@ function onOpen() {
     .addItem("Step 14: Test Gemini Key", "testGeminiKey")
     .addItem("Step 15: Send Acceptance Test Email", "sendAcceptanceTestEmail")
     .addItem("Step 16: Send Acceptance Emails (Eligible Only)", "sendAcceptanceEmails")
+    .addItem("Step 17: Schedule Acceptance Send (10AM)", "scheduleAcceptanceEmailsAt10AM")
+    .addItem("Step 18: Clear Acceptance Send Schedule", "clearAcceptanceEmailSchedule")
     .addToUi();
 }
 
