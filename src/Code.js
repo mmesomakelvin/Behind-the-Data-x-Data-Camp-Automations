@@ -165,9 +165,9 @@ function sendAcceptanceTestEmail() {
       name: ACCEPTANCE_CONFIG.senderName,
       htmlBody: getAcceptanceEmailHTML(testName)
     });
-    SpreadsheetApp.getUi().alert("Test acceptance email sent to: " + testEmail);
+    notifyUser_("Test acceptance email sent to: " + testEmail);
   } catch (error) {
-    SpreadsheetApp.getUi().alert("Error sending acceptance test email: " + error);
+    notifyUser_("Error sending acceptance test email: " + error);
   }
 }
 
@@ -175,20 +175,20 @@ function sendAcceptanceEmails() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(ACCEPTANCE_CONFIG.sourceSheet);
   if (!sheet) {
-    SpreadsheetApp.getUi().alert("Sheet not found: " + ACCEPTANCE_CONFIG.sourceSheet);
+    notifyUser_("Sheet not found: " + ACCEPTANCE_CONFIG.sourceSheet);
     return;
   }
 
   const setup = ensureAcceptanceColumns_(sheet);
   if (!setup.ok) {
-    SpreadsheetApp.getUi().alert(setup.message || "Could not prepare columns for acceptance email sending.");
+    notifyUser_(setup.message || "Could not prepare columns for acceptance email sending.");
     return;
   }
 
   const columns = setup.columns;
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    SpreadsheetApp.getUi().alert("No data found in: " + ACCEPTANCE_CONFIG.sourceSheet);
+    notifyUser_("No data found in: " + ACCEPTANCE_CONFIG.sourceSheet);
     return;
   }
 
@@ -235,7 +235,7 @@ function sendAcceptanceEmails() {
     Utilities.sleep(300);
   }
 
-  SpreadsheetApp.getUi().alert(
+  notifyUser_(
     "Acceptance email run complete.\n\n" +
     "Eligible: " + eligible + "\n" +
     "Sent: " + sent + "\n" +
@@ -257,7 +257,7 @@ function scheduleAcceptanceEmailsAt10AM() {
   const timezone = Session.getScriptTimeZone();
   const formatted = Utilities.formatDate(nextRun, timezone, "EEEE, d MMMM yyyy 'at' h:mm a z");
 
-  SpreadsheetApp.getUi().alert(
+  notifyUser_(
     "Acceptance email trigger scheduled.\n\n" +
     "Source sheet: " + ACCEPTANCE_CONFIG.sourceSheet + "\n" +
     "Run time: " + formatted + "\n" +
@@ -267,7 +267,7 @@ function scheduleAcceptanceEmailsAt10AM() {
 
 function clearAcceptanceEmailSchedule() {
   const removed = clearAcceptanceEmailSchedules_();
-  SpreadsheetApp.getUi().alert("Removed acceptance schedule trigger(s): " + removed);
+  notifyUser_("Removed acceptance schedule trigger(s): " + removed);
 }
 
 function sendAcceptanceEmail_(email, fullName) {
@@ -494,6 +494,14 @@ function onOpen() {
     .addItem("Step 17: Schedule Acceptance Send (10AM)", "scheduleAcceptanceEmailsAt10AM")
     .addItem("Step 18: Clear Acceptance Send Schedule", "clearAcceptanceEmailSchedule")
     .addToUi();
+}
+
+function notifyUser_(message) {
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (error) {
+    Logger.log(message);
+  }
 }
 
 function removeCountryColumnIfPresent_(sheet) {
