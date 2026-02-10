@@ -18,7 +18,7 @@ const CONFIG = {
 };
 
 const ACCEPTANCE_CONFIG = {
-  sourceSheet: "Selection Map Test",
+  sourceSheet: "Selection Map",
   senderName: "Behind the Data Academy",
   subject: "You are Accepted: Analytics Engineering Fellowship | Behind the Data Academy",
   testEmail: "mmesomakelvin@gmail.com",
