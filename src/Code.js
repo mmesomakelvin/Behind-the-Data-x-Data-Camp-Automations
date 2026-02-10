@@ -17,6 +17,22 @@ const CONFIG = {
   emailSubject: "Welcome to Behind The Data Academy – Join Our Discord!"
 };
 
+const ACCEPTANCE_CONFIG = {
+  sourceSheet: "Selection Map",
+  senderName: "Behind the Data Academy",
+  subject: "You are Accepted: Analytics Engineering Fellowship | Behind the Data Academy",
+  testEmail: "mmesomakelvin@gmail.com",
+  testName: "Test User",
+  headers: {
+    email: ["Email address", "Email Address", "email", "email address"],
+    fullName: ["Full Name", "full name", "Name"],
+    ableToCommit: ["Able to Commit", "able to commit"],
+    decision: ["Decision", "decision"],
+    status: "Acceptance Email Status",
+    error: "Acceptance Email Error"
+  }
+};
+
 // =============================================
 // STEP 1: Run this first to test email
 // =============================================
@@ -137,6 +153,184 @@ function sendAllEmails() {
 }
 
 // =============================================
+// ACCEPTANCE EMAILS (Selection Map only)
+// =============================================
+function sendAcceptanceTestEmail() {
+  const testEmail = ACCEPTANCE_CONFIG.testEmail;
+  const testName = ACCEPTANCE_CONFIG.testName;
+
+  try {
+    GmailApp.sendEmail(testEmail, "[TEST] " + ACCEPTANCE_CONFIG.subject, getAcceptancePlainText(testName), {
+      name: ACCEPTANCE_CONFIG.senderName,
+      htmlBody: getAcceptanceEmailHTML(testName)
+    });
+    SpreadsheetApp.getUi().alert("Test acceptance email sent to: " + testEmail);
+  } catch (error) {
+    SpreadsheetApp.getUi().alert("Error sending acceptance test email: " + error);
+  }
+}
+
+function sendAcceptanceEmails() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(ACCEPTANCE_CONFIG.sourceSheet);
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("Sheet not found: " + ACCEPTANCE_CONFIG.sourceSheet);
+    return;
+  }
+
+  const setup = ensureAcceptanceColumns_(sheet);
+  if (!setup.ok) {
+    SpreadsheetApp.getUi().alert(setup.message || "Could not prepare columns for acceptance email sending.");
+    return;
+  }
+
+  const columns = setup.columns;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    SpreadsheetApp.getUi().alert("No data found in: " + ACCEPTANCE_CONFIG.sourceSheet);
+    return;
+  }
+
+  const lastCol = sheet.getLastColumn();
+  const rows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  let eligible = 0;
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+  let alreadySent = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNumber = i + 2;
+    const email = row[columns.email - 1];
+    const fullName = row[columns.fullName - 1] || "";
+    const ableToCommit = row[columns.ableToCommit - 1];
+    const decision = row[columns.decision - 1];
+    const status = row[columns.status - 1];
+
+    if (!email || !isAcceptanceEligible_(ableToCommit, decision)) {
+      skipped++;
+      continue;
+    }
+
+    eligible++;
+    if (normalizeAcceptanceValue_(status) === "sent") {
+      alreadySent++;
+      continue;
+    }
+
+    const result = sendAcceptanceEmail_(email, fullName);
+    if (result.ok) {
+      sheet.getRange(rowNumber, columns.status).setValue("Sent").setBackground("#c6efce").setFontColor("#006100");
+      sheet.getRange(rowNumber, columns.error).setValue("");
+      sent++;
+    } else {
+      sheet.getRange(rowNumber, columns.status).setValue("Failed").setBackground("#ffc7ce").setFontColor("#9c0006");
+      sheet.getRange(rowNumber, columns.error).setValue(truncateAcceptanceError_(result.error));
+      failed++;
+    }
+
+    Utilities.sleep(300);
+  }
+
+  SpreadsheetApp.getUi().alert(
+    "Acceptance email run complete.\n\n" +
+    "Eligible: " + eligible + "\n" +
+    "Sent: " + sent + "\n" +
+    "Already Sent: " + alreadySent + "\n" +
+    "Failed: " + failed + "\n" +
+    "Skipped (not eligible / no email): " + skipped
+  );
+}
+
+function sendAcceptanceEmail_(email, fullName) {
+  try {
+    GmailApp.sendEmail(email, ACCEPTANCE_CONFIG.subject, getAcceptancePlainText(fullName), {
+      name: ACCEPTANCE_CONFIG.senderName,
+      htmlBody: getAcceptanceEmailHTML(fullName)
+    });
+    return { ok: true, error: "" };
+  } catch (error) {
+    Logger.log("Error sending acceptance email to " + email + ": " + error);
+    return { ok: false, error: String(error) };
+  }
+}
+
+function ensureAcceptanceColumns_(sheet) {
+  const initialLastCol = sheet.getLastColumn();
+  if (initialLastCol < 1) {
+    return { ok: false, message: "No headers found in: " + ACCEPTANCE_CONFIG.sourceSheet };
+  }
+
+  let headers = sheet.getRange(1, 1, 1, initialLastCol).getValues()[0];
+  const columns = {
+    email: acceptanceFindHeaderIndex_(headers, ACCEPTANCE_CONFIG.headers.email),
+    fullName: acceptanceFindHeaderIndex_(headers, ACCEPTANCE_CONFIG.headers.fullName),
+    ableToCommit: acceptanceFindHeaderIndex_(headers, ACCEPTANCE_CONFIG.headers.ableToCommit),
+    decision: acceptanceFindHeaderIndex_(headers, ACCEPTANCE_CONFIG.headers.decision),
+    status: acceptanceFindHeaderIndex_(headers, [ACCEPTANCE_CONFIG.headers.status]),
+    error: acceptanceFindHeaderIndex_(headers, [ACCEPTANCE_CONFIG.headers.error])
+  };
+
+  const missingRequired = [];
+  if (!columns.email) missingRequired.push("Email address");
+  if (!columns.fullName) missingRequired.push("Full Name");
+  if (!columns.ableToCommit) missingRequired.push("Able to Commit");
+  if (!columns.decision) missingRequired.push("Decision");
+
+  if (missingRequired.length) {
+    return {
+      ok: false,
+      message: "Missing required columns in '" + ACCEPTANCE_CONFIG.sourceSheet + "': " + missingRequired.join(", ")
+    };
+  }
+
+  let currentLastCol = initialLastCol;
+
+  if (!columns.status) {
+    currentLastCol++;
+    sheet.getRange(1, currentLastCol).setValue(ACCEPTANCE_CONFIG.headers.status);
+    sheet.getRange(1, currentLastCol).setFontWeight("bold");
+    columns.status = currentLastCol;
+  }
+
+  if (!columns.error) {
+    currentLastCol++;
+    sheet.getRange(1, currentLastCol).setValue(ACCEPTANCE_CONFIG.headers.error);
+    sheet.getRange(1, currentLastCol).setFontWeight("bold");
+    sheet.setColumnWidth(currentLastCol, 360);
+    columns.error = currentLastCol;
+  }
+
+  return { ok: true, columns };
+}
+
+function acceptanceFindHeaderIndex_(headers, candidates) {
+  if (!headers || !headers.length) return 0;
+  const normalizedHeaders = headers.map(value => normalizeAcceptanceValue_(value));
+  for (let i = 0; i < candidates.length; i++) {
+    const target = normalizeAcceptanceValue_(candidates[i]);
+    const index = normalizedHeaders.indexOf(target);
+    if (index !== -1) return index + 1;
+  }
+  return 0;
+}
+
+function isAcceptanceEligible_(ableToCommit, decision) {
+  return normalizeAcceptanceValue_(ableToCommit) === "yes" &&
+    normalizeAcceptanceValue_(decision) === "yes";
+}
+
+function normalizeAcceptanceValue_(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function truncateAcceptanceError_(value) {
+  return String(value || "").slice(0, 500);
+}
+
+// =============================================
 // STEP 5: Enable auto-send for new registrations
 // =============================================
 function createTrigger() {
@@ -236,6 +430,8 @@ function onOpen() {
     .addItem("Step 12: Rebuild Selected People", "rebuildSelectedPeopleFromDrillDowns")
     .addItem("Step 13: Send Report", "sendReport")
     .addItem("Step 14: Test Gemini Key", "testGeminiKey")
+    .addItem("Step 15: Send Acceptance Test Email", "sendAcceptanceTestEmail")
+    .addItem("Step 16: Send Acceptance Emails (Eligible Only)", "sendAcceptanceEmails")
     .addToUi();
 }
 
