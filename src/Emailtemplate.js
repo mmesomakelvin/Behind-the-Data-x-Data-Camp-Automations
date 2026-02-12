@@ -112,12 +112,14 @@ Behind The Data Team`;
 }
 
 const ACCEPTANCE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfqr5JO36Vo1R-HPTih64GFVGdoMBeXYPb2wcaq6yHZfmRCyg/viewform";
+const ACCEPTANCE_COMPLIANCE_DOC_URL = "https://docs.google.com/document/d/1r5aKeScDitYzioKv7fuBS3XWIEL9nXRzQKgSipVSzKM/edit?tab=t.0";
 const ACCEPTANCE_PAYMENT_DEADLINE = "Thursday, 12 February 2026";
 
 function getAcceptanceEmailHTML(fullName) {
   const firstName = getEmailFirstName_(fullName);
   const safeFirstName = escapeEmailTemplateHtml_(firstName);
   const safeFormUrl = escapeEmailTemplateHtml_(ACCEPTANCE_FORM_URL);
+  const safeComplianceDocUrl = escapeEmailTemplateHtml_(ACCEPTANCE_COMPLIANCE_DOC_URL);
   const safeDeadline = escapeEmailTemplateHtml_(ACCEPTANCE_PAYMENT_DEADLINE);
 
   return `<!DOCTYPE html>
@@ -186,7 +188,10 @@ function getAcceptanceEmailHTML(fullName) {
 
               <h3 style="margin:0 0 10px 0;font-size:16px;color:#111827;">After payment</h3>
               <p style="margin:0 0 18px 0;font-size:14px;line-height:1.7;color:#374151;">
-                After payment, complete the cohort acceptance form. Then make a copy of the compliance document, sign it, and download it. You will upload the signed copy in your acceptance submission. Please read all instructions carefully before submitting.
+                After payment, open the compliance document, make a copy, fill and sign it, then download it. Use the cohort acceptance form to submit your details and upload the signed compliance document. Please read all instructions carefully before submitting.
+              </p>
+              <p style="margin:0 0 18px 0;font-size:13px;line-height:1.7;color:#6b7280;">
+                If you have already received this email before and have made payment, please ignore this message.
               </p>
 
               <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px 0;">
@@ -199,11 +204,27 @@ function getAcceptanceEmailHTML(fullName) {
                 </tr>
               </table>
 
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${ACCEPTANCE_COMPLIANCE_DOC_URL}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600;">
+                      Open Compliance Document
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
               <p style="margin:0 0 10px 0;font-size:12px;line-height:1.6;color:#6b7280;">
                 If the button does not open, copy and paste this link into your browser:
               </p>
               <p style="margin:0 0 18px 0;font-size:12px;line-height:1.6;word-break:break-all;">
                 <a href="${ACCEPTANCE_FORM_URL}" style="color:#4338ca;text-decoration:underline;">${safeFormUrl}</a>
+              </p>
+              <p style="margin:0 0 10px 0;font-size:12px;line-height:1.6;color:#6b7280;">
+                Compliance document link:
+              </p>
+              <p style="margin:0 0 18px 0;font-size:12px;line-height:1.6;word-break:break-all;">
+                <a href="${ACCEPTANCE_COMPLIANCE_DOC_URL}" style="color:#0f766e;text-decoration:underline;">${safeComplianceDocUrl}</a>
               </p>
 
               <p style="margin:0;font-size:14px;line-height:1.7;color:#374151;">
@@ -246,10 +267,14 @@ Account Name: BEHIND THE DATA LTD
 Account Number: 1308690832
 Bank: Providus Bank
 
-After payment, complete the cohort acceptance form. Then make a copy of the compliance document, sign it, and download it. You will upload the signed copy in your acceptance submission.
+After payment, open the compliance document, make a copy, fill and sign it, then download it. Use the cohort acceptance form to submit your details and upload the signed compliance document.
+If you have already received this email before and have made payment, please ignore this message.
 
 Cohort Acceptance Form:
 ${ACCEPTANCE_FORM_URL}
+
+Compliance Document (make a copy, fill, sign, and download):
+${ACCEPTANCE_COMPLIANCE_DOC_URL}
 
 We are excited to have you join this cohort. If you have any questions, simply reply to this email.
 
