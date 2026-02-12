@@ -113,7 +113,7 @@ Behind The Data Team`;
 
 const ACCEPTANCE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfqr5JO36Vo1R-HPTih64GFVGdoMBeXYPb2wcaq6yHZfmRCyg/viewform";
 const ACCEPTANCE_COMPLIANCE_DOC_URL = "https://docs.google.com/document/d/1r5aKeScDitYzioKv7fuBS3XWIEL9nXRzQKgSipVSzKM/edit?tab=t.0";
-const ACCEPTANCE_PAYMENT_DEADLINE = "Thursday, 12 February 2026";
+const ACCEPTANCE_PAYMENT_DEADLINE = "Wednesday, 18 February 2026";
 
 function getAcceptanceEmailHTML(fullName) {
   const firstName = getEmailFirstName_(fullName);
@@ -154,6 +154,9 @@ function getAcceptanceEmailHTML(fullName) {
                   <td style="padding:16px 16px;">
                     <p style="margin:0;font-size:14px;line-height:1.6;color:#1f2937;">
                       To secure your spot, please complete the next steps <strong>on or before ${safeDeadline}</strong>.
+                    </p>
+                    <p style="margin:10px 0 0 0;font-size:13px;line-height:1.6;color:#4b5563;">
+                      This payment window has been extended, and the final deadline is <strong>${safeDeadline}</strong>.
                     </p>
                   </td>
                 </tr>
@@ -257,6 +260,7 @@ We are happy to let you know that you have been accepted into the Analytics Engi
 Your application stood out for its clarity, intent, and alignment with what this fellowship is designed to achieve.
 
 To secure your spot, please complete the following on or before ${ACCEPTANCE_PAYMENT_DEADLINE}:
+This payment window has been extended, and the final deadline is ${ACCEPTANCE_PAYMENT_DEADLINE}.
 1) Confirm your participation via the cohort acceptance form.
 2) Pay the NGN 30,100 refundable commitment deposit.
    - NGN 30,000 will be refunded upon successful completion.
