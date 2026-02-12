@@ -23,6 +23,7 @@ const ACCEPTANCE_CONFIG = {
   subject: "You are Accepted: Analytics Engineering Fellowship | Behind the Data Academy",
   testEmail: "mmesomakelvin@gmail.com",
   testName: "Test User",
+  retryEveryHours: 6,
   triggerHour: 10,
   headers: {
     email: ["Email address", "Email Address", "email", "email address"],
@@ -265,6 +266,24 @@ function scheduleAcceptanceEmailsAt10AM() {
   );
 }
 
+function scheduleAcceptanceEmailsEvery6Hours() {
+  const everyHours = Math.max(1, Number(ACCEPTANCE_CONFIG.retryEveryHours || 6));
+  const clearedCount = clearAcceptanceEmailSchedules_();
+
+  ScriptApp.newTrigger("sendAcceptanceEmails")
+    .timeBased()
+    .everyHours(everyHours)
+    .create();
+
+  notifyUser_(
+    "Acceptance retry trigger scheduled.\n\n" +
+    "Source sheet: " + ACCEPTANCE_CONFIG.sourceSheet + "\n" +
+    "Frequency: Every " + everyHours + " hour(s)\n" +
+    "Rows with Acceptance Email Status = Sent are skipped automatically.\n" +
+    "Old schedule triggers removed: " + clearedCount
+  );
+}
+
 function clearAcceptanceEmailSchedule() {
   const removed = clearAcceptanceEmailSchedules_();
   notifyUser_("Removed acceptance schedule trigger(s): " + removed);
@@ -491,7 +510,7 @@ function onOpen() {
     .addItem("Step 14: Test Gemini Key", "testGeminiKey")
     .addItem("Step 15: Send Acceptance Test Email", "sendAcceptanceTestEmail")
     .addItem("Step 16: Send Acceptance Emails (Eligible Only)", "sendAcceptanceEmails")
-    .addItem("Step 17: Schedule Acceptance Send (10AM)", "scheduleAcceptanceEmailsAt10AM")
+    .addItem("Step 17: Schedule Acceptance Retry (Every 6 Hours)", "scheduleAcceptanceEmailsEvery6Hours")
     .addItem("Step 18: Clear Acceptance Send Schedule", "clearAcceptanceEmailSchedule")
     .addToUi();
 }

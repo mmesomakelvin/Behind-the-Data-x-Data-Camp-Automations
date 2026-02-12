@@ -4,7 +4,7 @@ Google Apps Script project for Behind the Data Academy workflows in Google Sheet
 
 It now supports **two email workflows**:
 1. Registration welcome email flow (existing)
-2. **Acceptance email flow** (new), with test mode, eligibility filtering, status tracking, and 10:00 AM scheduling
+2. **Acceptance email flow** (new), with test mode, eligibility filtering, status tracking, and 6-hour retry scheduling
 
 ---
 
@@ -16,14 +16,14 @@ It now supports **two email workflows**:
 - Builds `Data Drill Downs` and `Location Master`
 - Syncs selected people into `Selected People`
 - Sends analytics report emails
-- Sends **acceptance emails** from `Selection Map Test` (default) or `Selection Map` (live)
+- Sends **acceptance emails** from `Selection Map`
 
 ---
 
 ## Acceptance Email (New)
 
-### Current default mode (safe)
-- Acceptance sending currently reads from: **`Selection Map Test`**
+### Current configuration
+- Acceptance sending currently reads from: **`Selection Map`**
 - Test email recipient is currently: **`mmesomakelvin@gmail.com`**
 
 These are set in `src/Code.js` under `ACCEPTANCE_CONFIG`.
@@ -55,8 +55,10 @@ Configured values:
 - Logo source: `LOGO_URL` (Google Drive image URL)
 - Acceptance form URL:
   `https://docs.google.com/forms/d/e/1FAIpQLSfqr5JO36Vo1R-HPTih64GFVGdoMBeXYPb2wcaq6yHZfmRCyg/viewform`
+- Compliance document URL:
+  `https://docs.google.com/document/d/1r5aKeScDitYzioKv7fuBS3XWIEL9nXRzQKgSipVSzKM/edit?tab=t.0`
 - Payment deadline text:
-  `Thursday, 12 February 2026`
+  `Wednesday, 18 February 2026`
 
 ---
 
@@ -70,10 +72,10 @@ Configured values:
   - Batch sends to eligible rows only from the configured source sheet
   - Updates status/error columns per row
 
-- **Step 17: Schedule Acceptance Send (10AM)**
+- **Step 17: Schedule Acceptance Retry (Every 6 Hours)**
   - Creates a time trigger for `sendAcceptanceEmails`
-  - Uses script timezone: `Africa/Lagos`
-  - If current time is already past 10:00 AM, it schedules for the next day at 10:00 AM
+  - Runs every 6 hours (auto-retry for failed/unsent eligible rows)
+  - Rows already marked `Sent` are skipped automatically
 
 - **Step 18: Clear Acceptance Send Schedule**
   - Removes existing acceptance-send triggers
@@ -83,17 +85,18 @@ Configured values:
 ## Recommended Testing Flow (Before Sending to Everyone)
 
 ### Phase 1: Single-email content test
-1. Keep `ACCEPTANCE_CONFIG.sourceSheet` as `Selection Map Test`
+1. Confirm `ACCEPTANCE_CONFIG.sourceSheet` is set correctly (currently `Selection Map`)
 2. In the sheet menu, run: **Step 15: Send Acceptance Test Email**
 3. Confirm email at `mmesomakelvin@gmail.com`:
    - Subject and sender name
    - Branding/logo visibility
    - CTA button and fallback link
+   - Compliance document button and fallback link
    - Correct form URL
    - Payment details and deadline text
 
 ### Phase 2: Eligibility and batch logic test
-1. In `Selection Map Test`, prepare a few rows:
+1. In `Selection Map`, prepare a few rows:
    - Row A: `Able to Commit=Yes`, `Decision=Yes`, valid email (should send)
    - Row B: `Able to Commit=No`, `Decision=Yes` (should skip)
    - Row C: `Able to Commit=Yes`, `Decision=No` (should skip)
@@ -104,21 +107,17 @@ Configured values:
    - Re-running does not resend rows already marked `Sent`
 
 ### Phase 3: Scheduled run test
-1. Run: **Step 17: Schedule Acceptance Send (10AM)**
+1. Run: **Step 17: Schedule Acceptance Retry (Every 6 Hours)**
 2. Open Apps Script triggers and confirm a time-based trigger exists for `sendAcceptanceEmails`
 3. If needed, run **Step 18** and schedule again
 
 ---
 
-## Switching from Test Sheet to Live Send
+## Retry Behavior
 
-When ready for real rollout:
-1. Open `src/Code.js`
-2. Change:
-   - `ACCEPTANCE_CONFIG.sourceSheet` from `Selection Map Test` to `Selection Map`
-3. Push changes with `clasp push`
-4. Optionally schedule with Step 17 for 10:00 AM
-5. Or run Step 16 manually for immediate send
+- Rows with `Acceptance Email Status = Sent` are never resent
+- Rows with failed sends remain eligible for retry
+- The 6-hour schedule is useful when Gmail daily send limits are reached
 
 ---
 
@@ -189,4 +188,4 @@ This error affects terminal-based `clasp run`. It does **not** block running men
 Script timezone is currently configured as:
 - `Africa/Lagos`
 
-So 10:00 AM scheduling is interpreted in **Africa/Lagos** time.
+Time-based triggers (including 6-hour acceptance retries) run in **Africa/Lagos** timezone.
