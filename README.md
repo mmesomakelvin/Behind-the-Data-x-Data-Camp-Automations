@@ -1,5 +1,27 @@
-﻿# Behind the Data x Data Camp Automations
+# Behind the Data x Data Camp Automations
 
+## Multi-Project Workspace (No Clash Setup)
+
+Everything is now under `projects/` so pushes cannot clash.
+
+Project names:
+- `Reg_Automations`
+- `Payment_Receipt_Onboarding`
+
+Push commands:
+```powershell
+.\scripts\clasp-project.ps1 -Project Reg_Automations -Action push
+.\scripts\clasp-project.ps1 -Project Payment_Receipt_Onboarding -Action push
+```
+
+Create future projects:
+```powershell
+.\scripts\new-project.ps1 -Project New_Project_Name -ScriptId <NEW_SCRIPT_ID>
+```
+
+Always tell me the project folder name before edits/push.
+
+---
 Google Apps Script project for Behind the Data Academy workflows in Google Sheets.
 
 It now supports **two email workflows**:
@@ -26,7 +48,7 @@ It now supports **two email workflows**:
 - Acceptance sending currently reads from: **`Selection Map`**
 - Test email recipient is currently: **`mmesomakelvin@gmail.com`**
 
-These are set in `src/Code.js` under `ACCEPTANCE_CONFIG`.
+These are set in `projects/Reg_Automations/src/Code.js` under `ACCEPTANCE_CONFIG`.
 
 ### Eligibility rules
 A row is eligible only if all are true:
@@ -47,7 +69,7 @@ The script auto-adds these columns to the source sheet (if missing):
 
 ## Acceptance Email Content
 
-Acceptance template is in `src/Emailtemplate.js`:
+Acceptance template is in `projects/Reg_Automations/src/Emailtemplate.js`:
 - HTML template: `getAcceptanceEmailHTML(fullName)`
 - Plain text template: `getAcceptancePlainText(fullName)`
 
@@ -123,43 +145,43 @@ Configured values:
 
 ## Core Files
 
-- `src/Code.js`
+- `projects/Reg_Automations/src/Code.js`
   - Registration flow
   - Acceptance flow config and send logic
   - Acceptance scheduler and trigger cleanup
   - Spreadsheet menu actions
 
-- `src/Emailtemplate.js`
+- `projects/Reg_Automations/src/Emailtemplate.js`
   - Registration email templates
   - Acceptance email templates
   - Shared helper functions for names and HTML escaping
 
-- `src/DataDrillDowns.js`
+- `projects/Reg_Automations/src/DataDrillDowns.js`
   - Build and maintain drill-down sheet
 
-- `src/LocationMaster.js`
+- `projects/Reg_Automations/src/LocationMaster.js`
   - Build country/state summary sheet
 
-- `src/SelectedPeople.js`
+- `projects/Reg_Automations/src/SelectedPeople.js`
   - Keep selected participants list in sync
 
-- `src/Report.js`
+- `projects/Reg_Automations/src/Report.js`
   - Build and send report email
 
 ---
 
 ## Setup and Push Commands
 
-From project directory:
+Use named project commands from repo root:
 
 ```bash
-clasp push
+.\\scripts\\clasp-project.ps1 -Project Reg_Automations -Action push
 ```
 
 Git workflow:
 
 ```bash
-git add src/Code.js src/Emailtemplate.js src/appsscript.json README.md
+git add projects/Reg_Automations/src/Code.js projects/Reg_Automations/src/Emailtemplate.js projects/Reg_Automations/src/appsscript.json README.md
 git commit -m "Update acceptance email flow and docs"
 git push origin main
 ```
@@ -174,7 +196,7 @@ This error affects terminal-based `clasp run`. It does **not** block running men
 ### Menu not showing new steps
 - Reload the spreadsheet
 - Re-open from `Extensions -> Apps Script` if needed
-- Ensure latest code is pushed with `clasp push`
+- Ensure latest code is pushed with `.\\scripts\\clasp-project.ps1 -Project Reg_Automations -Action push`
 
 ### Acceptance emails not sending
 - Confirm sheet name in `ACCEPTANCE_CONFIG.sourceSheet`
@@ -189,3 +211,4 @@ Script timezone is currently configured as:
 - `Africa/Lagos`
 
 Time-based triggers (including 6-hour acceptance retries) run in **Africa/Lagos** timezone.
+
