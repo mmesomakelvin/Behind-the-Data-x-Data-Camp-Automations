@@ -236,9 +236,30 @@ function getOnboardingSourceSheet_() {
   var sheet = ss.getSheetByName(ONBOARDING_CONFIG.sourceSheetName);
 
   if (!sheet) {
+    var targetKey = normalizeSheetNameKey_(ONBOARDING_CONFIG.sourceSheetName);
+    var sheets = ss.getSheets();
+
+    for (var i = 0; i < sheets.length; i++) {
+      if (normalizeSheetNameKey_(sheets[i].getName()) === targetKey) {
+        sheet = sheets[i];
+        break;
+      }
+    }
+  }
+
+  if (!sheet) {
+    var activeSheet = ss.getActiveSheet();
+    if (activeSheet && sheetLooksLikeOnboardingSource_(activeSheet)) {
+      sheet = activeSheet;
+    }
+  }
+
+  if (!sheet) {
+    var allSheetNames = ss.getSheets().map(function (s) { return s.getName(); });
     throw new Error(
       "Sheet not found: '" + ONBOARDING_CONFIG.sourceSheetName +
-        "'. Update ONBOARDING_CONFIG.sourceSheetName in Code.js."
+        "'. Available sheets: " + allSheetNames.join(", ") +
+        ". Update ONBOARDING_CONFIG.sourceSheetName in Code.js if needed."
     );
   }
 
@@ -300,6 +321,21 @@ function findExactHeaderIndex_(headers, label) {
 
 function normalizeEmail_(value) {
   return String(value || "").trim();
+}
+
+function sheetLooksLikeOnboardingSource_(sheet) {
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
+    return String(h || "").trim();
+  });
+
+  var emailIdx = findColumnIndexByCandidates_(headers, ONBOARDING_CONFIG.emailColumnCandidates);
+  var nameIdx = findColumnIndexByCandidates_(headers, ONBOARDING_CONFIG.nameColumnCandidates);
+  return emailIdx !== -1 && nameIdx !== -1;
+}
+
+function normalizeSheetNameKey_(name) {
+  return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function isGreenEligibleRow_(rowBackgrounds, greenMarkerIndex) {
