@@ -6,6 +6,8 @@ const ONBOARDING_CONFIG = {
   sourceSheetName: "Form_Responses",
   emailColumnCandidates: ["Email address", "Email Address", "Email", "email"],
   nameColumnCandidates: ["Full Name", "FullName", "Name"],
+  greenMarkerColumnCandidates: ["Full Name", "Name"],
+  greenHexAllowList: ["#00ff00", "#34a853", "#b7e1cd"],
   statusColumn: "Onboarding Email Status",
   errorColumn: "Onboarding Email Error",
   sentAtColumn: "Onboarding Email Sent At",
@@ -19,6 +21,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Onboarding Email Manager")
     .addItem("Send Test Onboarding Email", "sendOnboardingTestEmail")
+    .addItem("Preview Eligible Green Rows", "previewGreenEligibleRows")
     .addItem("Send Onboarding Emails (Pending)", "sendOnboardingEmails")
     .addItem("Schedule Send at 8:00 AM Today", "scheduleOnboardingEmailsFor8amToday")
     .addItem("Schedule Send at 8:00 AM Tomorrow", "scheduleOnboardingEmailsFor8amTomorrow")
@@ -47,7 +50,9 @@ function sendOnboardingTestEmail() {
 
 function sendOnboardingEmails() {
   var sheet = getOnboardingSourceSheet_();
-  var values = sheet.getDataRange().getValues();
+  var range = sheet.getDataRange();
+  var values = range.getValues();
+  var backgrounds = range.getBackgrounds();
 
   if (values.length < 2) {
     Logger.log("No data rows found in sheet: " + ONBOARDING_CONFIG.sourceSheetName);
@@ -59,6 +64,7 @@ function sendOnboardingEmails() {
 
   var emailIndex = findColumnIndexByCandidates_(statusInfo.headers, ONBOARDING_CONFIG.emailColumnCandidates);
   var nameIndex = findColumnIndexByCandidates_(statusInfo.headers, ONBOARDING_CONFIG.nameColumnCandidates);
+  var greenMarkerIndex = findColumnIndexByCandidates_(statusInfo.headers, ONBOARDING_CONFIG.greenMarkerColumnCandidates);
 
   if (emailIndex === -1) {
     throw new Error("Could not find email column. Checked: " + ONBOARDING_CONFIG.emailColumnCandidates.join(", "));
@@ -74,6 +80,7 @@ function sendOnboardingEmails() {
     var email = normalizeEmail_(row[emailIndex]);
     var fullName = nameIndex === -1 ? "" : String(row[nameIndex] || "").trim();
     var currentStatus = String(row[statusInfo.statusIndex] || "").trim().toLowerCase();
+    var rowBackgrounds = backgrounds[i] || [];
 
     if (!email) {
       sheet.getRange(rowNumber, statusInfo.statusIndex + 1).setValue("Skipped - No Email");
@@ -82,6 +89,12 @@ function sendOnboardingEmails() {
     }
 
     if (currentStatus === "sent") {
+      skipped++;
+      continue;
+    }
+
+    if (!isGreenEligibleRow_(rowBackgrounds, greenMarkerIndex)) {
+      sheet.getRange(rowNumber, statusInfo.statusIndex + 1).setValue("Skipped - Not Green");
       skipped++;
       continue;
     }
@@ -115,6 +128,51 @@ function sendOnboardingEmails() {
     "Onboarding email run completed. Sent: " + sent +
       ", Failed: " + failed +
       ", Skipped: " + skipped
+  );
+}
+
+function previewGreenEligibleRows() {
+  var sheet = getOnboardingSourceSheet_();
+  var range = sheet.getDataRange();
+  var values = range.getValues();
+  var backgrounds = range.getBackgrounds();
+
+  if (values.length < 2) {
+    Logger.log("No data rows found in sheet: " + ONBOARDING_CONFIG.sourceSheetName);
+    return;
+  }
+
+  var headers = values[0].map(function (h) { return String(h || "").trim(); });
+  var emailIndex = findColumnIndexByCandidates_(headers, ONBOARDING_CONFIG.emailColumnCandidates);
+  var greenMarkerIndex = findColumnIndexByCandidates_(headers, ONBOARDING_CONFIG.greenMarkerColumnCandidates);
+  var eligibleCount = 0;
+  var sampleRows = [];
+
+  if (emailIndex === -1) {
+    throw new Error("Could not find email column. Checked: " + ONBOARDING_CONFIG.emailColumnCandidates.join(", "));
+  }
+
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    var email = normalizeEmail_(row[emailIndex]);
+    if (!email) {
+      continue;
+    }
+
+    if (isGreenEligibleRow_(backgrounds[i] || [], greenMarkerIndex)) {
+      eligibleCount++;
+      if (sampleRows.length < 20) {
+        sampleRows.push(i + 1);
+      }
+    }
+  }
+
+  Logger.log("Eligible green rows to send: " + eligibleCount);
+  Logger.log("Sample eligible row numbers (max 20): " + sampleRows.join(", "));
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    "Eligible green rows: " + eligibleCount,
+    "Onboarding Email Manager",
+    8
   );
 }
 
@@ -242,6 +300,72 @@ function findExactHeaderIndex_(headers, label) {
 
 function normalizeEmail_(value) {
   return String(value || "").trim();
+}
+
+function isGreenEligibleRow_(rowBackgrounds, greenMarkerIndex) {
+  if (greenMarkerIndex >= 0 && greenMarkerIndex < rowBackgrounds.length) {
+    return isGreenColor_(rowBackgrounds[greenMarkerIndex]);
+  }
+
+  for (var i = 0; i < rowBackgrounds.length; i++) {
+    if (isGreenColor_(rowBackgrounds[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isGreenColor_(hexColor) {
+  var normalized = normalizeHexColor_(hexColor);
+  if (!normalized) {
+    return false;
+  }
+
+  if (ONBOARDING_CONFIG.greenHexAllowList.indexOf(normalized) !== -1) {
+    return true;
+  }
+
+  var rgb = parseHexToRgb_(normalized);
+  if (!rgb) {
+    return false;
+  }
+
+  return rgb.g >= 120 && rgb.g >= rgb.r + 30 && rgb.g >= rgb.b + 30;
+}
+
+function normalizeHexColor_(value) {
+  var raw = String(value || "").trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+
+  if (/^#[0-9a-f]{6}$/.test(raw)) {
+    return raw;
+  }
+
+  if (/^#[0-9a-f]{3}$/.test(raw)) {
+    return (
+      "#" +
+      raw.charAt(1) + raw.charAt(1) +
+      raw.charAt(2) + raw.charAt(2) +
+      raw.charAt(3) + raw.charAt(3)
+    );
+  }
+
+  return "";
+}
+
+function parseHexToRgb_(hex) {
+  var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) {
+    return null;
+  }
+
+  return {
+    r: parseInt(m[1], 16),
+    g: parseInt(m[2], 16),
+    b: parseInt(m[3], 16)
+  };
 }
 
 function buildDateAtHourForScriptDay_(referenceDate, hour24) {
