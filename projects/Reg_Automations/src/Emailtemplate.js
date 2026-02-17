@@ -114,6 +114,7 @@ Behind The Data Team`;
 const ACCEPTANCE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfqr5JO36Vo1R-HPTih64GFVGdoMBeXYPb2wcaq6yHZfmRCyg/viewform";
 const ACCEPTANCE_COMPLIANCE_DOC_URL = "https://docs.google.com/document/d/1r5aKeScDitYzioKv7fuBS3XWIEL9nXRzQKgSipVSzKM/edit?tab=t.0";
 const ACCEPTANCE_PAYMENT_DEADLINE = "Wednesday, 18 February 2026";
+const REJECTION_WAITLIST_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSddM6h1P9s2gHhjEuCaE9RyTdjmFedkqKhQKB3WQDuHJjVCbg/viewform?usp=dialog";
 
 function getAcceptanceEmailHTML(fullName) {
   const firstName = getEmailFirstName_(fullName);
@@ -283,6 +284,111 @@ ${ACCEPTANCE_COMPLIANCE_DOC_URL}
 We are excited to have you join this cohort. If you have any questions, simply reply to this email.
 
 Welcome aboard,
+Ayoade Adegbite
+Behind the Data Academy`;
+}
+
+function getRejectionEmailHTML(fullName) {
+  const firstName = getEmailFirstName_(fullName);
+  const safeFirstName = escapeEmailTemplateHtml_(firstName);
+  const safeWaitlistUrl = escapeEmailTemplateHtml_(REJECTION_WAITLIST_FORM_URL);
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Application Update</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f5f9;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:#1f2937;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f5f9;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;background-color:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb;">
+          <tr>
+            <td align="center" style="background-color:#111827;padding:24px 20px;">
+              <img src="${LOGO_URL}" alt="Behind the Data Academy" width="200" style="display:block;margin:0 auto;max-width:200px;height:auto;">
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 28px 24px 28px;">
+              <p style="margin:0 0 16px 0;font-size:18px;line-height:1.5;color:#111827;">Hello ${safeFirstName},</p>
+
+              <p style="margin:0 0 14px 0;font-size:15px;line-height:1.7;color:#374151;">
+                Thank you for taking the time to apply to the <strong>Analytics Engineering Fellowship</strong> by <strong>Behind the Data Academy</strong>.
+              </p>
+
+              <p style="margin:0 0 14px 0;font-size:15px;line-height:1.7;color:#374151;">
+                After carefully reviewing your application, we regret to inform you that you were not selected for this cohort. Due to limited slots, we are unable to admit all qualified applicants at this time.
+              </p>
+
+              <p style="margin:0 0 14px 0;font-size:15px;line-height:1.7;color:#374151;">
+                This decision is not a reflection of your potential. Many strong applicants are encouraged to reapply in future cohorts after gaining additional clarity, experience, or preparation.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 20px 0;background:#f9fafb;border:1px solid #e5e7eb;border-left:4px solid #2563eb;">
+                <tr>
+                  <td style="padding:16px 16px;">
+                    <p style="margin:0 0 10px 0;font-size:14px;line-height:1.6;color:#1f2937;">
+                      Although this cohort has already kicked off, when the next application window opens, we will give priority consideration to applicants on the waitlist.
+                    </p>
+                    <p style="margin:0;font-size:14px;line-height:1.6;color:#1f2937;">
+                      Join the waitlist here:
+                      <a href="${REJECTION_WAITLIST_FORM_URL}" style="color:#2563eb;text-decoration:underline;">${safeWaitlistUrl}</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${REJECTION_WAITLIST_FORM_URL}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600;">
+                      Join the Waitlist
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0;font-size:14px;line-height:1.7;color:#374151;">
+                We truly appreciate your interest and wish you the very best on your data journey.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#111827;padding:22px 28px;color:#d1d5db;">
+              <p style="margin:0 0 4px 0;font-size:13px;">Warm regards,</p>
+              <p style="margin:0 0 2px 0;font-size:14px;color:#ffffff;font-weight:600;">Ayoade Adegbite</p>
+              <p style="margin:0;font-size:13px;">Behind the Data Academy</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function getRejectionPlainText(fullName) {
+  const firstName = getEmailFirstName_(fullName);
+
+  return `Hello ${firstName},
+
+Thank you for taking the time to apply to the Analytics Engineering Fellowship by Behind the Data Academy.
+
+After carefully reviewing your application, we regret to inform you that you were not selected for this cohort. Due to limited slots, we are unable to admit all qualified applicants at this time.
+
+This decision is not a reflection of your potential. Many strong applicants are encouraged to reapply in future cohorts after gaining additional clarity, experience, or preparation.
+
+Although this cohort has already kicked off, when the next application window opens, we will give priority consideration to applicants on the waitlist.
+
+Join the waitlist here:
+${REJECTION_WAITLIST_FORM_URL}
+
+We truly appreciate your interest and wish you the very best on your data journey.
+
+Warm regards,
 Ayoade Adegbite
 Behind the Data Academy`;
 }

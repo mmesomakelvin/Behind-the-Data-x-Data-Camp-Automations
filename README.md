@@ -102,6 +102,24 @@ Configured values:
 - **Step 18: Clear Acceptance Send Schedule**
   - Removes existing acceptance-send triggers
 
+- **Step 19: Send Rejection Test Email**
+  - Sends one test rejection email to `REJECTION_CONFIG.testEmail`
+  - Subject is prefixed with `[TEST]`
+
+- **Step 20: Send Rejection Emails (Able to Commit = No)**
+  - Sends rejection emails only to rows where `Able to Commit = No`
+  - Uses `Selection Map`
+  - Updates `Rejection Email Status` and `Rejection Email Error`
+
+- **Step 21: Schedule Rejection Send (12:00 PM Today)**
+  - Schedules `sendRejectionEmails` for 12:00 PM today (script timezone)
+
+- **Step 22: Schedule Rejection Send (12:00 PM Tomorrow)**
+  - Fallback if 12:00 PM today has already passed
+
+- **Step 23: Clear Rejection Send Schedule**
+  - Removes existing rejection-send triggers
+
 ---
 
 ## Recommended Testing Flow (Before Sending to Everyone)
@@ -202,6 +220,12 @@ This error affects terminal-based `clasp run`. It does **not** block running men
 - Confirm sheet name in `ACCEPTANCE_CONFIG.sourceSheet`
 - Confirm required columns exist (`Email address`, `Full Name`, `Able to Commit`, `Decision`)
 - Check `Acceptance Email Error` values for row-level failures
+
+### Rejection emails not sending
+- Confirm sheet name in `REJECTION_CONFIG.sourceSheet`
+- Confirm required columns exist (`Email address`, `Full Name`, `Able to Commit`)
+- Confirm rows to send have `Able to Commit = No`
+- Check `Rejection Email Error` values for row-level failures
 
 ---
 

@@ -35,6 +35,22 @@ const ACCEPTANCE_CONFIG = {
   }
 };
 
+const REJECTION_CONFIG = {
+  sourceSheet: "Selection Map",
+  senderName: "Behind the Data Academy",
+  subject: "Update on Your Analytics Engineering Fellowship Application | Behind the Data Academy",
+  testEmail: "mmesomakelvin@gmail.com",
+  testName: "Test User",
+  triggerHour: 12,
+  headers: {
+    email: ["Email address", "Email Address", "email", "email address"],
+    fullName: ["Full Name", "full name", "Name"],
+    ableToCommit: ["Able to Commit", "able to commit"],
+    status: "Rejection Email Status",
+    error: "Rejection Email Error"
+  }
+};
+
 // =============================================
 // STEP 1: Run this first to test email
 // =============================================
@@ -289,6 +305,149 @@ function clearAcceptanceEmailSchedule() {
   notifyUser_("Removed acceptance schedule trigger(s): " + removed);
 }
 
+function sendRejectionTestEmail() {
+  const testEmail = REJECTION_CONFIG.testEmail;
+  const testName = REJECTION_CONFIG.testName;
+
+  try {
+    GmailApp.sendEmail(testEmail, "[TEST] " + REJECTION_CONFIG.subject, getRejectionPlainText(testName), {
+      name: REJECTION_CONFIG.senderName,
+      htmlBody: getRejectionEmailHTML(testName)
+    });
+    notifyUser_("Test rejection email sent to: " + testEmail);
+  } catch (error) {
+    notifyUser_("Error sending rejection test email: " + error);
+  }
+}
+
+function sendRejectionEmails() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(REJECTION_CONFIG.sourceSheet);
+  if (!sheet) {
+    notifyUser_("Sheet not found: " + REJECTION_CONFIG.sourceSheet);
+    return;
+  }
+
+  const setup = ensureRejectionColumns_(sheet);
+  if (!setup.ok) {
+    notifyUser_(setup.message || "Could not prepare columns for rejection email sending.");
+    return;
+  }
+
+  const columns = setup.columns;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    notifyUser_("No data found in: " + REJECTION_CONFIG.sourceSheet);
+    return;
+  }
+
+  const lastCol = sheet.getLastColumn();
+  const rows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  let eligible = 0;
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+  let alreadySent = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNumber = i + 2;
+    const email = row[columns.email - 1];
+    const fullName = row[columns.fullName - 1] || "";
+    const ableToCommit = row[columns.ableToCommit - 1];
+    const status = row[columns.status - 1];
+
+    if (!email || !isRejectionEligible_(ableToCommit)) {
+      skipped++;
+      continue;
+    }
+
+    eligible++;
+    if (normalizeAcceptanceValue_(status) === "sent") {
+      alreadySent++;
+      continue;
+    }
+
+    const result = sendRejectionEmail_(email, fullName);
+    if (result.ok) {
+      sheet.getRange(rowNumber, columns.status).setValue("Sent").setBackground("#c6efce").setFontColor("#006100");
+      sheet.getRange(rowNumber, columns.error).setValue("");
+      sent++;
+    } else {
+      sheet.getRange(rowNumber, columns.status).setValue("Failed").setBackground("#ffc7ce").setFontColor("#9c0006");
+      sheet.getRange(rowNumber, columns.error).setValue(truncateAcceptanceError_(result.error));
+      failed++;
+    }
+
+    Utilities.sleep(300);
+  }
+
+  notifyUser_(
+    "Rejection email run complete.\n\n" +
+    "Eligible (Able to Commit = No): " + eligible + "\n" +
+    "Sent: " + sent + "\n" +
+    "Already Sent: " + alreadySent + "\n" +
+    "Failed: " + failed + "\n" +
+    "Skipped (not eligible / no email): " + skipped
+  );
+}
+
+function scheduleRejectionEmailsAt12NoonToday() {
+  const timezone = Session.getScriptTimeZone();
+  const now = new Date();
+  const nextRun = getRunAtHourForDate_(now, REJECTION_CONFIG.triggerHour || 12);
+
+  if (nextRun.getTime() <= now.getTime()) {
+    notifyUser_(
+      "12:00 PM has already passed today (" +
+      Utilities.formatDate(now, timezone, "EEEE, d MMMM yyyy") +
+      ").\nRun Step 22 instead to schedule for tomorrow."
+    );
+    return;
+  }
+
+  const clearedCount = clearRejectionEmailSchedules_();
+  ScriptApp.newTrigger("sendRejectionEmails")
+    .timeBased()
+    .at(nextRun)
+    .create();
+
+  const formatted = Utilities.formatDate(nextRun, timezone, "EEEE, d MMMM yyyy 'at' h:mm a z");
+  notifyUser_(
+    "Rejection email trigger scheduled.\n\n" +
+    "Source sheet: " + REJECTION_CONFIG.sourceSheet + "\n" +
+    "Run time: " + formatted + "\n" +
+    "Old schedule triggers removed: " + clearedCount
+  );
+}
+
+function scheduleRejectionEmailsAt12NoonTomorrow() {
+  const timezone = Session.getScriptTimeZone();
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const nextRun = getRunAtHourForDate_(tomorrow, REJECTION_CONFIG.triggerHour || 12);
+
+  const clearedCount = clearRejectionEmailSchedules_();
+  ScriptApp.newTrigger("sendRejectionEmails")
+    .timeBased()
+    .at(nextRun)
+    .create();
+
+  const formatted = Utilities.formatDate(nextRun, timezone, "EEEE, d MMMM yyyy 'at' h:mm a z");
+  notifyUser_(
+    "Rejection email trigger scheduled.\n\n" +
+    "Source sheet: " + REJECTION_CONFIG.sourceSheet + "\n" +
+    "Run time: " + formatted + "\n" +
+    "Old schedule triggers removed: " + clearedCount
+  );
+}
+
+function clearRejectionEmailSchedule() {
+  const removed = clearRejectionEmailSchedules_();
+  notifyUser_("Removed rejection schedule trigger(s): " + removed);
+}
+
 function sendAcceptanceEmail_(email, fullName) {
   try {
     GmailApp.sendEmail(email, ACCEPTANCE_CONFIG.subject, getAcceptancePlainText(fullName), {
@@ -351,6 +510,53 @@ function ensureAcceptanceColumns_(sheet) {
   return { ok: true, columns };
 }
 
+function ensureRejectionColumns_(sheet) {
+  const initialLastCol = sheet.getLastColumn();
+  if (initialLastCol < 1) {
+    return { ok: false, message: "No headers found in: " + REJECTION_CONFIG.sourceSheet };
+  }
+
+  let headers = sheet.getRange(1, 1, 1, initialLastCol).getValues()[0];
+  const columns = {
+    email: acceptanceFindHeaderIndex_(headers, REJECTION_CONFIG.headers.email),
+    fullName: acceptanceFindHeaderIndex_(headers, REJECTION_CONFIG.headers.fullName),
+    ableToCommit: acceptanceFindHeaderIndex_(headers, REJECTION_CONFIG.headers.ableToCommit),
+    status: acceptanceFindHeaderIndex_(headers, [REJECTION_CONFIG.headers.status]),
+    error: acceptanceFindHeaderIndex_(headers, [REJECTION_CONFIG.headers.error])
+  };
+
+  const missingRequired = [];
+  if (!columns.email) missingRequired.push("Email address");
+  if (!columns.fullName) missingRequired.push("Full Name");
+  if (!columns.ableToCommit) missingRequired.push("Able to Commit");
+
+  if (missingRequired.length) {
+    return {
+      ok: false,
+      message: "Missing required columns in '" + REJECTION_CONFIG.sourceSheet + "': " + missingRequired.join(", ")
+    };
+  }
+
+  let currentLastCol = initialLastCol;
+
+  if (!columns.status) {
+    currentLastCol++;
+    sheet.getRange(1, currentLastCol).setValue(REJECTION_CONFIG.headers.status);
+    sheet.getRange(1, currentLastCol).setFontWeight("bold");
+    columns.status = currentLastCol;
+  }
+
+  if (!columns.error) {
+    currentLastCol++;
+    sheet.getRange(1, currentLastCol).setValue(REJECTION_CONFIG.headers.error);
+    sheet.getRange(1, currentLastCol).setFontWeight("bold");
+    sheet.setColumnWidth(currentLastCol, 360);
+    columns.error = currentLastCol;
+  }
+
+  return { ok: true, columns };
+}
+
 function acceptanceFindHeaderIndex_(headers, candidates) {
   if (!headers || !headers.length) return 0;
   const normalizedHeaders = headers.map(value => normalizeAcceptanceValue_(value));
@@ -365,6 +571,10 @@ function acceptanceFindHeaderIndex_(headers, candidates) {
 function isAcceptanceEligible_(ableToCommit, decision) {
   return normalizeAcceptanceValue_(ableToCommit) === "yes" &&
     normalizeAcceptanceValue_(decision) === "yes";
+}
+
+function isRejectionEligible_(ableToCommit) {
+  return normalizeAcceptanceValue_(ableToCommit) === "no";
 }
 
 function normalizeAcceptanceValue_(value) {
@@ -386,6 +596,30 @@ function clearAcceptanceEmailSchedules_() {
   return removed;
 }
 
+function clearRejectionEmailSchedules_() {
+  let removed = 0;
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === "sendRejectionEmails") {
+      ScriptApp.deleteTrigger(trigger);
+      removed++;
+    }
+  });
+  return removed;
+}
+
+function sendRejectionEmail_(email, fullName) {
+  try {
+    GmailApp.sendEmail(email, REJECTION_CONFIG.subject, getRejectionPlainText(fullName), {
+      name: REJECTION_CONFIG.senderName,
+      htmlBody: getRejectionEmailHTML(fullName)
+    });
+    return { ok: true, error: "" };
+  } catch (error) {
+    Logger.log("Error sending rejection email to " + email + ": " + error);
+    return { ok: false, error: String(error) };
+  }
+}
+
 function getNextAcceptanceRunAtHour_(hour24) {
   const timezone = Session.getScriptTimeZone();
   const now = new Date();
@@ -402,6 +636,13 @@ function getNextAcceptanceRunAtHour_(hour24) {
   }
 
   return target;
+}
+
+function getRunAtHourForDate_(referenceDate, hour24) {
+  const timezone = Session.getScriptTimeZone();
+  const ymd = Utilities.formatDate(referenceDate, timezone, "yyyy-MM-dd");
+  const offset = Utilities.formatDate(referenceDate, timezone, "XXX");
+  return new Date(ymd + "T" + pad2_(hour24) + ":00:00" + offset);
 }
 
 function pad2_(value) {
@@ -512,6 +753,11 @@ function onOpen() {
     .addItem("Step 16: Send Acceptance Emails (Eligible Only)", "sendAcceptanceEmails")
     .addItem("Step 17: Schedule Acceptance Retry (Every 6 Hours)", "scheduleAcceptanceEmailsEvery6Hours")
     .addItem("Step 18: Clear Acceptance Send Schedule", "clearAcceptanceEmailSchedule")
+    .addItem("Step 19: Send Rejection Test Email", "sendRejectionTestEmail")
+    .addItem("Step 20: Send Rejection Emails (Able to Commit = No)", "sendRejectionEmails")
+    .addItem("Step 21: Schedule Rejection Send (12:00 PM Today)", "scheduleRejectionEmailsAt12NoonToday")
+    .addItem("Step 22: Schedule Rejection Send (12:00 PM Tomorrow)", "scheduleRejectionEmailsAt12NoonTomorrow")
+    .addItem("Step 23: Clear Rejection Send Schedule", "clearRejectionEmailSchedule")
     .addToUi();
 }
 
