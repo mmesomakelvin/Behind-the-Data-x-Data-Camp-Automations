@@ -22,6 +22,12 @@ Apps Script project folder for the payment receipt/onboarding workflow.
 3. Confirm the test email in: `mmesomakelvin@gmail.com`.
 4. Reload the Google Sheet and use menu: `Onboarding Email Manager` -> `Send Onboarding Emails (Pending)`.
 
+## Schedule send at 8:00 AM
+1. Open Apps Script for this sheet/project.
+2. Run `scheduleOnboardingEmailsFor8amToday`.
+3. If 8:00 AM has already passed for today, run `scheduleOnboardingEmailsFor8amTomorrow`.
+4. To remove any existing schedule, run `clearOnboardingSendSchedule`.
+
 ## Push commands
 - Push this project:
   - `.\\scripts\\clasp-project.ps1 -Project Payment_Receipt_Onboarding -Action push`

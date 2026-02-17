@@ -9,6 +9,7 @@ const ONBOARDING_CONFIG = {
   statusColumn: "Onboarding Email Status",
   errorColumn: "Onboarding Email Error",
   sentAtColumn: "Onboarding Email Sent At",
+  scheduleHour24: 8,
   testEmail: "mmesomakelvin@gmail.com",
   senderName: "Behind the Data Academy",
   subject: "Alpha Cohort Onboarding Details - Behind the Data Academy"
@@ -19,6 +20,9 @@ function onOpen() {
     .createMenu("Onboarding Email Manager")
     .addItem("Send Test Onboarding Email", "sendOnboardingTestEmail")
     .addItem("Send Onboarding Emails (Pending)", "sendOnboardingEmails")
+    .addItem("Schedule Send at 8:00 AM Today", "scheduleOnboardingEmailsFor8amToday")
+    .addItem("Schedule Send at 8:00 AM Tomorrow", "scheduleOnboardingEmailsFor8amTomorrow")
+    .addItem("Clear Scheduled Send Trigger", "clearOnboardingSendSchedule")
     .addItem("Preview Onboarding Email HTML (Logs)", "previewOnboardingEmailHtml")
     .addToUi();
 }
@@ -118,6 +122,57 @@ function previewOnboardingEmailHtml() {
   Logger.log(getOnboardingEmailHtml("Fellow"));
 }
 
+function scheduleOnboardingEmailsFor8amToday() {
+  var now = new Date();
+  var targetAt = buildDateAtHourForScriptDay_(now, ONBOARDING_CONFIG.scheduleHour24);
+  var tz = Session.getScriptTimeZone();
+
+  if (now.getTime() >= targetAt.getTime()) {
+    throw new Error(
+      "8:00 AM has already passed for today (" +
+        Utilities.formatDate(now, tz, "yyyy-MM-dd") +
+        "). Run scheduleOnboardingEmailsFor8amTomorrow instead."
+    );
+  }
+
+  clearOnboardingSendSchedule();
+  ScriptApp.newTrigger("sendOnboardingEmails").timeBased().at(targetAt).create();
+
+  Logger.log(
+    "Scheduled sendOnboardingEmails for " +
+      Utilities.formatDate(targetAt, tz, "EEEE, MMMM d, yyyy h:mm a")
+  );
+}
+
+function scheduleOnboardingEmailsFor8amTomorrow() {
+  var tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  var targetAt = buildDateAtHourForScriptDay_(tomorrow, ONBOARDING_CONFIG.scheduleHour24);
+  var tz = Session.getScriptTimeZone();
+
+  clearOnboardingSendSchedule();
+  ScriptApp.newTrigger("sendOnboardingEmails").timeBased().at(targetAt).create();
+
+  Logger.log(
+    "Scheduled sendOnboardingEmails for " +
+      Utilities.formatDate(targetAt, tz, "EEEE, MMMM d, yyyy h:mm a")
+  );
+}
+
+function clearOnboardingSendSchedule() {
+  var triggers = ScriptApp.getProjectTriggers();
+  var removed = 0;
+
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === "sendOnboardingEmails") {
+      ScriptApp.deleteTrigger(triggers[i]);
+      removed++;
+    }
+  }
+
+  Logger.log("Removed onboarding send triggers: " + removed);
+}
+
 function getOnboardingSourceSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(ONBOARDING_CONFIG.sourceSheetName);
@@ -187,4 +242,19 @@ function findExactHeaderIndex_(headers, label) {
 
 function normalizeEmail_(value) {
   return String(value || "").trim();
+}
+
+function buildDateAtHourForScriptDay_(referenceDate, hour24) {
+  var tz = Session.getScriptTimeZone();
+  var dayStamp = Utilities.formatDate(referenceDate, tz, "yyyy-MM-dd");
+  var offsetRaw = Utilities.formatDate(referenceDate, tz, "Z");
+  var offset = offsetRaw.substring(0, 3) + ":" + offsetRaw.substring(3);
+  var hour = pad2_(hour24);
+  var iso = dayStamp + "T" + hour + ":00:00" + offset;
+
+  return new Date(iso);
+}
+
+function pad2_(value) {
+  return value < 10 ? "0" + String(value) : String(value);
 }
