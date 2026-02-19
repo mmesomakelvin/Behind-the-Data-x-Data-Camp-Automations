@@ -172,17 +172,13 @@ function disableInstantGreenSendTrigger() {
 
 function onOnboardingSheetChange(e) {
   var changeType = e && e.changeType ? String(e.changeType).toUpperCase() : "";
-  if (changeType && changeType !== "FORMAT") {
-    return;
-  }
+  var allowedChangeTypes = {
+    FORMAT: true,
+    EDIT: true,
+    OTHER: true
+  };
 
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sourceSheet = getOnboardingSourceSheet_();
-  var activeSheet = ss.getActiveSheet();
-  if (
-    activeSheet &&
-    normalizeSheetNameKey_(activeSheet.getName()) !== normalizeSheetNameKey_(sourceSheet.getName())
-  ) {
+  if (changeType && !allowedChangeTypes[changeType]) {
     return;
   }
 
