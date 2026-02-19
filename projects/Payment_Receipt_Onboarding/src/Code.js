@@ -23,6 +23,8 @@ function onOpen() {
     .addItem("Send Test Onboarding Email", "sendOnboardingTestEmail")
     .addItem("Preview Eligible Green Rows", "previewGreenEligibleRows")
     .addItem("Send Onboarding Emails (Pending)", "sendOnboardingEmails")
+    .addItem("Enable Instant Green Trigger", "enableInstantGreenSendTrigger")
+    .addItem("Disable Instant Green Trigger", "disableInstantGreenSendTrigger")
     .addItem("Schedule Send at 8:00 AM Today", "scheduleOnboardingEmailsFor8amToday")
     .addItem("Schedule Send at 8:00 AM Tomorrow", "scheduleOnboardingEmailsFor8amTomorrow")
     .addItem("Clear Scheduled Send Trigger", "clearOnboardingSendSchedule")
@@ -129,6 +131,72 @@ function sendOnboardingEmails() {
       ", Failed: " + failed +
       ", Skipped: " + skipped
   );
+}
+
+function enableInstantGreenSendTrigger() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var triggers = ScriptApp.getProjectTriggers();
+  var exists = false;
+
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === "onOnboardingSheetChange") {
+      exists = true;
+      break;
+    }
+  }
+
+  if (!exists) {
+    ScriptApp.newTrigger("onOnboardingSheetChange").forSpreadsheet(ss).onChange().create();
+    Logger.log("Instant green trigger enabled.");
+  } else {
+    Logger.log("Instant green trigger already enabled.");
+  }
+
+  sendOnboardingEmails();
+  Logger.log("Catch-up send run completed for already-green rows.");
+}
+
+function disableInstantGreenSendTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  var removed = 0;
+
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === "onOnboardingSheetChange") {
+      ScriptApp.deleteTrigger(triggers[i]);
+      removed++;
+    }
+  }
+
+  Logger.log("Removed instant green triggers: " + removed);
+}
+
+function onOnboardingSheetChange(e) {
+  var changeType = e && e.changeType ? String(e.changeType).toUpperCase() : "";
+  if (changeType && changeType !== "FORMAT") {
+    return;
+  }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = getOnboardingSourceSheet_();
+  var activeSheet = ss.getActiveSheet();
+  if (
+    activeSheet &&
+    normalizeSheetNameKey_(activeSheet.getName()) !== normalizeSheetNameKey_(sourceSheet.getName())
+  ) {
+    return;
+  }
+
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) {
+    Logger.log("Skipped instant send run: could not acquire lock.");
+    return;
+  }
+
+  try {
+    sendOnboardingEmails();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function previewGreenEligibleRows() {

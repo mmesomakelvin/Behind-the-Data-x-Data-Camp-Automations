@@ -5,6 +5,7 @@ Apps Script project folder for the payment receipt/onboarding workflow.
 ## What this project does
 - Sends a standard onboarding email to people in the source sheet.
 - Sends only rows marked with green fill in the marker column (`Full Name` by default).
+- Can auto-send immediately when a row is formatted green (installable trigger).
 - Adds send tracking columns automatically:
   - `Onboarding Email Status`
   - `Onboarding Email Error`
@@ -35,6 +36,22 @@ Apps Script project folder for the payment receipt/onboarding workflow.
 4. To remove any existing schedule, run `clearOnboardingSendSchedule`.
 
 Note: Scheduled sends also respect the green-row rule.
+
+## Instant send when row is colored green
+1. Open Apps Script for this project.
+2. Run `enableInstantGreenSendTrigger` once (authorize if prompted).
+3. This does two things:
+   - Installs an `onChange` trigger (`FORMAT`) so green-format actions auto-run pending sends.
+   - Runs an immediate catch-up send for already-green rows that are not `Sent`.
+4. To disable this behavior, run `disableInstantGreenSendTrigger`.
+
+## How to test instant trigger
+1. Pick a test row with your own email and ensure status is not `Sent`.
+2. Color the marker cell (usually `Full Name`) bright green.
+3. Wait a few seconds, then check:
+   - `Onboarding Email Status` becomes `Sent`
+   - `Onboarding Email Sent At` gets a timestamp
+4. If it does not send, open Apps Script -> Executions and check the latest `onOnboardingSheetChange` run.
 
 ## Push commands
 - Push this project:
