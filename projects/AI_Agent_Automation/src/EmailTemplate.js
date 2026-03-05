@@ -66,22 +66,22 @@ function getAiAgentsAcceptanceEmailHtml(fullName) {
                   "</tr>" +
                 "</table>" +
 
-                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">2) Complete the Cohort Acceptance Form (after payment)</h3>" +
-                "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:0 0 16px 0;\"><tr><td align=\"center\">" +
-                  "<a href=\"" + AI_AGENTS_ACCEPTANCE_FORM_LINK + "\" style=\"display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600;\">Open Acceptance Form</a>" +
-                "</td></tr></table>" +
-
-                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">3) Sign the Compliance Document and upload it in your form submission</h3>" +
+                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">2) Sign the Compliance Document</h3>" +
                 "<p style=\"margin:0 0 12px 0;font-size:14px;line-height:1.7;color:#374151;\">" +
-                  "Please make a copy, sign, download, and upload it when submitting your acceptance form. Read through carefully so you understand what is expected." +
+                  "Please make a copy, sign, and download it. Read through carefully so you understand what is expected." +
                 "</p>" +
                 "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:0 0 16px 0;\"><tr><td align=\"center\">" +
                   "<a href=\"" + AI_AGENTS_COMPLIANCE_LINK + "\" style=\"display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600;\">Open Compliance Document</a>" +
                 "</td></tr></table>" +
 
+                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">3) Complete the Cohort Acceptance Form and upload your signed compliance document</h3>" +
+                "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:0 0 16px 0;\"><tr><td align=\"center\">" +
+                  "<a href=\"" + AI_AGENTS_ACCEPTANCE_FORM_LINK + "\" style=\"display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600;\">Open Acceptance Form</a>" +
+                "</td></tr></table>" +
+
                 "<p style=\"margin:0 0 8px 0;font-size:12px;line-height:1.6;color:#6b7280;\">If any button does not open, use these direct links:</p>" +
-                "<p style=\"margin:0 0 6px 0;font-size:12px;line-height:1.6;word-break:break-all;\"><a href=\"" + AI_AGENTS_ACCEPTANCE_FORM_LINK + "\" style=\"color:#0f766e;\">" + safeAcceptanceLink + "</a></p>" +
                 "<p style=\"margin:0 0 16px 0;font-size:12px;line-height:1.6;word-break:break-all;\"><a href=\"" + AI_AGENTS_COMPLIANCE_LINK + "\" style=\"color:#7c3aed;\">" + safeComplianceLink + "</a></p>" +
+                "<p style=\"margin:0 0 16px 0;font-size:12px;line-height:1.6;word-break:break-all;\"><a href=\"" + AI_AGENTS_ACCEPTANCE_FORM_LINK + "\" style=\"color:#0f766e;\">" + safeAcceptanceLink + "</a></p>" +
 
                 "<p style=\"margin:0;font-size:14px;line-height:1.75;color:#374151;\">" +
                   "We are excited to have you join this cohort and look forward to working with you over the next few months. If you have any questions, simply reply to this email." +
@@ -119,11 +119,11 @@ function getAiAgentsAcceptancePlainText(fullName) {
     "Account Name: BEHIND THE DATA LTD\n" +
     "Account Number: 1308690832\n" +
     "Bank: Providus Bank\n\n" +
-    "2) Complete the Cohort Acceptance Form (after payment):\n" +
-    AI_AGENTS_ACCEPTANCE_FORM_LINK + "\n\n" +
-    "3) Sign the Compliance Document and upload it in your form submission:\n" +
+    "2) Sign the Compliance Document:\n" +
     AI_AGENTS_COMPLIANCE_LINK + "\n\n" +
-    "Please make a copy, sign, download, and upload it when submitting your acceptance form.\n\n" +
+    "Please make a copy, sign, and download it.\n\n" +
+    "3) Complete the Cohort Acceptance Form and upload your signed compliance document:\n" +
+    AI_AGENTS_ACCEPTANCE_FORM_LINK + "\n\n" +
     "We are excited to have you join this cohort and look forward to working with you over the next few months. If you have any questions, simply reply to this email.\n\n" +
     "Welcome aboard,\n" +
     "Ayoade Adegbite\n" +
