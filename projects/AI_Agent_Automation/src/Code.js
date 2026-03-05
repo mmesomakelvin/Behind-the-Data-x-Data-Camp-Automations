@@ -24,6 +24,7 @@ const REGISTRATION_CONFIG = {
   emailSubject: "You are Accepted: Applied AI Development Bootcamp Scholarship",
   triggerHandlerFunction: "handleRegistrationSubmit",
   defaultTestEmail: "mmesomakelvin@gmail.com",
+  testEmailProperty: "TEST_EMAIL_RECIPIENT",
   phoneWebhookUrlProperty: "PHONE_WEBHOOK_URL",
   phoneWebhookTokenProperty: "PHONE_WEBHOOK_TOKEN"
 };
@@ -33,6 +34,7 @@ function onOpen() {
     .createMenu("AI Agents Automation")
     .addItem("Open Automation Buttons", "openAutomationButtons")
     .addSeparator()
+    .addItem("Set Test Email Recipient", "setTestEmailRecipient")
     .addItem("Setup Automation + Trigger", "setupRegistrationAutomation")
     .addItem("Install Auto Trigger", "installRegistrationTrigger")
     .addItem("Clear Auto Trigger", "clearRegistrationTrigger")
@@ -144,10 +146,7 @@ function processExistingRegistrations() {
 }
 
 function sendRegistrationTestEmail() {
-  let testEmail = Session.getActiveUser().getEmail();
-  if (!testEmail) {
-    testEmail = REGISTRATION_CONFIG.defaultTestEmail;
-  }
+  const testEmail = getTestEmailRecipient_();
 
   GmailApp.sendEmail(
     testEmail,
@@ -160,6 +159,40 @@ function sendRegistrationTestEmail() {
   );
 
   logAndToast_("Test email sent to: " + testEmail);
+}
+
+function setTestEmailRecipient() {
+  const ui = SpreadsheetApp.getUi();
+  const currentEmail = getTestEmailRecipient_();
+  const response = ui.prompt(
+    "Set Test Email Recipient",
+    "Enter the email address for test sends.\nCurrent: " + currentEmail,
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) {
+    return;
+  }
+
+  const email = String(response.getResponseText() || "").trim().toLowerCase();
+  if (!isValidEmail_(email)) {
+    ui.alert("Please enter a valid email address.");
+    return;
+  }
+
+  PropertiesService.getScriptProperties().setProperty(REGISTRATION_CONFIG.testEmailProperty, email);
+  logAndToast_("Test email recipient saved: " + email);
+}
+
+function saveTestEmailRecipient(email) {
+  const clean = String(email || "").trim().toLowerCase();
+  if (!isValidEmail_(clean)) {
+    throw new Error("Please enter a valid email address.");
+  }
+
+  PropertiesService.getScriptProperties().setProperty(REGISTRATION_CONFIG.testEmailProperty, clean);
+  logAndToast_("Test email recipient saved: " + clean);
+  return clean;
 }
 
 function processRow_(sourceSheet, mailSheet, columns, rowNumber, existingKeys) {
@@ -411,6 +444,24 @@ function withScriptLock_(callback) {
 
 function getScriptProperty_(name) {
   return PropertiesService.getScriptProperties().getProperty(name);
+}
+
+function getTestEmailRecipient_() {
+  const saved = getScriptProperty_(REGISTRATION_CONFIG.testEmailProperty);
+  if (saved && isValidEmail_(saved)) {
+    return saved;
+  }
+
+  const userEmail = Session.getActiveUser().getEmail();
+  if (userEmail && isValidEmail_(userEmail)) {
+    return userEmail;
+  }
+
+  return REGISTRATION_CONFIG.defaultTestEmail;
+}
+
+function isValidEmail_(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
 function logAndToast_(message) {

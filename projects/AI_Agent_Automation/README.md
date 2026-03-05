@@ -43,6 +43,7 @@ If not set, email still sends and status notes phone as pending setup.
 ## Menu Actions
 
 - `Open Automation Buttons`
+- `Set Test Email Recipient`
 - `Setup Automation + Trigger`
 - `Process Existing Rows`
 - `Send Test Acceptance Email`
