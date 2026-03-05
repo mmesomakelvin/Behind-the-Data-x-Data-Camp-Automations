@@ -1,6 +1,6 @@
 # AI_Agent_Automation
 
-Apps Script project folder for registration notification automation in Google Sheets.
+Apps Script project folder for Applied AI acceptance automation in Google Sheets.
 
 ## Script ID
 
@@ -9,8 +9,8 @@ Apps Script project folder for registration notification automation in Google Sh
 ## What This Project Does
 
 - Watches new form-registration rows (auto trigger)
-- Sends a confirmation email to the registrant
-- Optionally sends a WhatsApp message if API is configured
+- Sends an acceptance email to the registrant
+- Optionally sends a phone notification if a webhook is configured
 - Moves successful email sends to `Mail sent`
 - Writes these columns in `Mail sent`:
   - `Email address`
@@ -31,20 +31,21 @@ Supported source-sheet names include:
 - `Form Responses 1`
 - `Form_Responses`
 
-## Optional Script Properties (for WhatsApp)
+## Optional Script Properties (for phone notification)
 
 Set these in Apps Script -> Project Settings -> Script properties:
 
-- `WHATSAPP_API_URL`
-- `WHATSAPP_API_TOKEN`
+- `PHONE_WEBHOOK_URL`
+- `PHONE_WEBHOOK_TOKEN`
 
-If not set, email still sends and status notes WhatsApp as skipped.
+If not set, email still sends and status notes phone as pending setup.
 
 ## Menu Actions
 
+- `Open Automation Buttons`
 - `Setup Automation + Trigger`
 - `Process Existing Rows`
-- `Send Test Email`
+- `Send Test Acceptance Email`
 - `Install Auto Trigger`
 - `Clear Auto Trigger`
 

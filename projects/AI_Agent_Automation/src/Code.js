@@ -1,5 +1,5 @@
 /**
- * Registration notification automation.
+ * AI Agents registration automation.
  * Project: AI_Agent_Automation
  */
 const REGISTRATION_CONFIG = {
@@ -13,7 +13,7 @@ const REGISTRATION_CONFIG = {
   ],
   emailColumnCandidates: ["Email address", "Email Address", "Email", "email"],
   fullNameColumnCandidates: ["Full Name", "FullName", "Name"],
-  whatsappColumnCandidates: [
+  phoneColumnCandidates: [
     "WhatsApp Number (Include country code)",
     "WhatsApp Number",
     "Whatsapp Number",
@@ -21,39 +21,45 @@ const REGISTRATION_CONFIG = {
     "Phone"
   ],
   senderName: "Behind the Data Academy",
-  emailSubject: "Thank You for Registering - Behind the Data Academy",
+  emailSubject: "You are Accepted: Applied AI Development Bootcamp Scholarship",
   triggerHandlerFunction: "handleRegistrationSubmit",
-  defaultTestEmail: "mmesomakelvin@gmail.com"
-};
-
-const WHATSAPP_CONFIG = {
-  apiUrlProperty: "WHATSAPP_API_URL",
-  apiTokenProperty: "WHATSAPP_API_TOKEN"
+  defaultTestEmail: "mmesomakelvin@gmail.com",
+  phoneWebhookUrlProperty: "PHONE_WEBHOOK_URL",
+  phoneWebhookTokenProperty: "PHONE_WEBHOOK_TOKEN"
 };
 
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu("Registration Automation")
+    .createMenu("AI Agents Automation")
+    .addItem("Open Automation Buttons", "openAutomationButtons")
+    .addSeparator()
     .addItem("Setup Automation + Trigger", "setupRegistrationAutomation")
-    .addItem("Process Existing Rows", "processExistingRegistrations")
-    .addItem("Send Test Email", "sendRegistrationTestEmail")
     .addItem("Install Auto Trigger", "installRegistrationTrigger")
     .addItem("Clear Auto Trigger", "clearRegistrationTrigger")
+    .addSeparator()
+    .addItem("Process Existing Rows", "processExistingRegistrations")
+    .addItem("Send Test Acceptance Email", "sendRegistrationTestEmail")
     .addToUi();
+}
+
+function openAutomationButtons() {
+  const html = HtmlService.createHtmlOutputFromFile("AutomationButtons")
+    .setTitle("AI Agents Automation");
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 function setupRegistrationAutomation() {
   const sourceSheet = getRegistrationSourceSheet_();
   ensureMailSentSheet_();
   installRegistrationTrigger();
-  Logger.log("Setup complete. Source sheet: " + sourceSheet.getName());
+  logAndToast_("Setup complete. Source sheet: " + sourceSheet.getName());
 }
 
 function installRegistrationTrigger() {
   const triggers = ScriptApp.getProjectTriggers();
   for (let i = 0; i < triggers.length; i++) {
     if (triggers[i].getHandlerFunction() === REGISTRATION_CONFIG.triggerHandlerFunction) {
-      Logger.log("Auto trigger already exists.");
+      logAndToast_("Auto trigger already exists.");
       return;
     }
   }
@@ -63,7 +69,7 @@ function installRegistrationTrigger() {
     .onFormSubmit()
     .create();
 
-  Logger.log("Auto trigger installed for new form registrations.");
+  logAndToast_("Auto trigger installed for new form submissions.");
 }
 
 function clearRegistrationTrigger() {
@@ -77,7 +83,7 @@ function clearRegistrationTrigger() {
     }
   }
 
-  Logger.log("Removed registration triggers: " + removed);
+  logAndToast_("Removed registration triggers: " + removed);
 }
 
 function handleRegistrationSubmit(e) {
@@ -110,7 +116,7 @@ function processExistingRegistrations() {
     const lastRow = sheet.getLastRow();
 
     if (lastRow < 2) {
-      Logger.log("No registration rows found in source sheet.");
+      logAndToast_("No registration rows found in source sheet.");
       return;
     }
 
@@ -129,7 +135,7 @@ function processExistingRegistrations() {
       }
     }
 
-    Logger.log(
+    logAndToast_(
       "Existing-row run complete. Sent: " + sent +
       ", Failed: " + failed +
       ", Skipped: " + skipped
@@ -146,70 +152,71 @@ function sendRegistrationTestEmail() {
   GmailApp.sendEmail(
     testEmail,
     "[TEST] " + REGISTRATION_CONFIG.emailSubject,
-    getRegistrationEmailPlainText_("Test User"),
+    getAiAgentsAcceptancePlainText("Test User"),
     {
-      htmlBody: getRegistrationEmailHtml_("Test User"),
+      htmlBody: getAiAgentsAcceptanceEmailHtml("Test User"),
       name: REGISTRATION_CONFIG.senderName
     }
   );
 
-  Logger.log("Test email sent to: " + testEmail);
+  logAndToast_("Test email sent to: " + testEmail);
 }
 
 function processRow_(sourceSheet, mailSheet, columns, rowNumber, existingKeys) {
   const row = sourceSheet.getRange(rowNumber, 1, 1, sourceSheet.getLastColumn()).getValues()[0];
   const email = normalizeEmail_(row[columns.emailIndex]);
   const fullName = String(row[columns.fullNameIndex] || "").trim();
-  const whatsappNumber = normalizeWhatsapp_(row[columns.whatsappIndex]);
+  const phoneNumber = normalizePhone_(row[columns.phoneIndex]);
 
   if (!email) {
     return { status: "skipped", message: "Missing email" };
   }
 
-  const mailKey = buildMailKey_(email, fullName, whatsappNumber);
+  const mailKey = buildMailKey_(email, fullName, phoneNumber);
   if (existingKeys[mailKey]) {
     return { status: "skipped", message: "Already logged in Mail sent" };
   }
 
   try {
-    sendRegistrationEmail_(email, fullName);
-    const whatsappStatus = sendWhatsappIfConfigured_(whatsappNumber, fullName, email);
-    appendMailSentRow_(mailSheet, email, fullName, whatsappNumber, whatsappStatus);
+    sendAcceptanceEmail_(email, fullName);
+    const phoneResult = sendPhoneNotificationIfConfigured_(phoneNumber, fullName, email);
+    const statusText = buildStatusText_(phoneResult);
+    appendMailSentRow_(mailSheet, email, fullName, phoneNumber, statusText);
     existingKeys[mailKey] = true;
-    return { status: "sent", message: whatsappStatus };
+    return { status: "sent", message: statusText };
   } catch (err) {
     return { status: "failed", message: String(err) };
   }
 }
 
-function sendRegistrationEmail_(email, fullName) {
+function sendAcceptanceEmail_(email, fullName) {
   GmailApp.sendEmail(
     email,
     REGISTRATION_CONFIG.emailSubject,
-    getRegistrationEmailPlainText_(fullName),
+    getAiAgentsAcceptancePlainText(fullName),
     {
-      htmlBody: getRegistrationEmailHtml_(fullName),
+      htmlBody: getAiAgentsAcceptanceEmailHtml(fullName),
       name: REGISTRATION_CONFIG.senderName
     }
   );
 }
 
-function sendWhatsappIfConfigured_(whatsappNumber, fullName, email) {
-  if (!whatsappNumber) {
-    return "Email Sent | WhatsApp Skipped - No Number";
+function sendPhoneNotificationIfConfigured_(phoneNumber, fullName, email) {
+  if (!phoneNumber) {
+    return { code: "no_phone" };
   }
 
-  const apiUrl = getScriptProperty_(WHATSAPP_CONFIG.apiUrlProperty);
-  if (!apiUrl) {
-    return "Email Sent | WhatsApp Skipped - API Not Configured";
+  const webhookUrl = getScriptProperty_(REGISTRATION_CONFIG.phoneWebhookUrlProperty);
+  if (!webhookUrl) {
+    return { code: "no_webhook" };
   }
 
-  const apiToken = getScriptProperty_(WHATSAPP_CONFIG.apiTokenProperty);
+  const webhookToken = getScriptProperty_(REGISTRATION_CONFIG.phoneWebhookTokenProperty);
   const payload = {
-    to: whatsappNumber,
-    message: getWhatsappMessage_(fullName),
+    to: phoneNumber,
     fullName: fullName,
-    email: email
+    email: email,
+    message: getAiAgentsPhoneMessage(fullName)
   };
 
   const requestOptions = {
@@ -219,24 +226,37 @@ function sendWhatsappIfConfigured_(whatsappNumber, fullName, email) {
     muteHttpExceptions: true
   };
 
-  if (apiToken) {
-    requestOptions.headers = { Authorization: "Bearer " + apiToken };
+  if (webhookToken) {
+    requestOptions.headers = { Authorization: "Bearer " + webhookToken };
   }
 
   try {
-    const response = UrlFetchApp.fetch(apiUrl, requestOptions);
-    const responseCode = response.getResponseCode();
-    if (responseCode >= 300) {
-      return "Email Sent | WhatsApp Failed (" + responseCode + ")";
+    const response = UrlFetchApp.fetch(webhookUrl, requestOptions);
+    const code = response.getResponseCode();
+    if (code >= 200 && code < 300) {
+      return { code: "sent" };
     }
-    return "Email Sent | WhatsApp Sent";
+    return { code: "failed", detail: "HTTP " + code };
   } catch (err) {
-    return "Email Sent | WhatsApp Failed";
+    return { code: "failed", detail: String(err) };
   }
 }
 
-function appendMailSentRow_(sheet, email, fullName, whatsappNumber, status) {
-  sheet.appendRow([email, fullName, whatsappNumber, status]);
+function buildStatusText_(phoneResult) {
+  if (phoneResult.code === "sent") {
+    return "Email Sent | Phone Sent";
+  }
+  if (phoneResult.code === "no_phone") {
+    return "Email Sent | No Phone Number";
+  }
+  if (phoneResult.code === "no_webhook") {
+    return "Email Sent | Phone Pending Setup";
+  }
+  return "Email Sent | Phone Failed";
+}
+
+function appendMailSentRow_(sheet, email, fullName, phoneNumber, status) {
+  sheet.appendRow([email, fullName, phoneNumber, status]);
 }
 
 function ensureMailSentSheet_() {
@@ -250,7 +270,7 @@ function ensureMailSentSheet_() {
   const headers = REGISTRATION_CONFIG.mailSentHeaders;
   const shouldWriteHeaders = sheet.getLastRow() < 1 || !isHeaderRowMatch_(sheet, headers);
   if (shouldWriteHeaders) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#e8eefc");
     sheet.setFrozenRows(1);
   }
 
@@ -311,29 +331,27 @@ function getSourceColumnIndexes_(sheet) {
 
   const emailIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.emailColumnCandidates);
   const fullNameIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.fullNameColumnCandidates);
-  const whatsappIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.whatsappColumnCandidates);
+  const phoneIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.phoneColumnCandidates);
 
-  if (emailIndex === -1 || fullNameIndex === -1 || whatsappIndex === -1) {
+  if (emailIndex === -1 || fullNameIndex === -1 || phoneIndex === -1) {
     throw new Error("Required columns not found in sheet: " + sheet.getName());
   }
 
   return {
     emailIndex: emailIndex,
     fullNameIndex: fullNameIndex,
-    whatsappIndex: whatsappIndex
+    phoneIndex: phoneIndex
   };
 }
 
 function findColumnIndexByCandidates_(headers, candidates) {
   const normalizedHeaders = headers.map(function (h) { return normalizeHeader_(h); });
-
   for (let i = 0; i < candidates.length; i++) {
     const idx = normalizedHeaders.indexOf(normalizeHeader_(candidates[i]));
     if (idx !== -1) {
       return idx;
     }
   }
-
   return -1;
 }
 
@@ -348,20 +366,20 @@ function getExistingMailSentKeys_(sheet) {
   for (let i = 0; i < rows.length; i++) {
     const email = normalizeEmail_(rows[i][0]);
     const fullName = String(rows[i][1] || "").trim();
-    const whatsapp = normalizeWhatsapp_(rows[i][2]);
+    const phone = normalizePhone_(rows[i][2]);
     if (!email) {
       continue;
     }
-    keys[buildMailKey_(email, fullName, whatsapp)] = true;
+    keys[buildMailKey_(email, fullName, phone)] = true;
   }
   return keys;
 }
 
-function buildMailKey_(email, fullName, whatsappNumber) {
+function buildMailKey_(email, fullName, phoneNumber) {
   return [
     normalizeEmail_(email),
     normalizeHeader_(fullName),
-    normalizeWhatsapp_(whatsappNumber)
+    normalizePhone_(phoneNumber)
   ].join("|");
 }
 
@@ -369,7 +387,7 @@ function normalizeEmail_(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function normalizeWhatsapp_(value) {
+function normalizePhone_(value) {
   return String(value || "").trim().replace(/\s+/g, "");
 }
 
@@ -395,52 +413,11 @@ function getScriptProperty_(name) {
   return PropertiesService.getScriptProperties().getProperty(name);
 }
 
-function getRegistrationEmailPlainText_(fullName) {
-  const firstName = getFirstName_(fullName);
-  return (
-    "Hello " + firstName + ",\n\n" +
-    "Thank you for registering with Behind the Data Academy.\n" +
-    "This is a confirmation that we received your registration details.\n\n" +
-    "We will share the next update with you shortly.\n\n" +
-    "Best regards,\n" +
-    "Behind the Data Academy"
-  );
-}
-
-function getRegistrationEmailHtml_(fullName) {
-  const firstName = escapeHtml_(getFirstName_(fullName));
-  return (
-    "<div style=\"font-family:Arial,sans-serif;line-height:1.6;color:#1f2937;max-width:640px;\">" +
-      "<h2 style=\"margin:0 0 12px 0;\">Hello " + firstName + ",</h2>" +
-      "<p>Thank you for registering with <strong>Behind the Data Academy</strong>.</p>" +
-      "<p>This is a confirmation that we received your registration details.</p>" +
-      "<p>We will share the next update with you shortly.</p>" +
-      "<p style=\"margin-top:20px;\">Best regards,<br/>Behind the Data Academy</p>" +
-    "</div>"
-  );
-}
-
-function getWhatsappMessage_(fullName) {
-  const firstName = getFirstName_(fullName);
-  return (
-    "Hello " + firstName + ", thanks for registering with Behind the Data Academy. " +
-    "We have received your details and will share the next update shortly."
-  );
-}
-
-function getFirstName_(fullName) {
-  const clean = String(fullName || "").trim();
-  if (!clean) {
-    return "there";
+function logAndToast_(message) {
+  Logger.log(message);
+  try {
+    SpreadsheetApp.getActive().toast(message, "AI Agents Automation", 5);
+  } catch (err) {
+    // Ignore toast failures in non-UI executions.
   }
-  return clean.split(/\s+/)[0];
-}
-
-function escapeHtml_(value) {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
