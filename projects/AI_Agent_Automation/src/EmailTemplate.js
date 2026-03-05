@@ -1,11 +1,9 @@
 const AI_AGENTS_LOGO_URL = "https://drive.google.com/uc?export=view&id=1_evR_u0vLNwFUdDE4xkAeLKDE0DCmwA3";
-const AI_AGENTS_CONFIRM_LINK = "https://bit.ly/ai-agents-data";
 const AI_AGENTS_ACCEPTANCE_FORM_LINK = "https://docs.google.com/document/d/1u_e0feYXyilR5StvcN1POF_vgfGaGiBvT1CP0DZRxok/edit?usp=sharing";
 const AI_AGENTS_COMPLIANCE_LINK = "https://docs.google.com/document/d/1u_e0feYXyilR5StvcN1POF_vgfGaGiBvT1CP0DZRxok/edit?usp=sharing";
 
 function getAiAgentsAcceptanceEmailHtml(fullName) {
   const firstName = escapeAiAgentsHtml_(getAiAgentsFirstName_(fullName));
-  const safeConfirmLink = escapeAiAgentsHtml_(AI_AGENTS_CONFIRM_LINK);
   const safeAcceptanceLink = escapeAiAgentsHtml_(AI_AGENTS_ACCEPTANCE_FORM_LINK);
   const safeComplianceLink = escapeAiAgentsHtml_(AI_AGENTS_COMPLIANCE_LINK);
 
@@ -43,16 +41,11 @@ function getAiAgentsAcceptanceEmailHtml(fullName) {
 
                 "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:0 0 20px 0;background:#f8fafc;border:1px solid #e5e7eb;border-left:4px solid #1d4ed8;\">" +
                   "<tr><td style=\"padding:14px 14px;\">" +
-                    "<p style=\"margin:0;font-size:14px;line-height:1.7;color:#1f2937;\"><strong>Next steps:</strong> complete the items below within <strong>24 hours</strong> to secure your spot.</p>" +
+                    "<p style=\"margin:0;font-size:14px;line-height:1.7;color:#1f2937;\"><strong>Next steps:</strong> complete the items below within <strong>72 hours</strong> to secure your spot.</p>" +
                   "</td></tr>" +
                 "</table>" +
 
-                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">1) Confirm your participation</h3>" +
-                "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:0 0 16px 0;\"><tr><td align=\"center\">" +
-                  "<a href=\"" + AI_AGENTS_CONFIRM_LINK + "\" style=\"display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600;\">Register Here</a>" +
-                "</td></tr></table>" +
-
-                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">2) Pay the NGN 30,100 refundable commitment deposit</h3>" +
+                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">1) Pay the NGN 30,100 refundable commitment deposit</h3>" +
                 "<ul style=\"margin:0 0 14px 20px;padding:0;color:#374151;font-size:14px;line-height:1.7;\">" +
                   "<li>NGN 30,000 will be refunded upon successful completion.</li>" +
                   "<li>NGN 100 covers processing fees.</li>" +
@@ -73,12 +66,12 @@ function getAiAgentsAcceptanceEmailHtml(fullName) {
                   "</tr>" +
                 "</table>" +
 
-                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">3) Complete the Cohort Acceptance Form (after payment)</h3>" +
+                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">2) Complete the Cohort Acceptance Form (after payment)</h3>" +
                 "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin:0 0 16px 0;\"><tr><td align=\"center\">" +
                   "<a href=\"" + AI_AGENTS_ACCEPTANCE_FORM_LINK + "\" style=\"display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600;\">Open Acceptance Form</a>" +
                 "</td></tr></table>" +
 
-                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">4) Sign the Compliance Document and upload it in your form submission</h3>" +
+                "<h3 style=\"margin:0 0 10px 0;font-size:16px;color:#111827;\">3) Sign the Compliance Document and upload it in your form submission</h3>" +
                 "<p style=\"margin:0 0 12px 0;font-size:14px;line-height:1.7;color:#374151;\">" +
                   "Please make a copy, sign, download, and upload it when submitting your acceptance form. Read through carefully so you understand what is expected." +
                 "</p>" +
@@ -87,7 +80,6 @@ function getAiAgentsAcceptanceEmailHtml(fullName) {
                 "</td></tr></table>" +
 
                 "<p style=\"margin:0 0 8px 0;font-size:12px;line-height:1.6;color:#6b7280;\">If any button does not open, use these direct links:</p>" +
-                "<p style=\"margin:0 0 6px 0;font-size:12px;line-height:1.6;word-break:break-all;\"><a href=\"" + AI_AGENTS_CONFIRM_LINK + "\" style=\"color:#1d4ed8;\">" + safeConfirmLink + "</a></p>" +
                 "<p style=\"margin:0 0 6px 0;font-size:12px;line-height:1.6;word-break:break-all;\"><a href=\"" + AI_AGENTS_ACCEPTANCE_FORM_LINK + "\" style=\"color:#0f766e;\">" + safeAcceptanceLink + "</a></p>" +
                 "<p style=\"margin:0 0 16px 0;font-size:12px;line-height:1.6;word-break:break-all;\"><a href=\"" + AI_AGENTS_COMPLIANCE_LINK + "\" style=\"color:#7c3aed;\">" + safeComplianceLink + "</a></p>" +
 
@@ -119,18 +111,17 @@ function getAiAgentsAcceptancePlainText(fullName) {
     "- APIs and LLMs\n" +
     "- Agent Development\n" +
     "- Development and Monitoring\n\n" +
-    "Next steps (complete within 24 hours to secure your spot):\n" +
-    "1) Confirm your participation:\n" + AI_AGENTS_CONFIRM_LINK + "\n\n" +
-    "2) Pay the NGN 30,100 refundable commitment deposit\n" +
+    "Next steps (complete within 72 hours to secure your spot):\n" +
+    "1) Pay the NGN 30,100 refundable commitment deposit\n" +
     "- NGN 30,000 will be refunded upon successful completion\n" +
     "- NGN 100 covers processing fees\n\n" +
     "Payment details:\n" +
     "Account Name: BEHIND THE DATA LTD\n" +
     "Account Number: 1308690832\n" +
     "Bank: Providus Bank\n\n" +
-    "3) Complete the Cohort Acceptance Form (after payment):\n" +
+    "2) Complete the Cohort Acceptance Form (after payment):\n" +
     AI_AGENTS_ACCEPTANCE_FORM_LINK + "\n\n" +
-    "4) Sign the Compliance Document and upload it in your form submission:\n" +
+    "3) Sign the Compliance Document and upload it in your form submission:\n" +
     AI_AGENTS_COMPLIANCE_LINK + "\n\n" +
     "Please make a copy, sign, download, and upload it when submitting your acceptance form.\n\n" +
     "We are excited to have you join this cohort and look forward to working with you over the next few months. If you have any questions, simply reply to this email.\n\n" +
