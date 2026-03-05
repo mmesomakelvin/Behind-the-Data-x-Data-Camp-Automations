@@ -18,6 +18,16 @@ Apps Script project folder for Applied AI acceptance automation in Google Sheets
   - `WhatsApp Number (Include country code)`
   - `Status`
 
+## Acceptance Email Flow
+
+Current acceptance email instructions are:
+
+1. Pay the NGN 30,100 refundable commitment deposit
+2. Sign the compliance document
+3. Complete the cohort acceptance form and upload the signed compliance document
+
+Deadline in the email is currently set to **72 hours**.
+
 ## Required Source Columns
 
 The registration source sheet must contain:
