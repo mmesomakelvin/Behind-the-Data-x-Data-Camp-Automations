@@ -21,7 +21,7 @@ const REGISTRATION_CONFIG = {
     "Phone"
   ],
   senderName: "Behind the Data Academy",
-  emailSubject: "You are Accepted: Applied AI Development Bootcamp Scholarship",
+  emailSubject: "We are Reviewing Your Application: Applied AI Development Bootcamp Scholarship",
   triggerHandlerFunction: "handleRegistrationSubmit",
   defaultTestEmail: "mmesomakelvin@gmail.com",
   testEmailProperty: "TEST_EMAIL_RECIPIENT",
