@@ -1,6 +1,6 @@
 # AI_Agent_Automation
 
-Apps Script project folder for Applied AI acceptance automation in Google Sheets.
+Apps Script project folder for Applied AI registration automation in Google Sheets.
 
 ## Script ID
 
@@ -9,7 +9,7 @@ Apps Script project folder for Applied AI acceptance automation in Google Sheets
 ## What This Project Does
 
 - Watches new form-registration rows (auto trigger)
-- Sends an acceptance email to the registrant
+- Sends a welcome email with Discord onboarding instructions
 - Optionally sends a phone notification if a webhook is configured
 - Moves successful email sends to `Mail sent`
 - Writes these columns in `Mail sent`:
@@ -18,15 +18,15 @@ Apps Script project folder for Applied AI acceptance automation in Google Sheets
   - `WhatsApp Number (Include country code)`
   - `Status`
 
-## Acceptance Email Flow
+## Welcome Email Flow
 
-Current acceptance email instructions are:
+Current welcome email instructions are:
 
-1. Pay the NGN 30,100 refundable commitment deposit
-2. Sign the compliance document
-3. Complete the cohort acceptance form and upload the signed compliance document
+1. Join the official Discord community
+2. Check the `welcome/announcements` channel first
+3. Introduce yourself in `introductions` (full name, location, and learning goals)
 
-Deadline in the email is currently set to **72 hours**.
+Discord invite link in the email: `https://discord.com/invite/yKcVn5m4yt`
 
 ## Required Source Columns
 
@@ -56,7 +56,7 @@ If not set, email still sends and status notes phone as pending setup.
 - `Set Test Email Recipient`
 - `Setup Automation + Trigger`
 - `Process Existing Rows`
-- `Send Test Acceptance Email`
+- `Send Test Acceptance Email` (sends the current welcome-email template)
 - `Install Auto Trigger`
 - `Clear Auto Trigger`
 
