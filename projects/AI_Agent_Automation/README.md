@@ -10,12 +10,23 @@ Apps Script project folder for Applied AI registration automation in Google Shee
 
 - Watches new form-registration rows (auto trigger)
 - Sends a welcome email with Discord onboarding instructions
+- Sends only one email per unique email address
+- Colors duplicate registrations orange instead of sending another email
+- Creates an `Automation color guide` sheet that explains the row colors
 - Moves successful email sends to `Mail sent`
 - Writes these columns in `Mail sent`:
   - `Email address`
   - `Full Name`
   - `WhatsApp Number (Include country code)`
   - `Email Sent At`
+
+## Duplicate Email Handling
+
+- Duplicate checks are based on normalized email address only
+- The script checks the `Mail sent` sheet to decide whether an email has already been sent
+- If the email already exists in `Mail sent`, the new registration row is colored orange
+- No new email is sent for that duplicate row
+- Orange means: duplicate email already received a registration email
 
 ## Welcome Email Flow
 
@@ -42,11 +53,24 @@ Supported source-sheet names include:
 
 `Email Sent At` is stored as a timestamp string in the spreadsheet timezone using the format `yyyy-MM-dd HH:mm:ss`.
 
+## Trigger Setup
+
+1. Open the Google Sheet and refresh the page after the latest script push.
+2. Use `AI Agents Automation` -> `Setup Automation + Trigger`.
+3. Approve the Google Apps Script permissions if prompted.
+4. If the automation sheets already exist and you only need the trigger, use `AI Agents Automation` -> `Install Auto Trigger`.
+
+`Setup Automation + Trigger` creates or refreshes:
+- `Mail sent`
+- `Automation color guide`
+- the form-submit trigger for new registrations
+
 ## Menu Actions
 
 - `Open Automation Buttons`
 - `Set Test Email Recipient`
 - `Setup Automation + Trigger`
+- `Refresh Color Guide`
 - `Process Existing Rows`
 - `Send Test Acceptance Email` (sends the current welcome-email template)
 - `Install Auto Trigger`

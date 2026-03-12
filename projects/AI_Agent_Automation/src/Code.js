@@ -5,12 +5,14 @@
 const REGISTRATION_CONFIG = {
   sourceSheetNameCandidates: ["Form responses 1", "Form Responses 1", "Form_Responses"],
   mailSentSheetName: "Mail sent",
+  colorGuideSheetName: "Automation color guide",
   mailSentHeaders: [
     "Email address",
     "Full Name",
     "WhatsApp Number (Include country code)",
     "Email Sent At"
   ],
+  colorGuideHeaders: ["Color", "Meaning", "Automation Action", "Hex"],
   emailColumnCandidates: ["Email address", "Email Address", "Email", "email"],
   fullNameColumnCandidates: ["Full Name", "FullName", "Name"],
   phoneColumnCandidates: [
@@ -24,7 +26,8 @@ const REGISTRATION_CONFIG = {
   emailSubject: "We are Reviewing Your Application: Applied AI Development Bootcamp Scholarship",
   triggerHandlerFunction: "handleRegistrationSubmit",
   defaultTestEmail: "mmesomakelvin@gmail.com",
-  testEmailProperty: "TEST_EMAIL_RECIPIENT"
+  testEmailProperty: "TEST_EMAIL_RECIPIENT",
+  duplicateEmailRowColor: "#f59e0b"
 };
 
 function onOpen() {
@@ -34,6 +37,7 @@ function onOpen() {
     .addSeparator()
     .addItem("Set Test Email Recipient", "setTestEmailRecipient")
     .addItem("Setup Automation + Trigger", "setupRegistrationAutomation")
+    .addItem("Refresh Color Guide", "refreshColorGuide")
     .addItem("Install Auto Trigger", "installRegistrationTrigger")
     .addItem("Clear Auto Trigger", "clearRegistrationTrigger")
     .addSeparator()
@@ -51,8 +55,14 @@ function openAutomationButtons() {
 function setupRegistrationAutomation() {
   const sourceSheet = getRegistrationSourceSheet_();
   ensureMailSentSheet_();
+  ensureColorGuideSheet_();
   installRegistrationTrigger();
   logAndToast_("Setup complete. Source sheet: " + sourceSheet.getName());
+}
+
+function refreshColorGuide() {
+  ensureColorGuideSheet_();
+  logAndToast_("Automation color guide refreshed.");
 }
 
 function installRegistrationTrigger() {
@@ -99,10 +109,11 @@ function handleRegistrationSubmit(e) {
       return;
     }
 
+    ensureColorGuideSheet_();
     const mailSheet = ensureMailSentSheet_();
     const columns = getSourceColumnIndexes_(sheet);
-    const existingKeys = getExistingMailSentKeys_(mailSheet);
-    const result = processRow_(sheet, mailSheet, columns, e.range.getRow(), existingKeys);
+    const existingEmails = getExistingMailSentEmails_(mailSheet);
+    const result = processRow_(sheet, mailSheet, columns, e.range.getRow(), existingEmails);
     Logger.log("Processed form-submit row " + e.range.getRow() + ": " + result.status + " - " + result.message);
   });
 }
@@ -110,9 +121,10 @@ function handleRegistrationSubmit(e) {
 function processExistingRegistrations() {
   withScriptLock_(function () {
     const sheet = getRegistrationSourceSheet_();
+    ensureColorGuideSheet_();
     const mailSheet = ensureMailSentSheet_();
     const columns = getSourceColumnIndexes_(sheet);
-    const existingKeys = getExistingMailSentKeys_(mailSheet);
+    const existingEmails = getExistingMailSentEmails_(mailSheet);
     const lastRow = sheet.getLastRow();
 
     if (lastRow < 2) {
@@ -121,13 +133,16 @@ function processExistingRegistrations() {
     }
 
     let sent = 0;
+    let duplicate = 0;
     let skipped = 0;
     let failed = 0;
 
     for (let row = 2; row <= lastRow; row++) {
-      const result = processRow_(sheet, mailSheet, columns, row, existingKeys);
+      const result = processRow_(sheet, mailSheet, columns, row, existingEmails);
       if (result.status === "sent") {
         sent++;
+      } else if (result.status === "duplicate") {
+        duplicate++;
       } else if (result.status === "failed") {
         failed++;
       } else {
@@ -137,6 +152,7 @@ function processExistingRegistrations() {
 
     logAndToast_(
       "Existing-row run complete. Sent: " + sent +
+      ", Duplicates: " + duplicate +
       ", Failed: " + failed +
       ", Skipped: " + skipped
     );
@@ -193,7 +209,7 @@ function saveTestEmailRecipient(email) {
   return clean;
 }
 
-function processRow_(sourceSheet, mailSheet, columns, rowNumber, existingKeys) {
+function processRow_(sourceSheet, mailSheet, columns, rowNumber, existingEmails) {
   const row = sourceSheet.getRange(rowNumber, 1, 1, sourceSheet.getLastColumn()).getValues()[0];
   const email = normalizeEmail_(row[columns.emailIndex]);
   const fullName = String(row[columns.fullNameIndex] || "").trim();
@@ -203,16 +219,16 @@ function processRow_(sourceSheet, mailSheet, columns, rowNumber, existingKeys) {
     return { status: "skipped", message: "Missing email" };
   }
 
-  const mailKey = buildMailKey_(email, fullName, phoneNumber);
-  if (existingKeys[mailKey]) {
-    return { status: "skipped", message: "Already logged in Mail sent" };
+  if (existingEmails[email]) {
+    highlightDuplicateRegistrationRow_(sourceSheet, rowNumber);
+    return { status: "duplicate", message: "Duplicate email found. Row highlighted orange; no new email sent." };
   }
 
   try {
     sendAcceptanceEmail_(email, fullName);
     const sentAt = buildMailSentTimestamp_();
     appendMailSentRow_(mailSheet, email, fullName, phoneNumber, sentAt);
-    existingKeys[mailKey] = true;
+    existingEmails[email] = true;
     return { status: "sent", message: "Email sent at " + sentAt };
   } catch (err) {
     return { status: "failed", message: String(err) };
@@ -241,6 +257,11 @@ function appendMailSentRow_(sheet, email, fullName, phoneNumber, sentAt) {
   sheet.appendRow([email, fullName, phoneNumber, sentAt]);
 }
 
+function highlightDuplicateRegistrationRow_(sheet, rowNumber) {
+  const width = Math.max(sheet.getLastColumn(), 1);
+  sheet.getRange(rowNumber, 1, 1, width).setBackground(REGISTRATION_CONFIG.duplicateEmailRowColor);
+}
+
 function ensureMailSentSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(REGISTRATION_CONFIG.mailSentSheetName);
@@ -255,6 +276,39 @@ function ensureMailSentSheet_() {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#e8eefc");
     sheet.setFrozenRows(1);
   }
+
+  return sheet;
+}
+
+function ensureColorGuideSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(REGISTRATION_CONFIG.colorGuideSheetName);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(REGISTRATION_CONFIG.colorGuideSheetName);
+  }
+
+  const rows = [
+    REGISTRATION_CONFIG.colorGuideHeaders,
+    [
+      "Orange",
+      "Duplicate email already has a sent-email record in Mail sent",
+      "Do not send another email. Highlight the new registration row orange.",
+      REGISTRATION_CONFIG.duplicateEmailRowColor
+    ]
+  ];
+
+  const range = sheet.getRange(1, 1, rows.length, rows[0].length);
+  range.setValues(rows);
+  sheet.getRange(1, 1, 1, rows[0].length)
+    .setFontWeight("bold")
+    .setBackground("#e8eefc");
+  sheet.getRange(2, 1)
+    .setBackground(REGISTRATION_CONFIG.duplicateEmailRowColor)
+    .setFontWeight("bold");
+  sheet.getRange(2, 2, 1, rows[0].length - 1).setBackground("#fff7ed");
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumns(1, rows[0].length);
 
   return sheet;
 }
@@ -337,32 +391,22 @@ function findColumnIndexByCandidates_(headers, candidates) {
   return -1;
 }
 
-function getExistingMailSentKeys_(sheet) {
-  const keys = {};
+function getExistingMailSentEmails_(sheet) {
+  const emails = {};
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    return keys;
+    return emails;
   }
 
-  const rows = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+  const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   for (let i = 0; i < rows.length; i++) {
     const email = normalizeEmail_(rows[i][0]);
-    const fullName = String(rows[i][1] || "").trim();
-    const phone = normalizePhone_(rows[i][2]);
     if (!email) {
       continue;
     }
-    keys[buildMailKey_(email, fullName, phone)] = true;
+    emails[email] = true;
   }
-  return keys;
-}
-
-function buildMailKey_(email, fullName, phoneNumber) {
-  return [
-    normalizeEmail_(email),
-    normalizeHeader_(fullName),
-    normalizePhone_(phoneNumber)
-  ].join("|");
+  return emails;
 }
 
 function normalizeEmail_(value) {
