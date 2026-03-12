@@ -9,7 +9,7 @@ const REGISTRATION_CONFIG = {
     "Email address",
     "Full Name",
     "WhatsApp Number (Include country code)",
-    "Status"
+    "Email Sent At"
   ],
   emailColumnCandidates: ["Email address", "Email Address", "Email", "email"],
   fullNameColumnCandidates: ["Full Name", "FullName", "Name"],
@@ -24,9 +24,7 @@ const REGISTRATION_CONFIG = {
   emailSubject: "We are Reviewing Your Application: Applied AI Development Bootcamp Scholarship",
   triggerHandlerFunction: "handleRegistrationSubmit",
   defaultTestEmail: "mmesomakelvin@gmail.com",
-  testEmailProperty: "TEST_EMAIL_RECIPIENT",
-  phoneWebhookUrlProperty: "PHONE_WEBHOOK_URL",
-  phoneWebhookTokenProperty: "PHONE_WEBHOOK_TOKEN"
+  testEmailProperty: "TEST_EMAIL_RECIPIENT"
 };
 
 function onOpen() {
@@ -212,11 +210,10 @@ function processRow_(sourceSheet, mailSheet, columns, rowNumber, existingKeys) {
 
   try {
     sendAcceptanceEmail_(email, fullName);
-    const phoneResult = sendPhoneNotificationIfConfigured_(phoneNumber, fullName, email);
-    const statusText = buildStatusText_(phoneResult);
-    appendMailSentRow_(mailSheet, email, fullName, phoneNumber, statusText);
+    const sentAt = buildMailSentTimestamp_();
+    appendMailSentRow_(mailSheet, email, fullName, phoneNumber, sentAt);
     existingKeys[mailKey] = true;
-    return { status: "sent", message: statusText };
+    return { status: "sent", message: "Email sent at " + sentAt };
   } catch (err) {
     return { status: "failed", message: String(err) };
   }
@@ -234,62 +231,14 @@ function sendAcceptanceEmail_(email, fullName) {
   );
 }
 
-function sendPhoneNotificationIfConfigured_(phoneNumber, fullName, email) {
-  if (!phoneNumber) {
-    return { code: "no_phone" };
-  }
-
-  const webhookUrl = getScriptProperty_(REGISTRATION_CONFIG.phoneWebhookUrlProperty);
-  if (!webhookUrl) {
-    return { code: "no_webhook" };
-  }
-
-  const webhookToken = getScriptProperty_(REGISTRATION_CONFIG.phoneWebhookTokenProperty);
-  const payload = {
-    to: phoneNumber,
-    fullName: fullName,
-    email: email,
-    message: getAiAgentsPhoneMessage(fullName)
-  };
-
-  const requestOptions = {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  };
-
-  if (webhookToken) {
-    requestOptions.headers = { Authorization: "Bearer " + webhookToken };
-  }
-
-  try {
-    const response = UrlFetchApp.fetch(webhookUrl, requestOptions);
-    const code = response.getResponseCode();
-    if (code >= 200 && code < 300) {
-      return { code: "sent" };
-    }
-    return { code: "failed", detail: "HTTP " + code };
-  } catch (err) {
-    return { code: "failed", detail: String(err) };
-  }
+function buildMailSentTimestamp_() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const timeZone = spreadsheet ? spreadsheet.getSpreadsheetTimeZone() : Session.getScriptTimeZone();
+  return Utilities.formatDate(new Date(), timeZone, "yyyy-MM-dd HH:mm:ss");
 }
 
-function buildStatusText_(phoneResult) {
-  if (phoneResult.code === "sent") {
-    return "Email Sent | Phone Sent";
-  }
-  if (phoneResult.code === "no_phone") {
-    return "Email Sent | No Phone Number";
-  }
-  if (phoneResult.code === "no_webhook") {
-    return "Email Sent | Phone Pending Setup";
-  }
-  return "Email Sent | Phone Failed";
-}
-
-function appendMailSentRow_(sheet, email, fullName, phoneNumber, status) {
-  sheet.appendRow([email, fullName, phoneNumber, status]);
+function appendMailSentRow_(sheet, email, fullName, phoneNumber, sentAt) {
+  sheet.appendRow([email, fullName, phoneNumber, sentAt]);
 }
 
 function ensureMailSentSheet_() {

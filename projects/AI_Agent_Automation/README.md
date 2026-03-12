@@ -10,13 +10,12 @@ Apps Script project folder for Applied AI registration automation in Google Shee
 
 - Watches new form-registration rows (auto trigger)
 - Sends a welcome email with Discord onboarding instructions
-- Optionally sends a phone notification if a webhook is configured
 - Moves successful email sends to `Mail sent`
 - Writes these columns in `Mail sent`:
   - `Email address`
   - `Full Name`
   - `WhatsApp Number (Include country code)`
-  - `Status`
+  - `Email Sent At`
 
 ## Welcome Email Flow
 
@@ -41,14 +40,7 @@ Supported source-sheet names include:
 - `Form Responses 1`
 - `Form_Responses`
 
-## Optional Script Properties (for phone notification)
-
-Set these in Apps Script -> Project Settings -> Script properties:
-
-- `PHONE_WEBHOOK_URL`
-- `PHONE_WEBHOOK_TOKEN`
-
-If not set, email still sends and status notes phone as pending setup.
+`Email Sent At` is stored as a timestamp string in the spreadsheet timezone using the format `yyyy-MM-dd HH:mm:ss`.
 
 ## Menu Actions
 

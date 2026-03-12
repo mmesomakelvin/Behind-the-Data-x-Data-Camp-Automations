@@ -75,11 +75,6 @@ function getAiAgentsAcceptancePlainText(fullName) {
     "Behind the Data Academy";
 }
 
-function getAiAgentsPhoneMessage(fullName) {
-  const firstName = getAiAgentsFirstName_(fullName);
-  return "Hello " + firstName + ", thanks for registering. Check your email and join the official Discord community today: " + AI_AGENTS_DISCORD_LINK;
-}
-
 function getAiAgentsFirstName_(fullName) {
   const clean = String(fullName || "").trim();
   if (!clean) {
