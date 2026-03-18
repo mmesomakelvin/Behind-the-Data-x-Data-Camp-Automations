@@ -9,9 +9,15 @@ Apps Script project folder for Applied AI registration automation in Google Shee
 ## What This Project Does
 
 - Watches new form-registration rows (auto trigger)
+- Watches manual status updates in the registration sheet (edit trigger)
 - Sends a welcome email with Discord onboarding instructions
 - Sends only one email per unique email address
 - Colors duplicate registrations orange instead of sending another email
+- Colors reviewed rows by status:
+  - `Accepted` = green
+  - `Rejected` = red
+  - `May Consider` = yellow
+- Keeps an `Accepted candidates` sheet in sync from the source sheet
 - Creates an `Automation color guide` sheet that explains the row colors
 - Moves successful email sends to `Mail sent`
 - Writes these columns in `Mail sent`:
@@ -27,6 +33,21 @@ Apps Script project folder for Applied AI registration automation in Google Shee
 - If the email already exists in `Mail sent`, the new registration row is colored orange
 - No new email is sent for that duplicate row
 - Orange means: duplicate email already received a registration email
+
+## Review Status Handling
+
+- Status matching is case-insensitive
+- Supported review values are `Accepted`, `Rejected`, and `May Consider`
+- When a status is changed in the source sheet, the whole row is colored automatically
+- `Accepted candidates` is rebuilt from rows whose status is `Accepted`
+- `Accepted candidates` includes only:
+  - `Email address`
+  - `Full Name`
+  - `Country`
+  - `Linkedin URL`
+  - `Years of Experience`
+  - `WhatsApp Number (Include country code)`
+  - `Status`
 
 ## Welcome Email Flow
 
@@ -56,25 +77,30 @@ Supported source-sheet names include:
 ## Trigger Setup
 
 1. Open the Google Sheet and refresh the page after the latest script push.
-2. Use `AI Agents Automation` -> `Setup Automation + Trigger`.
+2. Use `AI Agents Automation` -> `Setup Automation + Triggers`.
 3. Approve the Google Apps Script permissions if prompted.
-4. If the automation sheets already exist and you only need the trigger, use `AI Agents Automation` -> `Install Auto Trigger`.
+4. If the automation sheets already exist and you only need the triggers, use `AI Agents Automation` -> `Install Auto Triggers`.
 
-`Setup Automation + Trigger` creates or refreshes:
+`Setup Automation + Triggers` creates or refreshes:
 - `Mail sent`
+- `Accepted candidates`
 - `Automation color guide`
 - the form-submit trigger for new registrations
+- the edit trigger for status updates
+
+Use `Refresh Review Tracking` if you already have status values in the sheet and want all row colors and the accepted sheet rebuilt immediately.
 
 ## Menu Actions
 
 - `Open Automation Buttons`
 - `Set Test Email Recipient`
-- `Setup Automation + Trigger`
+- `Setup Automation + Triggers`
+- `Refresh Review Tracking`
 - `Refresh Color Guide`
 - `Process Existing Rows`
 - `Send Test Acceptance Email` (sends the current welcome-email template)
-- `Install Auto Trigger`
-- `Clear Auto Trigger`
+- `Install Auto Triggers`
+- `Clear Auto Triggers`
 
 ## Push
 

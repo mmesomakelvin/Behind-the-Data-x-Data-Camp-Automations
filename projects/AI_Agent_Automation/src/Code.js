@@ -5,6 +5,7 @@
 const REGISTRATION_CONFIG = {
   sourceSheetNameCandidates: ["Form responses 1", "Form Responses 1", "Form_Responses"],
   mailSentSheetName: "Mail sent",
+  acceptedSheetName: "Accepted candidates",
   colorGuideSheetName: "Automation color guide",
   mailSentHeaders: [
     "Email address",
@@ -12,9 +13,22 @@ const REGISTRATION_CONFIG = {
     "WhatsApp Number (Include country code)",
     "Email Sent At"
   ],
+  acceptedSheetHeaders: [
+    "Email address",
+    "Full Name",
+    "Country",
+    "Linkedin URL",
+    "Years of Experience",
+    "WhatsApp Number (Include country code)",
+    "Status"
+  ],
   colorGuideHeaders: ["Color", "Meaning", "Automation Action", "Hex"],
   emailColumnCandidates: ["Email address", "Email Address", "Email", "email"],
   fullNameColumnCandidates: ["Full Name", "FullName", "Name"],
+  countryColumnCandidates: ["Country"],
+  linkedinColumnCandidates: ["Linkedin URL", "LinkedIn URL", "Linkedin", "LinkedIn"],
+  yearsOfExperienceColumnCandidates: ["Years of Experience", "Years Experience", "Experience"],
+  statusColumnCandidates: ["Status", "Application Status", "Review Status"],
   phoneColumnCandidates: [
     "WhatsApp Number (Include country code)",
     "WhatsApp Number",
@@ -25,9 +39,14 @@ const REGISTRATION_CONFIG = {
   senderName: "Behind the Data Academy",
   emailSubject: "We are Reviewing Your Application: Applied AI Development Bootcamp Scholarship",
   triggerHandlerFunction: "handleRegistrationSubmit",
+  statusTriggerHandlerFunction: "handleStatusEdit",
   defaultTestEmail: "mmesomakelvin@gmail.com",
   testEmailProperty: "TEST_EMAIL_RECIPIENT",
-  duplicateEmailRowColor: "#f59e0b"
+  duplicateEmailRowColor: "#fed7aa",
+  acceptedRowColor: "#dcfce7",
+  rejectedRowColor: "#fee2e2",
+  mayConsiderRowColor: "#fef3c7",
+  duplicateNotePrefix: "AI Agents Automation: Duplicate email"
 };
 
 function onOpen() {
@@ -36,10 +55,11 @@ function onOpen() {
     .addItem("Open Automation Buttons", "openAutomationButtons")
     .addSeparator()
     .addItem("Set Test Email Recipient", "setTestEmailRecipient")
-    .addItem("Setup Automation + Trigger", "setupRegistrationAutomation")
+    .addItem("Setup Automation + Triggers", "setupRegistrationAutomation")
+    .addItem("Refresh Review Tracking", "refreshReviewTracking")
     .addItem("Refresh Color Guide", "refreshColorGuide")
-    .addItem("Install Auto Trigger", "installRegistrationTrigger")
-    .addItem("Clear Auto Trigger", "clearRegistrationTrigger")
+    .addItem("Install Auto Triggers", "installRegistrationTrigger")
+    .addItem("Clear Auto Triggers", "clearRegistrationTrigger")
     .addSeparator()
     .addItem("Process Existing Rows", "processExistingRegistrations")
     .addItem("Send Test Acceptance Email", "sendRegistrationTestEmail")
@@ -55,7 +75,9 @@ function openAutomationButtons() {
 function setupRegistrationAutomation() {
   const sourceSheet = getRegistrationSourceSheet_();
   ensureMailSentSheet_();
+  ensureAcceptedSheet_();
   ensureColorGuideSheet_();
+  refreshReviewTracking_();
   installRegistrationTrigger();
   logAndToast_("Setup complete. Source sheet: " + sourceSheet.getName());
 }
@@ -67,19 +89,44 @@ function refreshColorGuide() {
 
 function installRegistrationTrigger() {
   const triggers = ScriptApp.getProjectTriggers();
+  let submitInstalled = false;
+  let editInstalled = false;
+
   for (let i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === REGISTRATION_CONFIG.triggerHandlerFunction) {
-      logAndToast_("Auto trigger already exists.");
-      return;
+    const handler = triggers[i].getHandlerFunction();
+    if (handler === REGISTRATION_CONFIG.triggerHandlerFunction) {
+      submitInstalled = true;
+    }
+    if (handler === REGISTRATION_CONFIG.statusTriggerHandlerFunction) {
+      editInstalled = true;
     }
   }
 
-  ScriptApp.newTrigger(REGISTRATION_CONFIG.triggerHandlerFunction)
-    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
-    .onFormSubmit()
-    .create();
+  if (!submitInstalled) {
+    ScriptApp.newTrigger(REGISTRATION_CONFIG.triggerHandlerFunction)
+      .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+      .onFormSubmit()
+      .create();
+  }
 
-  logAndToast_("Auto trigger installed for new form submissions.");
+  if (!editInstalled) {
+    ScriptApp.newTrigger(REGISTRATION_CONFIG.statusTriggerHandlerFunction)
+      .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+      .onEdit()
+      .create();
+  }
+
+  if (submitInstalled && editInstalled) {
+    logAndToast_("Auto triggers already exist.");
+    return;
+  }
+
+  logAndToast_(
+    "Auto triggers ready. Form submit: " +
+    (submitInstalled ? "existing" : "installed") +
+    ", Status edit: " +
+    (editInstalled ? "existing" : "installed")
+  );
 }
 
 function clearRegistrationTrigger() {
@@ -87,13 +134,17 @@ function clearRegistrationTrigger() {
   let removed = 0;
 
   for (let i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === REGISTRATION_CONFIG.triggerHandlerFunction) {
+    const handler = triggers[i].getHandlerFunction();
+    if (
+      handler === REGISTRATION_CONFIG.triggerHandlerFunction ||
+      handler === REGISTRATION_CONFIG.statusTriggerHandlerFunction
+    ) {
       ScriptApp.deleteTrigger(triggers[i]);
       removed++;
     }
   }
 
-  logAndToast_("Removed registration triggers: " + removed);
+  logAndToast_("Removed automation triggers: " + removed);
 }
 
 function handleRegistrationSubmit(e) {
@@ -220,7 +271,7 @@ function processRow_(sourceSheet, mailSheet, columns, rowNumber, existingEmails)
   }
 
   if (existingEmails[email]) {
-    highlightDuplicateRegistrationRow_(sourceSheet, rowNumber);
+    highlightDuplicateRegistrationRow_(sourceSheet, rowNumber, columns.emailIndex);
     return { status: "duplicate", message: "Duplicate email found. Row highlighted orange; no new email sent." };
   }
 
@@ -257,9 +308,10 @@ function appendMailSentRow_(sheet, email, fullName, phoneNumber, sentAt) {
   sheet.appendRow([email, fullName, phoneNumber, sentAt]);
 }
 
-function highlightDuplicateRegistrationRow_(sheet, rowNumber) {
+function highlightDuplicateRegistrationRow_(sheet, rowNumber, emailIndex) {
   const width = Math.max(sheet.getLastColumn(), 1);
   sheet.getRange(rowNumber, 1, 1, width).setBackground(REGISTRATION_CONFIG.duplicateEmailRowColor);
+  sheet.getRange(rowNumber, emailIndex + 1).setNote(REGISTRATION_CONFIG.duplicateNotePrefix);
 }
 
 function ensureMailSentSheet_() {
@@ -288,25 +340,21 @@ function ensureColorGuideSheet_() {
     sheet = ss.insertSheet(REGISTRATION_CONFIG.colorGuideSheetName);
   }
 
-  const rows = [
-    REGISTRATION_CONFIG.colorGuideHeaders,
-    [
-      "Orange",
-      "Duplicate email already has a sent-email record in Mail sent",
-      "Do not send another email. Highlight the new registration row orange.",
-      REGISTRATION_CONFIG.duplicateEmailRowColor
-    ]
-  ];
-
+  const rows = getColorGuideRows_();
+  sheet.clear();
   const range = sheet.getRange(1, 1, rows.length, rows[0].length);
   range.setValues(rows);
   sheet.getRange(1, 1, 1, rows[0].length)
     .setFontWeight("bold")
     .setBackground("#e8eefc");
-  sheet.getRange(2, 1)
-    .setBackground(REGISTRATION_CONFIG.duplicateEmailRowColor)
-    .setFontWeight("bold");
-  sheet.getRange(2, 2, 1, rows[0].length - 1).setBackground("#fff7ed");
+
+  for (let row = 2; row <= rows.length; row++) {
+    sheet.getRange(row, 1)
+      .setBackground(rows[row - 1][3])
+      .setFontWeight("bold");
+    sheet.getRange(row, 2, 1, rows[0].length - 1).setBackground("#f8fafc");
+  }
+
   sheet.setFrozenRows(1);
   sheet.autoResizeColumns(1, rows[0].length);
 
