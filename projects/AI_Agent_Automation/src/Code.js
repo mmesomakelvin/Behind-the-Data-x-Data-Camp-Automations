@@ -5,22 +5,13 @@
 const REGISTRATION_CONFIG = {
   sourceSheetNameCandidates: ["Form responses 1", "Form Responses 1", "Form_Responses"],
   mailSentSheetName: "Mail sent",
-  acceptedSheetName: "Accepted candidates",
+  acceptedSheetName: "Accepted",
   colorGuideSheetName: "Automation color guide",
   mailSentHeaders: [
     "Email address",
     "Full Name",
     "WhatsApp Number (Include country code)",
     "Email Sent At"
-  ],
-  acceptedSheetHeaders: [
-    "Email address",
-    "Full Name",
-    "Country",
-    "Linkedin URL",
-    "Years of Experience",
-    "WhatsApp Number (Include country code)",
-    "Status"
   ],
   colorGuideHeaders: ["Color", "Meaning", "Automation Action", "Hex"],
   emailColumnCandidates: ["Email address", "Email Address", "Email", "email"],

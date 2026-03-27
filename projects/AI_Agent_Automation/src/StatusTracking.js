@@ -6,13 +6,14 @@ function handleStatusEdit(e) {
 
   withScriptLock_(function () {
     const sheet = e.range.getSheet();
-    if (!isRegistrationSourceSheet_(sheet)) {
+    const sourceSheet = getRegistrationSourceSheet_();
+    if (sheet.getSheetId() !== sourceSheet.getSheetId()) {
       return;
     }
 
     let columns;
     try {
-      columns = getReviewColumnIndexes_(sheet);
+      columns = getReviewColumnIndexes_(sourceSheet);
     } catch (err) {
       Logger.log("Skipped status edit: " + err);
       return;
@@ -31,10 +32,10 @@ function handleStatusEdit(e) {
     const startRow = Math.max(e.range.getRow(), 2);
     const endRow = e.range.getLastRow();
     for (let row = startRow; row <= endRow; row++) {
-      applyReviewStateToRow_(sheet, row, columns);
+      applyReviewStateToRow_(sourceSheet, row, columns);
     }
 
-    syncAcceptedCandidatesSheet_(sheet, columns);
+    syncAcceptedCandidatesSheet_(sourceSheet, columns);
     Logger.log("Processed status edit rows " + startRow + " to " + endRow + ".");
   });
 }
@@ -63,16 +64,19 @@ function refreshReviewTracking_() {
 function ensureAcceptedSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(REGISTRATION_CONFIG.acceptedSheetName);
+  const sourceSheet = getRegistrationSourceSheet_();
+  const sourceLastColumn = Math.max(sourceSheet.getLastColumn(), 1);
+  const sourceHeaders = sourceSheet.getRange(1, 1, 1, sourceLastColumn).getValues()[0];
 
   if (!sheet) {
     sheet = ss.insertSheet(REGISTRATION_CONFIG.acceptedSheetName);
   }
 
-  const headers = REGISTRATION_CONFIG.acceptedSheetHeaders;
-  const shouldWriteHeaders = sheet.getLastRow() < 1 || !isHeaderRowMatch_(sheet, headers);
+  const shouldWriteHeaders = sheet.getLastRow() < 1 || !isHeaderRowMatch_(sheet, sourceHeaders);
   if (shouldWriteHeaders) {
-    sheet.getRange(1, 1, 1, headers.length)
-      .setValues([headers])
+    sheet.clear();
+    sheet.getRange(1, 1, 1, sourceHeaders.length)
+      .setValues([sourceHeaders])
       .setFontWeight("bold")
       .setBackground("#e8eefc");
     sheet.setFrozenRows(1);
@@ -83,10 +87,10 @@ function ensureAcceptedSheet_() {
 
 function syncAcceptedCandidatesSheet_(sourceSheet, columns) {
   const acceptedSheet = ensureAcceptedSheet_();
-  const headers = REGISTRATION_CONFIG.acceptedSheetHeaders;
+  const sourceLastColumn = Math.max(sourceSheet.getLastColumn(), 1);
   const lastRow = acceptedSheet.getLastRow();
   if (lastRow > 1) {
-    acceptedSheet.getRange(2, 1, lastRow - 1, headers.length).clearContent().clearFormat();
+    acceptedSheet.getRange(2, 1, lastRow - 1, acceptedSheet.getLastColumn()).clearContent().clearFormat();
   }
 
   if (sourceSheet.getLastRow() < 2) {
@@ -103,23 +107,15 @@ function syncAcceptedCandidatesSheet_(sourceSheet, columns) {
       continue;
     }
 
-    acceptedRows.push([
-      row[columns.emailIndex],
-      row[columns.fullNameIndex],
-      row[columns.countryIndex],
-      row[columns.linkedinIndex],
-      row[columns.yearsOfExperienceIndex],
-      row[columns.phoneIndex],
-      statusInfo.label
-    ]);
+    acceptedRows.push(row.slice(0, sourceLastColumn));
   }
 
   if (acceptedRows.length) {
-    acceptedSheet.getRange(2, 1, acceptedRows.length, headers.length).setValues(acceptedRows);
-    acceptedSheet.getRange(2, headers.length, acceptedRows.length, 1).setBackground(REGISTRATION_CONFIG.acceptedRowColor);
+    acceptedSheet.getRange(2, 1, acceptedRows.length, sourceLastColumn).setValues(acceptedRows);
+    acceptedSheet.getRange(2, 1, acceptedRows.length, sourceLastColumn).setBackground(REGISTRATION_CONFIG.acceptedRowColor);
   }
 
-  acceptedSheet.autoResizeColumns(1, headers.length);
+  acceptedSheet.autoResizeColumns(1, sourceLastColumn);
   return acceptedSheet;
 }
 
@@ -130,35 +126,17 @@ function getReviewColumnIndexes_(sheet) {
   });
 
   const emailIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.emailColumnCandidates);
-  const fullNameIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.fullNameColumnCandidates);
-  const countryIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.countryColumnCandidates);
-  const linkedinIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.linkedinColumnCandidates);
-  const yearsOfExperienceIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.yearsOfExperienceColumnCandidates);
-  const phoneIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.phoneColumnCandidates);
   const statusIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.statusColumnCandidates);
 
-  if (
-    emailIndex === -1 ||
-    fullNameIndex === -1 ||
-    countryIndex === -1 ||
-    linkedinIndex === -1 ||
-    yearsOfExperienceIndex === -1 ||
-    phoneIndex === -1 ||
-    statusIndex === -1
-  ) {
+  if (emailIndex === -1 || statusIndex === -1) {
     throw new Error(
       "Required review columns not found in sheet: " + sheet.getName() +
-      ". Expected Email address, Full Name, Country, Linkedin URL, Years of Experience, WhatsApp Number (Include country code), and Status."
+      ". Expected Email address and Status."
     );
   }
 
   return {
     emailIndex: emailIndex,
-    fullNameIndex: fullNameIndex,
-    countryIndex: countryIndex,
-    linkedinIndex: linkedinIndex,
-    yearsOfExperienceIndex: yearsOfExperienceIndex,
-    phoneIndex: phoneIndex,
     statusIndex: statusIndex
   };
 }
@@ -228,7 +206,7 @@ function getColorGuideRows_() {
     [
       "Green",
       "Status is Accepted",
-      "Highlight the reviewed row and add it to the Accepted candidates sheet.",
+      "Highlight the reviewed row and copy it into the Accepted sheet.",
       REGISTRATION_CONFIG.acceptedRowColor
     ],
     [

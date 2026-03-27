@@ -17,7 +17,7 @@ Apps Script project folder for Applied AI registration automation in Google Shee
   - `Accepted` = green
   - `Rejected` = red
   - `May Consider` = yellow
-- Keeps an `Accepted candidates` sheet in sync from the source sheet
+- Keeps an `Accepted` sheet in sync from the source sheet
 - Creates an `Automation color guide` sheet that explains the row colors
 - Moves successful email sends to `Mail sent`
 - Writes these columns in `Mail sent`:
@@ -39,15 +39,9 @@ Apps Script project folder for Applied AI registration automation in Google Shee
 - Status matching is case-insensitive
 - Supported review values are `Accepted`, `Rejected`, and `May Consider`
 - When a status is changed in the source sheet, the whole row is colored automatically
-- `Accepted candidates` is rebuilt from rows whose status is `Accepted`
-- `Accepted candidates` includes only:
-  - `Email address`
-  - `Full Name`
-  - `Country`
-  - `Linkedin URL`
-  - `Years of Experience`
-  - `WhatsApp Number (Include country code)`
-  - `Status`
+- `Accepted` is rebuilt from rows whose status is `Accepted`
+- Accepted rows are copied, not moved
+- `Accepted` keeps the original source headers and copies the full source row
 
 ## Welcome Email Flow
 
@@ -83,7 +77,7 @@ Supported source-sheet names include:
 
 `Setup Automation + Triggers` creates or refreshes:
 - `Mail sent`
-- `Accepted candidates`
+- `Accepted`
 - `Automation color guide`
 - the form-submit trigger for new registrations
 - the edit trigger for status updates
