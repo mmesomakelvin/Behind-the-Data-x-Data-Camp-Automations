@@ -29,6 +29,10 @@ const REGISTRATION_CONFIG = {
   ],
   senderName: "Behind the Data Academy",
   emailSubject: "We are Reviewing Your Application: Applied AI Development Bootcamp Scholarship",
+  acceptedEmailSubject: "Congratulations! You Have Been Accepted into the Applied AI Development Bootcamp",
+  acceptedEmailStatusColumn: "Acceptance Email Status",
+  acceptedEmailErrorColumn: "Acceptance Email Error",
+  acceptedEmailSentAtColumn: "Acceptance Email Sent At",
   triggerHandlerFunction: "handleRegistrationSubmit",
   statusTriggerHandlerFunction: "handleStatusEdit",
   defaultTestEmail: "mmesomakelvin@gmail.com",
@@ -53,6 +57,8 @@ function onOpen() {
     .addItem("Clear Auto Triggers", "clearRegistrationTrigger")
     .addSeparator()
     .addItem("Process Existing Rows", "processExistingRegistrations")
+    .addItem("Send Test Accepted Email", "sendAcceptedTestEmail")
+    .addItem("Send Accepted Emails (Pending)", "sendAcceptedEmails")
     .addItem("Send Test Acceptance Email", "sendRegistrationTestEmail")
     .addToUi();
 }

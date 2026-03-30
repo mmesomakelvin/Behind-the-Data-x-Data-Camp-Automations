@@ -18,6 +18,7 @@ Apps Script project folder for Applied AI registration automation in Google Shee
   - `Rejected` = red
   - `May Consider` = yellow
 - Keeps an `Accepted` sheet in sync from the source sheet
+- Sends accepted emails from rows marked `Accepted`
 - Creates an `Automation color guide` sheet that explains the row colors
 - Moves successful email sends to `Mail sent`
 - Writes these columns in `Mail sent`:
@@ -42,6 +43,23 @@ Apps Script project folder for Applied AI registration automation in Google Shee
 - `Accepted` is rebuilt from rows whose status is `Accepted`
 - Accepted rows are copied, not moved
 - `Accepted` keeps the original source headers and copies the full source row
+
+## Accepted Email Flow
+
+- Accepted email design is based on the onboarding layout used in `Payment_Receipt_Onboarding`
+- Accepted recipients are identified from source rows whose `Status` is `Accepted`
+- Send tracking is stored in source-sheet helper columns:
+  - `Acceptance Email Status`
+  - `Acceptance Email Error`
+  - `Acceptance Email Sent At`
+- `Send Accepted Emails (Pending)` sends only accepted rows that have not already been marked `Sent`
+- `Send Test Accepted Email` sends the accepted email to the saved test recipient
+- The `Accepted` sheet remains a synced copy of accepted rows; send tracking is controlled from the source sheet so reruns do not resend to the same person
+
+Accepted email links currently used:
+- Discord: `https://discord.gg/4mhSUaeTM`
+- Compliance document: `https://docs.google.com/document/d/1_Nw_-GE94NsH2VoIaWcJ32NMcgtbXg17jX9I9FdrtWE/edit?usp=sharing`
+- Cohort acceptance form: `https://docs.google.com/forms/d/e/1FAIpQLSeFfwQhzVgzRAA4NPNJhpn7Rk9a-2yzaJaBMP0klqIh-_vigQ/viewform?usp=publish-editor`
 
 ## Welcome Email Flow
 
@@ -84,6 +102,12 @@ Supported source-sheet names include:
 
 Use `Refresh Review Tracking` if you already have status values in the sheet and want all row colors and the accepted sheet rebuilt immediately.
 
+How to run accepted emails:
+1. Mark the relevant rows as `Accepted` in the source sheet.
+2. Confirm they appear in the `Accepted` sheet.
+3. Use `AI Agents Automation` -> `Send Accepted Emails (Pending)`.
+4. Check the helper columns in the source sheet for `Sent`, error details, and sent timestamp.
+
 ## Menu Actions
 
 - `Open Automation Buttons`
@@ -92,9 +116,16 @@ Use `Refresh Review Tracking` if you already have status values in the sheet and
 - `Refresh Review Tracking`
 - `Refresh Color Guide`
 - `Process Existing Rows`
+- `Send Test Accepted Email`
+- `Send Accepted Emails (Pending)`
 - `Send Test Acceptance Email` (sends the current welcome-email template)
 - `Install Auto Triggers`
 - `Clear Auto Triggers`
+
+## Local Notes
+
+Reference notes for the accepted email workflow are stored in:
+- `accepted_email/README.md`
 
 ## Push
 
