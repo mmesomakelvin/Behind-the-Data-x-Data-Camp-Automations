@@ -82,12 +82,17 @@ function ensureAcceptedSheet_() {
     sheet.setFrozenRows(1);
   }
 
+  ensureAcceptedEmailHelperColumns_(sheet, sourceLastColumn);
+  restoreAcceptedEmailTrackingHeaders_(sheet, sourceLastColumn);
+
   return sheet;
 }
 
 function syncAcceptedCandidatesSheet_(sourceSheet, columns) {
-  const acceptedSheet = ensureAcceptedSheet_();
   const sourceLastColumn = Math.max(sourceSheet.getLastColumn(), 1);
+  const helperColumnCount = 3;
+  const acceptedSheet = ensureAcceptedSheet_();
+  const existingTrackingByEmail = getAcceptedEmailTrackingByEmail_(acceptedSheet, sourceLastColumn);
   const lastRow = acceptedSheet.getLastRow();
   if (lastRow > 1) {
     acceptedSheet.getRange(2, 1, lastRow - 1, acceptedSheet.getLastColumn()).clearContent().clearFormat();
@@ -107,15 +112,19 @@ function syncAcceptedCandidatesSheet_(sourceSheet, columns) {
       continue;
     }
 
-    acceptedRows.push(row.slice(0, sourceLastColumn));
+    const email = normalizeEmail_(row[columns.emailIndex]);
+    const tracking = existingTrackingByEmail[email] || ["", "", ""];
+    acceptedRows.push(row.slice(0, sourceLastColumn).concat(tracking));
   }
 
   if (acceptedRows.length) {
-    acceptedSheet.getRange(2, 1, acceptedRows.length, sourceLastColumn).setValues(acceptedRows);
+    acceptedSheet.getRange(2, 1, acceptedRows.length, sourceLastColumn + helperColumnCount).setValues(acceptedRows);
     acceptedSheet.getRange(2, 1, acceptedRows.length, sourceLastColumn).setBackground(REGISTRATION_CONFIG.acceptedRowColor);
   }
 
-  acceptedSheet.autoResizeColumns(1, sourceLastColumn);
+  ensureAcceptedEmailHelperColumns_(acceptedSheet, sourceLastColumn);
+  restoreAcceptedEmailTrackingHeaders_(acceptedSheet, sourceLastColumn);
+  acceptedSheet.autoResizeColumns(1, sourceLastColumn + helperColumnCount);
   return acceptedSheet;
 }
 
@@ -227,4 +236,48 @@ function getColorGuideRows_() {
 function hasDuplicateMarker_(sheet, rowNumber, emailIndex) {
   const note = String(sheet.getRange(rowNumber, emailIndex + 1).getNote() || "");
   return note.indexOf(REGISTRATION_CONFIG.duplicateNotePrefix) === 0;
+}
+
+function getAcceptedEmailTrackingByEmail_(sheet, sourceColumnCount) {
+  const tracking = {};
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return tracking;
+  }
+
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
+    return String(h || "").trim();
+  });
+  const emailIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.emailColumnCandidates);
+  if (emailIndex === -1) {
+    return tracking;
+  }
+
+  const emailValues = sheet.getRange(2, emailIndex + 1, lastRow - 1, 1).getValues();
+  const helperValues = sheet.getRange(2, sourceColumnCount + 1, lastRow - 1, 3).getValues();
+  for (let i = 0; i < emailValues.length; i++) {
+    const email = normalizeEmail_(emailValues[i][0]);
+    if (!email) {
+      continue;
+    }
+    tracking[email] = helperValues[i];
+  }
+
+  return tracking;
+}
+
+function restoreAcceptedEmailTrackingHeaders_(sheet, sourceColumnCount) {
+  const headers = [
+    REGISTRATION_CONFIG.acceptedEmailStatusColumn,
+    REGISTRATION_CONFIG.acceptedEmailErrorColumn,
+    REGISTRATION_CONFIG.acceptedEmailSentAtColumn
+  ];
+
+  for (let i = 0; i < headers.length; i++) {
+    sheet.getRange(1, sourceColumnCount + i + 1)
+      .setValue(headers[i])
+      .setFontWeight("bold")
+      .setBackground("#e8eefc");
+  }
 }

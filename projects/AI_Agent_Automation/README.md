@@ -47,14 +47,15 @@ Apps Script project folder for Applied AI registration automation in Google Shee
 ## Accepted Email Flow
 
 - Accepted email design is based on the onboarding layout used in `Payment_Receipt_Onboarding`
-- Accepted recipients are identified from source rows whose `Status` is `Accepted`
-- Send tracking is stored in source-sheet helper columns:
+- Accepted recipients are sent from the `Accepted` sheet with one menu action
+- The `Accepted` sheet is still rebuilt from source rows whose `Status` is `Accepted`
+- Send tracking is stored in helper columns on the `Accepted` sheet:
   - `Acceptance Email Status`
   - `Acceptance Email Error`
   - `Acceptance Email Sent At`
-- `Send Accepted Emails (Pending)` sends only accepted rows that have not already been marked `Sent`
+- `Send Accepted Emails (Pending)` sends only accepted-sheet rows that have not already been marked `Sent`
 - `Send Test Accepted Email` sends the accepted email to the saved test recipient
-- The `Accepted` sheet remains a synced copy of accepted rows; send tracking is controlled from the source sheet so reruns do not resend to the same person
+- The `Accepted` sheet remains a synced copy of accepted rows and preserves the accepted-email tracking columns during rebuilds
 
 Accepted email links currently used:
 - Discord: `https://discord.gg/4mhSUaeTM`
@@ -106,7 +107,7 @@ How to run accepted emails:
 1. Mark the relevant rows as `Accepted` in the source sheet.
 2. Confirm they appear in the `Accepted` sheet.
 3. Use `AI Agents Automation` -> `Send Accepted Emails (Pending)`.
-4. Check the helper columns in the source sheet for `Sent`, error details, and sent timestamp.
+4. Check the helper columns in the `Accepted` sheet for `Sent`, error details, and sent timestamp.
 
 ## Menu Actions
 
