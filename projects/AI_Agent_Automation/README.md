@@ -109,6 +109,23 @@ How to run accepted emails:
 3. Use `AI Agents Automation` -> `Send Accepted Emails (Pending)`.
 4. Check the helper columns in the `Accepted` sheet for `Sent`, error details, and sent timestamp.
 
+## Which Button To Use
+
+- `Process Existing Rows`
+  Uses the original registration automation. It sends the first welcome / registration email to rows that have not yet been logged in `Mail sent`.
+- `Send Test Accepted Email`
+  Sends the new accepted email to your saved test recipient only. Use this first when you want to preview the accepted email.
+- `Send Accepted Emails (Pending)`
+  This is the main button you should use for accepted candidates. It sends the accepted email to everyone currently listed in the `Accepted` sheet whose `Acceptance Email Status` is not already `Sent`.
+- `Send Test Acceptance Email`
+  This is the old registration email test button. It tests the original "thanks for registering / join Discord" email, not the accepted-candidate email.
+
+Recommended usage for accepted candidates:
+1. Mark people as `Accepted` in the source sheet.
+2. Confirm they appear in `Accepted`.
+3. Click `Send Test Accepted Email`.
+4. If the test looks correct, click `Send Accepted Emails (Pending)`.
+
 ## Menu Actions
 
 - `Open Automation Buttons`
