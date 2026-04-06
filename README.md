@@ -20,7 +20,7 @@ scripts/
 
 - `Reg_Automations` (registration + selection email workflows)
 - `Payment_Receipt_Onboarding` (green-row onboarding email workflow)
-- `AI_Agent_Automation` (auto registration welcome-email + Discord onboarding workflow)
+- `AI_Agent_Automation` (registration welcome email, accepted + reminder emails, and rejection email workflow)
 
 Project-specific details are documented in each project folder `README.md`.
 

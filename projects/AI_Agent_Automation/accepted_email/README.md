@@ -14,3 +14,6 @@ Reference folder for the accepted-email workflow inside `AI_Agent_Automation`.
 - Sending logic lives in `src/AcceptedEmailSender.js`
 - Template logic lives in `src/AcceptedEmailTemplate.js`
 - Accepted recipients are controlled by `Status = Accepted` in the source sheet
+- The accepted reminder email also lives in `src/AcceptedEmailSender.js` and `src/AcceptedEmailTemplate.js`
+- Reminder emails tell admitted candidates to accept their admission and pay the commitment fee by the upcoming Friday date at send time
+- Reminder emails repeat the account details, compliance-document link, and acceptance-form link

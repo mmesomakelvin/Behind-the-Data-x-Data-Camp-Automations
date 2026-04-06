@@ -30,9 +30,17 @@ const REGISTRATION_CONFIG = {
   senderName: "Behind the Data Academy",
   emailSubject: "We are Reviewing Your Application: Applied AI Development Bootcamp Scholarship",
   acceptedEmailSubject: "Congratulations! You Have Been Accepted into the Applied AI Development Bootcamp",
+  acceptedReminderEmailSubjectPrefix: "Reminder: Accept Your Admission and Pay Your Commitment Fee",
   acceptedEmailStatusColumn: "Acceptance Email Status",
   acceptedEmailErrorColumn: "Acceptance Email Error",
   acceptedEmailSentAtColumn: "Acceptance Email Sent At",
+  acceptedReminderStatusColumn: "Acceptance Reminder Email Status",
+  acceptedReminderErrorColumn: "Acceptance Reminder Email Error",
+  acceptedReminderSentAtColumn: "Acceptance Reminder Email Sent At",
+  rejectedEmailSubject: "Update on Your Applied AI Development Bootcamp Application",
+  rejectedEmailStatusColumn: "Rejection Email Status",
+  rejectedEmailErrorColumn: "Rejection Email Error",
+  rejectedEmailSentAtColumn: "Rejection Email Sent At",
   triggerHandlerFunction: "handleRegistrationSubmit",
   statusTriggerHandlerFunction: "handleStatusEdit",
   defaultTestEmail: "mmesomakelvin@gmail.com",
@@ -59,6 +67,10 @@ function onOpen() {
     .addItem("Process Existing Rows", "processExistingRegistrations")
     .addItem("Send Test Accepted Email", "sendAcceptedTestEmail")
     .addItem("Send Accepted Emails (Pending)", "sendAcceptedEmails")
+    .addItem("Send Test Accepted Reminder Email", "sendAcceptedReminderTestEmail")
+    .addItem("Send Accepted Reminder Emails (Pending)", "sendAcceptedReminderEmails")
+    .addItem("Send Test Rejected Email", "sendRejectedTestEmail")
+    .addItem("Send Rejected Emails (Pending)", "sendRejectedEmails")
     .addItem("Send Test Acceptance Email", "sendRegistrationTestEmail")
     .addToUi();
 }

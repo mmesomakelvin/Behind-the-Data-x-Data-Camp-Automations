@@ -90,7 +90,7 @@ function ensureAcceptedSheet_() {
 
 function syncAcceptedCandidatesSheet_(sourceSheet, columns) {
   const sourceLastColumn = Math.max(sourceSheet.getLastColumn(), 1);
-  const helperColumnCount = 3;
+  const helperColumnCount = getAcceptedTrackingHeaders_().length;
   const acceptedSheet = ensureAcceptedSheet_();
   const existingTrackingByEmail = getAcceptedEmailTrackingByEmail_(acceptedSheet, sourceLastColumn);
   const lastRow = acceptedSheet.getLastRow();
@@ -113,7 +113,7 @@ function syncAcceptedCandidatesSheet_(sourceSheet, columns) {
     }
 
     const email = normalizeEmail_(row[columns.emailIndex]);
-    const tracking = existingTrackingByEmail[email] || ["", "", ""];
+    const tracking = existingTrackingByEmail[email] || createEmptyAcceptedTrackingRow_();
     acceptedRows.push(row.slice(0, sourceLastColumn).concat(tracking));
   }
 
@@ -255,7 +255,8 @@ function getAcceptedEmailTrackingByEmail_(sheet, sourceColumnCount) {
   }
 
   const emailValues = sheet.getRange(2, emailIndex + 1, lastRow - 1, 1).getValues();
-  const helperValues = sheet.getRange(2, sourceColumnCount + 1, lastRow - 1, 3).getValues();
+  const helperColumnCount = getAcceptedTrackingHeaders_().length;
+  const helperValues = sheet.getRange(2, sourceColumnCount + 1, lastRow - 1, helperColumnCount).getValues();
   for (let i = 0; i < emailValues.length; i++) {
     const email = normalizeEmail_(emailValues[i][0]);
     if (!email) {
@@ -268,11 +269,7 @@ function getAcceptedEmailTrackingByEmail_(sheet, sourceColumnCount) {
 }
 
 function restoreAcceptedEmailTrackingHeaders_(sheet, sourceColumnCount) {
-  const headers = [
-    REGISTRATION_CONFIG.acceptedEmailStatusColumn,
-    REGISTRATION_CONFIG.acceptedEmailErrorColumn,
-    REGISTRATION_CONFIG.acceptedEmailSentAtColumn
-  ];
+  const headers = getAcceptedTrackingHeaders_();
 
   for (let i = 0; i < headers.length; i++) {
     sheet.getRange(1, sourceColumnCount + i + 1)

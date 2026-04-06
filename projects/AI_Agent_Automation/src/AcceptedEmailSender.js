@@ -14,15 +14,55 @@ function sendAcceptedTestEmail() {
   logAndToast_("Accepted test email sent to: " + testEmail);
 }
 
+function sendAcceptedReminderTestEmail() {
+  const testEmail = getTestEmailRecipient_();
+
+  GmailApp.sendEmail(
+    testEmail,
+    "[TEST] " + getAcceptedReminderEmailSubject_(),
+    getAiAgentsAcceptedReminderPlainText("Accepted Candidate"),
+    {
+      htmlBody: getAiAgentsAcceptedReminderHtml("Accepted Candidate"),
+      name: REGISTRATION_CONFIG.senderName
+    }
+  );
+
+  logAndToast_("Accepted reminder test email sent to: " + testEmail);
+}
+
 function sendAcceptedEmails() {
+  runAcceptedEmailBatch_({
+    actionLabel: "Accepted email",
+    summaryLabel: "Accepted email run complete",
+    subject: function () {
+      return REGISTRATION_CONFIG.acceptedEmailSubject;
+    },
+    getPlainText: getAiAgentsAcceptedEmailPlainText,
+    getHtml: getAiAgentsAcceptedEmailHtml,
+    getTrackingInfo: ensureAcceptedEmailStatusColumns_
+  });
+}
+
+function sendAcceptedReminderEmails() {
+  runAcceptedEmailBatch_({
+    actionLabel: "Accepted reminder email",
+    summaryLabel: "Accepted reminder email run complete",
+    subject: getAcceptedReminderEmailSubject_,
+    getPlainText: getAiAgentsAcceptedReminderPlainText,
+    getHtml: getAiAgentsAcceptedReminderHtml,
+    getTrackingInfo: ensureAcceptedReminderStatusColumns_
+  });
+}
+
+function runAcceptedEmailBatch_(options) {
   withScriptLock_(function () {
     const acceptedSheet = ensureAcceptedSheet_();
     const columns = getAcceptedSheetEmailColumns_(acceptedSheet);
-    const emailStatusInfo = ensureAcceptedEmailStatusColumns_(acceptedSheet);
+    const trackingInfo = options.getTrackingInfo(acceptedSheet);
     const lastRow = acceptedSheet.getLastRow();
 
     if (lastRow < 2) {
-      logAndToast_("No accepted rows found for accepted email sending.");
+      logAndToast_("No accepted rows found for " + options.actionLabel.toLowerCase() + " sending.");
       return;
     }
 
@@ -34,7 +74,7 @@ function sendAcceptedEmails() {
       const row = acceptedSheet.getRange(rowNumber, 1, 1, acceptedSheet.getLastColumn()).getValues()[0];
       const email = normalizeEmail_(row[columns.emailIndex]);
       const statusInfo = getReviewStatusInfo_(row[columns.statusIndex]);
-      const currentSendStatus = String(row[emailStatusInfo.statusIndex] || "").trim().toLowerCase();
+      const currentSendStatus = normalizeSendTrackingStatus_(row[trackingInfo.statusIndex]);
       const fullName = String(row[columns.fullNameIndex] || "").trim();
 
       if (!statusInfo || statusInfo.key !== "accepted") {
@@ -43,7 +83,7 @@ function sendAcceptedEmails() {
       }
 
       if (!email) {
-        acceptedSheet.getRange(rowNumber, emailStatusInfo.statusIndex + 1).setValue("Skipped - No Email");
+        setEmailTrackingResult_(acceptedSheet, rowNumber, trackingInfo, "Skipped - No Email", "", "");
         skipped++;
         continue;
       }
@@ -56,29 +96,26 @@ function sendAcceptedEmails() {
       try {
         GmailApp.sendEmail(
           email,
-          REGISTRATION_CONFIG.acceptedEmailSubject,
-          getAiAgentsAcceptedEmailPlainText(fullName),
+          options.subject(fullName),
+          options.getPlainText(fullName),
           {
-            htmlBody: getAiAgentsAcceptedEmailHtml(fullName),
+            htmlBody: options.getHtml(fullName),
             name: REGISTRATION_CONFIG.senderName
           }
         );
 
-        acceptedSheet.getRange(rowNumber, emailStatusInfo.statusIndex + 1).setValue("Sent");
-        acceptedSheet.getRange(rowNumber, emailStatusInfo.errorIndex + 1).setValue("");
-        acceptedSheet.getRange(rowNumber, emailStatusInfo.sentAtIndex + 1).setValue(new Date());
+        setEmailTrackingResult_(acceptedSheet, rowNumber, trackingInfo, "Sent", "", new Date());
         sent++;
 
         Utilities.sleep(200);
       } catch (err) {
-        acceptedSheet.getRange(rowNumber, emailStatusInfo.statusIndex + 1).setValue("Failed");
-        acceptedSheet.getRange(rowNumber, emailStatusInfo.errorIndex + 1).setValue(String(err));
+        setEmailTrackingResult_(acceptedSheet, rowNumber, trackingInfo, "Failed", String(err), "");
         failed++;
       }
     }
 
     logAndToast_(
-      "Accepted email run complete. Sent: " + sent +
+      options.summaryLabel + ". Sent: " + sent +
       ", Failed: " + failed +
       ", Skipped: " + skipped
     );
@@ -86,40 +123,69 @@ function sendAcceptedEmails() {
 }
 
 function ensureAcceptedEmailStatusColumns_(sheet) {
+  const indexes = ensureAcceptedTrackingColumns_(sheet);
+  return {
+    statusIndex: indexes.acceptedStatusIndex,
+    errorIndex: indexes.acceptedErrorIndex,
+    sentAtIndex: indexes.acceptedSentAtIndex
+  };
+}
+
+function ensureAcceptedReminderStatusColumns_(sheet) {
+  const indexes = ensureAcceptedTrackingColumns_(sheet);
+  return {
+    statusIndex: indexes.acceptedReminderStatusIndex,
+    errorIndex: indexes.acceptedReminderErrorIndex,
+    sentAtIndex: indexes.acceptedReminderSentAtIndex
+  };
+}
+
+function ensureAcceptedTrackingColumns_(sheet) {
   const lastCol = Math.max(sheet.getLastColumn(), 1);
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
     return String(h || "").trim();
   });
   const workingHeaders = headers.slice();
+  const columnConfig = getAcceptedTrackingColumnConfig_();
+  const indexes = {};
 
-  let statusIndex = findExactHeaderIndex_(workingHeaders, REGISTRATION_CONFIG.acceptedEmailStatusColumn);
-  if (statusIndex === -1) {
-    statusIndex = appendHeaderColumn_(sheet, workingHeaders, REGISTRATION_CONFIG.acceptedEmailStatusColumn);
+  for (let i = 0; i < columnConfig.length; i++) {
+    const config = columnConfig[i];
+    let index = findExactHeaderIndex_(workingHeaders, config.label);
+    if (index === -1) {
+      index = appendHeaderColumn_(sheet, workingHeaders, config.label);
+    }
+    indexes[config.key] = index;
   }
 
-  let errorIndex = findExactHeaderIndex_(workingHeaders, REGISTRATION_CONFIG.acceptedEmailErrorColumn);
-  if (errorIndex === -1) {
-    errorIndex = appendHeaderColumn_(sheet, workingHeaders, REGISTRATION_CONFIG.acceptedEmailErrorColumn);
-  }
+  return indexes;
+}
 
-  let sentAtIndex = findExactHeaderIndex_(workingHeaders, REGISTRATION_CONFIG.acceptedEmailSentAtColumn);
-  if (sentAtIndex === -1) {
-    sentAtIndex = appendHeaderColumn_(sheet, workingHeaders, REGISTRATION_CONFIG.acceptedEmailSentAtColumn);
-  }
+function getAcceptedTrackingColumnConfig_() {
+  return [
+    { key: "acceptedStatusIndex", label: REGISTRATION_CONFIG.acceptedEmailStatusColumn },
+    { key: "acceptedErrorIndex", label: REGISTRATION_CONFIG.acceptedEmailErrorColumn },
+    { key: "acceptedSentAtIndex", label: REGISTRATION_CONFIG.acceptedEmailSentAtColumn },
+    { key: "acceptedReminderStatusIndex", label: REGISTRATION_CONFIG.acceptedReminderStatusColumn },
+    { key: "acceptedReminderErrorIndex", label: REGISTRATION_CONFIG.acceptedReminderErrorColumn },
+    { key: "acceptedReminderSentAtIndex", label: REGISTRATION_CONFIG.acceptedReminderSentAtColumn }
+  ];
+}
 
-  return {
-    statusIndex: statusIndex,
-    errorIndex: errorIndex,
-    sentAtIndex: sentAtIndex
-  };
+function getAcceptedTrackingHeaders_() {
+  return getAcceptedTrackingColumnConfig_().map(function (config) {
+    return config.label;
+  });
+}
+
+function createEmptyAcceptedTrackingRow_() {
+  return getAcceptedTrackingHeaders_().map(function () {
+    return "";
+  });
 }
 
 function ensureAcceptedEmailHelperColumns_(sheet, sourceColumnCount) {
-  const helperHeaders = [
-    REGISTRATION_CONFIG.acceptedEmailStatusColumn,
-    REGISTRATION_CONFIG.acceptedEmailErrorColumn,
-    REGISTRATION_CONFIG.acceptedEmailSentAtColumn
-  ];
+  const helperHeaders = getAcceptedTrackingHeaders_();
 
   for (let i = 0; i < helperHeaders.length; i++) {
     const targetColumn = sourceColumnCount + i + 1;
@@ -130,6 +196,20 @@ function ensureAcceptedEmailHelperColumns_(sheet, sourceColumnCount) {
         .setBackground("#e8eefc");
     }
   }
+}
+
+function setEmailTrackingResult_(sheet, rowNumber, trackingInfo, status, error, sentAt) {
+  sheet.getRange(rowNumber, trackingInfo.statusIndex + 1).setValue(status);
+  sheet.getRange(rowNumber, trackingInfo.errorIndex + 1).setValue(truncateEmailTrackingError_(error));
+  sheet.getRange(rowNumber, trackingInfo.sentAtIndex + 1).setValue(sentAt || "");
+}
+
+function normalizeSendTrackingStatus_(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function truncateEmailTrackingError_(value) {
+  return String(value || "").slice(0, 500);
 }
 
 function appendHeaderColumn_(sheet, headers, label) {
@@ -150,6 +230,10 @@ function findExactHeaderIndex_(headers, label) {
 }
 
 function getAcceptedSheetEmailColumns_(sheet) {
+  return getDecisionEmailColumns_(sheet, "Accepted sheet");
+}
+
+function getDecisionEmailColumns_(sheet, sheetLabel) {
   const lastCol = Math.max(sheet.getLastColumn(), 1);
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
     return String(h || "").trim();
@@ -160,7 +244,9 @@ function getAcceptedSheetEmailColumns_(sheet) {
   const statusIndex = findColumnIndexByCandidates_(headers, REGISTRATION_CONFIG.statusColumnCandidates);
 
   if (emailIndex === -1 || fullNameIndex === -1 || statusIndex === -1) {
-    throw new Error("Accepted sheet is missing one of these required columns: Email address, Full Name, Status.");
+    throw new Error(
+      sheetLabel + " is missing one of these required columns: Email address, Full Name, Status."
+    );
   }
 
   return {
