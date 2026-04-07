@@ -332,10 +332,13 @@ function ensurePaymentConfirmationColumns_(sheet) {
 }
 
 function styleConfirmationHelperHeaders_(sheet, columnNumbers) {
+  const firstHelperColumn = Math.min.apply(null, columnNumbers);
+  const sourceHeaderColumn = Math.max(1, firstHelperColumn - 1);
+  const sourceHeaderCell = sheet.getRange(1, sourceHeaderColumn);
+
   for (let i = 0; i < columnNumbers.length; i++) {
-    sheet.getRange(1, columnNumbers[i])
-      .setFontWeight("bold")
-      .setBackground("#e8eefc");
+    sourceHeaderCell.copyFormatToRange(sheet, columnNumbers[i], columnNumbers[i], 1, 1);
+    sheet.getRange(1, columnNumbers[i]).setFontWeight("bold");
   }
 
   if (columnNumbers.length >= 4) {
