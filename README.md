@@ -11,6 +11,7 @@ projects/
   Reg_Automations/
   Payment_Receipt_Onboarding/
   AI_Agent_Automation/
+  AI_Agents_Cohort_Acceptance/
 scripts/
   clasp-project.ps1
   new-project.ps1
@@ -21,6 +22,7 @@ scripts/
 - `Reg_Automations` (registration + selection email workflows)
 - `Payment_Receipt_Onboarding` (green-row onboarding email workflow)
 - `AI_Agent_Automation` (registration welcome email, accepted + reminder emails, and rejection email workflow)
+- `AI_Agents_Cohort_Acceptance` (cohort acceptance payment-confirmation workflow)
 
 Project-specific details are documented in each project folder `README.md`.
 
@@ -32,6 +34,7 @@ Push a specific project:
 .\scripts\clasp-project.ps1 -Project Reg_Automations -Action push
 .\scripts\clasp-project.ps1 -Project Payment_Receipt_Onboarding -Action push
 .\scripts\clasp-project.ps1 -Project AI_Agent_Automation -Action push
+.\scripts\clasp-project.ps1 -Project AI_Agents_Cohort_Acceptance -Action push
 ```
 
 Create a new project:

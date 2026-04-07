@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: Segoe UI, Arial, sans-serif;
+        background: #f6f8fc;
+        color: #0f172a;
+      }
+      .card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+      }
+      h2 {
+        margin: 0 0 8px 0;
+        font-size: 17px;
+      }
+      p {
+        margin: 0 0 12px 0;
+        font-size: 13px;
+        color: #475569;
+      }
+      .btn {
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin: 0 0 8px 0;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-primary { background: #1d4ed8; color: #ffffff; }
+      .btn-neutral { background: #0f766e; color: #ffffff; }
+      .btn-warn { background: #475569; color: #ffffff; }
+      .btn-danger { background: #b91c1c; color: #ffffff; }
+      .status {
+        margin-top: 10px;
+        min-height: 18px;
+        font-size: 12px;
+        color: #334155;
+      }
+      .error { color: #b91c1c; }
+      .input {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin: 0 0 8px 0;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>AI Agents Cohort Acceptance</h2>
+      <p>Setup the confirmation column, test the email, and run catch-up sends for already confirmed rows.</p>
+
+      <button class="btn btn-primary" onclick="runAction('setupPaymentConfirmationAutomation')">
+        Setup Payment Confirmation Automation
+      </button>
+      <input id="testEmail" class="input" type="email" placeholder="test@email.com" />
+      <button class="btn btn-primary" onclick="saveTestEmail()">
+        Save Test Email Recipient
+      </button>
+      <button class="btn btn-warn" onclick="runAction('sendPaymentConfirmationTestEmail')">
+        Send Test Payment Confirmation Email
+      </button>
+      <button class="btn btn-neutral" onclick="runAction('previewPendingConfirmedRows')">
+        Preview Pending Confirmed Rows
+      </button>
+      <button class="btn btn-primary" onclick="runAction('sendPaymentConfirmedEmails')">
+        Send Payment Confirmation Emails
+      </button>
+      <button class="btn btn-neutral" onclick="runAction('installPaymentConfirmationTrigger')">
+        Install Auto Trigger
+      </button>
+      <button class="btn btn-danger" onclick="runAction('clearPaymentConfirmationTrigger')">
+        Clear Auto Trigger
+      </button>
+
+      <div id="status" class="status"></div>
+    </div>
+
+    <script>
+      function setStatus(message, isError) {
+        var status = document.getElementById("status");
+        status.textContent = message || "";
+        status.className = isError ? "status error" : "status";
+      }
+
+      function runAction(functionName) {
+        setStatus("Running " + functionName + " ...", false);
+        google.script.run
+          .withSuccessHandler(function () {
+            setStatus(functionName + " completed.", false);
+          })
+          .withFailureHandler(function (error) {
+            var msg = error && error.message ? error.message : String(error);
+            setStatus(msg, true);
+          })[functionName]();
+      }
+
+      function saveTestEmail() {
+        var email = document.getElementById("testEmail").value;
+        setStatus("Saving test email recipient ...", false);
+        google.script.run
+          .withSuccessHandler(function (savedEmail) {
+            setStatus("Saved: " + savedEmail, false);
+          })
+          .withFailureHandler(function (error) {
+            var msg = error && error.message ? error.message : String(error);
+            setStatus(msg, true);
+          })
+          .saveTestEmailRecipient(email);
+      }
+    </script>
+  </body>
+</html>
