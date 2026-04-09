@@ -64,6 +64,8 @@ Apps Script project folder for Applied AI registration automation in Google Shee
 - `Send Accepted Reminder Emails (Pending)` sends the admitted-candidate reminder only to accepted-sheet rows whose reminder status is not already `Sent`
 - `Send Test Accepted Reminder Email` sends the admitted-candidate reminder to the saved test recipient
 - The `Accepted` sheet remains a synced copy of accepted rows and preserves the accepted-email tracking columns during rebuilds
+- Accepted sends now re-sync the `Accepted` sheet from the source sheet before sending, so reminder runs do not depend on a stale accepted-sheet copy
+- Source-side rejection helper columns are excluded from the accepted-sheet schema, so reminder sends no longer clear the `Accepted` sheet because of header mismatch
 
 Accepted email links currently used:
 - Discord: `https://discord.gg/4mhSUaeTM`
