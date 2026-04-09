@@ -65,8 +65,9 @@ function ensureAcceptedSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(REGISTRATION_CONFIG.acceptedSheetName);
   const sourceSheet = getRegistrationSourceSheet_();
-  const sourceLastColumn = Math.max(sourceSheet.getLastColumn(), 1);
-  const sourceHeaders = sourceSheet.getRange(1, 1, 1, sourceLastColumn).getValues()[0];
+  const sourceShape = getAcceptedSourceShape_(sourceSheet);
+  const sourceLastColumn = sourceShape.columnCount;
+  const sourceHeaders = sourceShape.headers;
 
   if (!sheet) {
     sheet = ss.insertSheet(REGISTRATION_CONFIG.acceptedSheetName);
@@ -89,7 +90,8 @@ function ensureAcceptedSheet_() {
 }
 
 function syncAcceptedCandidatesSheet_(sourceSheet, columns) {
-  const sourceLastColumn = Math.max(sourceSheet.getLastColumn(), 1);
+  const sourceShape = getAcceptedSourceShape_(sourceSheet);
+  const sourceLastColumn = sourceShape.columnCount;
   const helperColumnCount = getAcceptedTrackingHeaders_().length;
   const acceptedSheet = ensureAcceptedSheet_();
   const existingTrackingByEmail = getAcceptedEmailTrackingByEmail_(acceptedSheet, sourceLastColumn);
@@ -102,7 +104,7 @@ function syncAcceptedCandidatesSheet_(sourceSheet, columns) {
     return acceptedSheet;
   }
 
-  const sourceRows = sourceSheet.getRange(2, 1, sourceSheet.getLastRow() - 1, sourceSheet.getLastColumn()).getValues();
+  const sourceRows = sourceSheet.getRange(2, 1, sourceSheet.getLastRow() - 1, sourceLastColumn).getValues();
   const acceptedRows = [];
 
   for (let i = 0; i < sourceRows.length; i++) {
@@ -277,4 +279,35 @@ function restoreAcceptedEmailTrackingHeaders_(sheet, sourceColumnCount) {
       .setFontWeight("bold")
       .setBackground("#e8eefc");
   }
+}
+
+function getAcceptedSourceShape_(sourceSheet) {
+  const lastCol = Math.max(sourceSheet.getLastColumn(), 1);
+  const headers = sourceSheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
+    return String(h || "").trim();
+  });
+  const dataColumnCount = getAcceptedSourceColumnCount_(headers);
+
+  return {
+    columnCount: dataColumnCount,
+    headers: headers.slice(0, dataColumnCount)
+  };
+}
+
+function getAcceptedSourceColumnCount_(headers) {
+  const helperHeaders = [
+    REGISTRATION_CONFIG.rejectedEmailStatusColumn,
+    REGISTRATION_CONFIG.rejectedEmailErrorColumn,
+    REGISTRATION_CONFIG.rejectedEmailSentAtColumn
+  ];
+
+  let firstHelperIndex = headers.length;
+  for (let i = 0; i < helperHeaders.length; i++) {
+    const index = findExactHeaderIndex_(headers, helperHeaders[i]);
+    if (index !== -1 && index < firstHelperIndex) {
+      firstHelperIndex = index;
+    }
+  }
+
+  return firstHelperIndex;
 }

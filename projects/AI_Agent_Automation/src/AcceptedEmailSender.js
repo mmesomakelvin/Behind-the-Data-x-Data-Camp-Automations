@@ -56,7 +56,7 @@ function sendAcceptedReminderEmails() {
 
 function runAcceptedEmailBatch_(options) {
   withScriptLock_(function () {
-    const acceptedSheet = ensureAcceptedSheet_();
+    const acceptedSheet = getPreparedAcceptedSheetForSending_();
     const columns = getAcceptedSheetEmailColumns_(acceptedSheet);
     const trackingInfo = options.getTrackingInfo(acceptedSheet);
     const lastRow = acceptedSheet.getLastRow();
@@ -120,6 +120,12 @@ function runAcceptedEmailBatch_(options) {
       ", Skipped: " + skipped
     );
   });
+}
+
+function getPreparedAcceptedSheetForSending_() {
+  const sourceSheet = getRegistrationSourceSheet_();
+  const columns = getReviewColumnIndexes_(sourceSheet);
+  return syncAcceptedCandidatesSheet_(sourceSheet, columns);
 }
 
 function ensureAcceptedEmailStatusColumns_(sheet) {
