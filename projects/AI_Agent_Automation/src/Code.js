@@ -31,6 +31,7 @@ const REGISTRATION_CONFIG = {
   emailSubject: "We are Reviewing Your Application: Applied AI Development Bootcamp Scholarship",
   acceptedEmailSubject: "Congratulations! You Have Been Accepted into the Applied AI Development Bootcamp",
   acceptedReminderEmailSubjectPrefix: "Reminder: Accept Your Admission and Pay Your Commitment Fee",
+  acceptedReminderDeadlineLabel: "Saturday, April 11, 2026",
   acceptedEmailStatusColumn: "Acceptance Email Status",
   acceptedEmailErrorColumn: "Acceptance Email Error",
   acceptedEmailSentAtColumn: "Acceptance Email Sent At",

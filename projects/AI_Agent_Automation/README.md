@@ -73,8 +73,8 @@ Accepted email links currently used:
 - Cohort acceptance form: `https://docs.google.com/forms/d/e/1FAIpQLSeFfwQhzVgzRAA4NPNJhpn7Rk9a-2yzaJaBMP0klqIh-_vigQ/viewform?usp=publish-editor`
 
 Accepted reminder email details:
-- Tells admitted candidates to accept their admission and pay the commitment fee by the upcoming Friday date at send time
-- Includes the exact computed deadline date in the email body and subject
+- Tells admitted candidates to accept their admission and pay the commitment fee by `Saturday, April 11, 2026`
+- Includes that fixed deadline date in the email body and subject
 - Repeats the commitment-fee breakdown and bank account details
 - Points candidates back to the acceptance form and compliance document
 

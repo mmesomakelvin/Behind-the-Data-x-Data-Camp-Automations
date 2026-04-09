@@ -296,12 +296,7 @@ function getAcceptedReminderEmailSubject_() {
 }
 
 function getAiAgentsAcceptanceDeadlineLabel_() {
-  const timezone = getAiAgentsScriptTimeZone_();
-  const today = new Date();
-  const isoWeekday = Number(Utilities.formatDate(today, timezone, "u"));
-  const daysUntilFriday = (5 - isoWeekday + 7) % 7;
-  const deadlineDate = new Date(today.getTime() + daysUntilFriday * 24 * 60 * 60 * 1000);
-  return Utilities.formatDate(deadlineDate, timezone, "EEEE, MMMM d, yyyy");
+  return REGISTRATION_CONFIG.acceptedReminderDeadlineLabel;
 }
 
 function getAiAgentsScriptTimeZone_() {
