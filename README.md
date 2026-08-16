@@ -13,6 +13,7 @@ projects/
   AI_Agent_Automation/
   AI_Agents_Cohort_Acceptance/
   AEF_Submission_Form/
+  AEF_Cohort_2_Registration/
 scripts/
   clasp-project.ps1
   new-project.ps1
@@ -25,6 +26,7 @@ scripts/
 - `AI_Agent_Automation` (registration welcome email, accepted + reminder emails, and rejection email workflow)
 - `AI_Agents_Cohort_Acceptance` (cohort acceptance payment-confirmation workflow)
 - `AEF_Submission_Form` (Analytics Engineering Fellowship project-submission form workflow)
+- `AEF_Cohort_2_Registration` (Cohort 2 application acknowledgement workflow)
 
 Project-specific details are documented in each project folder `README.md`.
 
@@ -38,6 +40,7 @@ Push a specific project:
 .\scripts\clasp-project.ps1 -Project AI_Agent_Automation -Action push
 .\scripts\clasp-project.ps1 -Project AI_Agents_Cohort_Acceptance -Action push
 .\scripts\clasp-project.ps1 -Project AEF_Submission_Form -Action push
+.\scripts\clasp-project.ps1 -Project AEF_Cohort_2_Registration -Action push
 ```
 
 Create a new project:
