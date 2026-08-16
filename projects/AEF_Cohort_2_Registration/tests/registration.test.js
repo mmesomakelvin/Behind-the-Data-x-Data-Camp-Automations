@@ -57,3 +57,47 @@ test("registration email safely personalizes the applicant name", () => {
     /Hello Applicant/
   );
 });
+
+test("email normalization and primary fallback resolution are deterministic", () => {
+  const context = loadScripts(["EmailTemplate.js", "Code.js"]);
+
+  assert.equal(typeof context.normalizeAefEmail_, "function");
+  assert.equal(typeof context.resolveAefRegistrationEmail_, "function");
+
+  const columns = { primaryEmailIndex: 1, fallbackEmailIndex: 4 };
+  assert.equal(context.normalizeAefEmail_("  ADA@Example.COM "), "ada@example.com");
+  assert.equal(
+    context.resolveAefRegistrationEmail_(["", "primary@example.com", "", "", "fallback@example.com"], columns),
+    "primary@example.com"
+  );
+  assert.equal(
+    context.resolveAefRegistrationEmail_(["", "", "", "", "Fallback@Example.com"], columns),
+    "fallback@example.com"
+  );
+});
+
+test("registration actions prevent repeat sends and allow failed retries", () => {
+  const context = loadScripts(["EmailTemplate.js", "Code.js"]);
+
+  assert.equal(typeof context.determineAefRegistrationAction_, "function");
+  assert.equal(context.determineAefRegistrationAction_("", "", {}), "skip-no-email");
+  assert.equal(context.determineAefRegistrationAction_("ada@example.com", "Sent", {}), "skip-sent");
+  assert.equal(
+    context.determineAefRegistrationAction_("ada@example.com", "", { "ada@example.com": true }),
+    "skip-duplicate"
+  );
+  assert.equal(context.determineAefRegistrationAction_("ada@example.com", "Failed", {}), "send");
+  assert.equal(context.determineAefRegistrationAction_("ada@example.com", "", {}), "send");
+});
+
+test("header resolution distinguishes the two live email columns", () => {
+  const context = loadScripts(["EmailTemplate.js", "Code.js"]);
+
+  assert.equal(typeof context.getAefRegistrationColumnIndexes_, "function");
+
+  const headers = ["Timestamp", "Email address", "Column 2", "Full Name", "Email Address"];
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(context.getAefRegistrationColumnIndexes_(headers))),
+    { primaryEmailIndex: 1, fullNameIndex: 3, fallbackEmailIndex: 4 }
+  );
+});
