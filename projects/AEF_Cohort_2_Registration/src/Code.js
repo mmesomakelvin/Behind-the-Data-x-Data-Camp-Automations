@@ -14,8 +14,7 @@ const AEF_COHORT_2_CONFIG = {
   senderName: "Behind the Data Academy",
   subject: "Application Received – Analytics Engineering Fellowship Cohort 2",
   triggerHandler: "handleRegistrationSubmit",
-  testEmailProperty: "AEF_COHORT_2_TEST_EMAIL",
-  defaultTestEmail: "mmesomakelvin@gmail.com"
+  testEmailProperty: "AEF_COHORT_2_TEST_EMAIL"
 };
 
 function onOpen() {
@@ -37,28 +36,32 @@ function setupRegistrationAutomation() {
   return withAefScriptLock_(function () {
     const sheet = getAefSourceSheet_();
     ensureAefRegistrationTrackingColumns_(sheet);
-    installRegistrationTrigger();
+    installRegistrationTrigger_();
     return logAndToastAef_("Registration automation is ready on: " + sheet.getName());
   });
 }
 
 function installRegistrationTrigger() {
+  return withAefScriptLock_(installRegistrationTrigger_);
+}
+
+function installRegistrationTrigger_() {
   const triggers = ScriptApp.getProjectTriggers();
   let keeperFound = false;
-  let removedDuplicates = 0;
+  let removedConflicts = 0;
 
   for (let i = 0; i < triggers.length; i++) {
     if (triggers[i].getHandlerFunction() !== AEF_COHORT_2_CONFIG.triggerHandler) {
       continue;
     }
 
-    if (!keeperFound) {
+    if (isMatchingAefRegistrationTrigger_(triggers[i]) && !keeperFound) {
       keeperFound = true;
       continue;
     }
 
     ScriptApp.deleteTrigger(triggers[i]);
-    removedDuplicates++;
+    removedConflicts++;
   }
 
   if (!keeperFound) {
@@ -71,11 +74,29 @@ function installRegistrationTrigger() {
   const state = keeperFound ? "already existed" : "installed";
   return logAndToastAef_(
     "Registration form-submit trigger " + state +
-    ". Duplicate triggers removed: " + removedDuplicates
+    ". Duplicate or conflicting triggers removed: " + removedConflicts
   );
 }
 
+function isMatchingAefRegistrationTrigger_(trigger) {
+  try {
+    return Boolean(
+      trigger &&
+      trigger.getHandlerFunction() === AEF_COHORT_2_CONFIG.triggerHandler &&
+      trigger.getEventType() === ScriptApp.EventType.ON_FORM_SUBMIT &&
+      trigger.getTriggerSource() === ScriptApp.TriggerSource.SPREADSHEETS &&
+      trigger.getTriggerSourceId() === AEF_COHORT_2_CONFIG.spreadsheetId
+    );
+  } catch (error) {
+    return false;
+  }
+}
+
 function clearRegistrationTrigger() {
+  return withAefScriptLock_(clearRegistrationTrigger_);
+}
+
+function clearRegistrationTrigger_() {
   const triggers = ScriptApp.getProjectTriggers();
   let removed = 0;
 
@@ -120,23 +141,35 @@ function processExistingRegistrations() {
     const tracking = ensureAefRegistrationTrackingColumns_(sheet);
     const columns = getAefRegistrationColumnIndexes_(getAefHeaders_(sheet));
     const sentEmails = getAefSentEmailSet_(sheet, columns, tracking);
-    const counts = { sent: 0, failed: 0, duplicate: 0, noEmail: 0, alreadySent: 0 };
+    const counts = {
+      sent: 0,
+      failed: 0,
+      trackingFailed: 0,
+      duplicate: 0,
+      noEmail: 0,
+      alreadySent: 0,
+      reconciliation: 0
+    };
 
     for (let rowNumber = 2; rowNumber <= sheet.getLastRow(); rowNumber++) {
       const result = processAefRegistrationRow_(sheet, rowNumber, columns, tracking, sentEmails);
       if (result.status === "sent") counts.sent++;
       if (result.status === "failed") counts.failed++;
+      if (result.status === "tracking-failed") counts.trackingFailed++;
       if (result.status === "duplicate") counts.duplicate++;
       if (result.status === "no-email") counts.noEmail++;
       if (result.status === "already-sent") counts.alreadySent++;
+      if (result.status === "reconciliation") counts.reconciliation++;
     }
 
     return logAndToastAef_(
       "Catch-up complete. Sent: " + counts.sent +
       ", Failed: " + counts.failed +
+      ", Tracking failures: " + counts.trackingFailed +
       ", Duplicates: " + counts.duplicate +
       ", No email: " + counts.noEmail +
-      ", Already sent: " + counts.alreadySent
+      ", Already sent: " + counts.alreadySent +
+      ", Needs reconciliation: " + counts.reconciliation
     );
   });
 }
@@ -144,10 +177,11 @@ function processExistingRegistrations() {
 function previewPendingRegistrations() {
   return withAefScriptLock_(function () {
     const sheet = getAefSourceSheet_();
-    const tracking = ensureAefRegistrationTrackingColumns_(sheet);
-    const columns = getAefRegistrationColumnIndexes_(getAefHeaders_(sheet));
+    const headers = getAefHeaders_(sheet);
+    const tracking = getAefRegistrationTrackingColumnIndexes_(headers);
+    const columns = getAefRegistrationColumnIndexes_(headers);
     const sentEmails = getAefSentEmailSet_(sheet, columns, tracking);
-    const counts = { pending: 0, duplicate: 0, noEmail: 0, alreadySent: 0 };
+    const counts = { pending: 0, duplicate: 0, noEmail: 0, alreadySent: 0, reconciliation: 0 };
 
     if (sheet.getLastRow() >= 2) {
       const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
@@ -166,6 +200,8 @@ function previewPendingRegistrations() {
           counts.noEmail++;
         } else if (action === "skip-sent") {
           counts.alreadySent++;
+        } else if (action === "skip-reconciliation") {
+          counts.reconciliation++;
         }
       }
     }
@@ -174,7 +210,8 @@ function previewPendingRegistrations() {
       "Preview only. Pending: " + counts.pending +
       ", Duplicates: " + counts.duplicate +
       ", No email: " + counts.noEmail +
-      ", Already sent: " + counts.alreadySent
+      ", Already sent: " + counts.alreadySent +
+      ", Needs reconciliation: " + counts.reconciliation
     );
   });
 }
@@ -240,6 +277,13 @@ function processAefRegistrationRow_(sheet, rowNumber, columns, tracking, sentEma
     return { status: "already-sent", message: "Registration email was already sent" };
   }
 
+  if (action === "skip-reconciliation") {
+    return {
+      status: "reconciliation",
+      message: "Delivery state is uncertain; automatic retry was blocked"
+    };
+  }
+
   if (action === "skip-no-email") {
     setAefRegistrationTracking_(sheet, rowNumber, tracking, "Skipped - No Email", "", "");
     return { status: "no-email", message: "No recipient email was found" };
@@ -248,6 +292,20 @@ function processAefRegistrationRow_(sheet, rowNumber, columns, tracking, sentEma
   if (action === "skip-duplicate") {
     setAefRegistrationTracking_(sheet, rowNumber, tracking, "Skipped - Duplicate", "", "");
     return { status: "duplicate", message: "This email already received an acknowledgement" };
+  }
+
+  try {
+    setAefRegistrationTracking_(sheet, rowNumber, tracking, "Sending", "", "");
+    SpreadsheetApp.flush();
+  } catch (error) {
+    Logger.log(
+      "Could not reserve registration row " + rowNumber +
+      " before sending: " + truncateAefError_(error)
+    );
+    return {
+      status: "tracking-failed",
+      message: "No email was sent because the delivery reservation could not be recorded"
+    };
   }
 
   try {
@@ -260,29 +318,63 @@ function processAefRegistrationRow_(sheet, rowNumber, columns, tracking, sentEma
         name: AEF_COHORT_2_CONFIG.senderName
       }
     );
-
-    setAefRegistrationTracking_(sheet, rowNumber, tracking, "Sent", "", new Date());
-    sentEmails[email] = true;
-    return { status: "sent", message: "Registration acknowledgement sent" };
   } catch (error) {
-    setAefRegistrationTracking_(
-      sheet,
-      rowNumber,
-      tracking,
-      "Failed",
-      truncateAefError_(error),
-      ""
-    );
+    try {
+      setAefRegistrationTracking_(
+        sheet,
+        rowNumber,
+        tracking,
+        "Failed",
+        truncateAefError_(error),
+        ""
+      );
+    } catch (trackingError) {
+      Logger.log(
+        "Email send failed and row " + rowNumber +
+        " could not be marked Failed: " + truncateAefError_(trackingError)
+      );
+      return {
+        status: "tracking-failed",
+        message: "Email send failed; delivery reservation remains for reconciliation"
+      };
+    }
     return { status: "failed", message: String(error) };
   }
+
+  sentEmails[email] = true;
+  try {
+    setAefRegistrationTracking_(sheet, rowNumber, tracking, "Sent", "", new Date());
+  } catch (error) {
+    Logger.log(
+      "Registration email was sent for row " + rowNumber +
+      ", but final tracking failed: " + truncateAefError_(error)
+    );
+    try {
+      sheet.getRange(rowNumber, tracking.errorIndex + 1).setValue(
+        truncateAefError_("Email sent; final tracking failed: " + error)
+      );
+    } catch (secondaryError) {
+      Logger.log(
+        "Could not record the tracking error for row " + rowNumber +
+        ": " + truncateAefError_(secondaryError)
+      );
+    }
+    return {
+      status: "tracking-failed",
+      message: "Email was sent, but final tracking requires reconciliation"
+    };
+  }
+
+  return { status: "sent", message: "Registration acknowledgement sent" };
 }
 
 function determineAefRegistrationAction_(email, currentStatus, sentEmails) {
   const normalizedEmail = normalizeAefEmail_(email);
   const normalizedStatus = String(currentStatus || "").trim().toLowerCase();
 
-  if (!normalizedEmail) return "skip-no-email";
   if (normalizedStatus === "sent") return "skip-sent";
+  if (normalizedStatus === "sending") return "skip-reconciliation";
+  if (!normalizedEmail) return "skip-no-email";
   if (sentEmails && sentEmails[normalizedEmail]) return "skip-duplicate";
   return "send";
 }
@@ -356,13 +448,31 @@ function ensureAefRegistrationTrackingColumns_(sheet) {
   };
 }
 
+function getAefRegistrationTrackingColumnIndexes_(headers) {
+  const statusIndex = findExactAefHeaderIndex_(headers, AEF_COHORT_2_CONFIG.statusHeader);
+  const errorIndex = findExactAefHeaderIndex_(headers, AEF_COHORT_2_CONFIG.errorHeader);
+  const sentAtIndex = findExactAefHeaderIndex_(headers, AEF_COHORT_2_CONFIG.sentAtHeader);
+
+  if (statusIndex === -1 || errorIndex === -1 || sentAtIndex === -1) {
+    throw new Error(
+      "Registration tracking columns are missing. Run Setup Registration Automation first."
+    );
+  }
+
+  return {
+    statusIndex: statusIndex,
+    errorIndex: errorIndex,
+    sentAtIndex: sentAtIndex
+  };
+}
+
 function getAefSentEmailSet_(sheet, columns, tracking) {
   const sentEmails = {};
   if (sheet.getLastRow() < 2) return sentEmails;
 
   const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
   for (let i = 0; i < rows.length; i++) {
-    if (String(rows[i][tracking.statusIndex] || "").trim().toLowerCase() !== "sent") {
+    if (!isAefReservedOrSentStatus_(rows[i][tracking.statusIndex])) {
       continue;
     }
 
@@ -370,6 +480,11 @@ function getAefSentEmailSet_(sheet, columns, tracking) {
     if (email) sentEmails[email] = true;
   }
   return sentEmails;
+}
+
+function isAefReservedOrSentStatus_(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+  return normalized === "sent" || normalized === "sending";
 }
 
 function setAefRegistrationTracking_(sheet, rowNumber, tracking, status, error, sentAt) {
@@ -441,10 +556,10 @@ function getAefTestEmailRecipient_() {
   const saved = PropertiesService.getScriptProperties()
     .getProperty(AEF_COHORT_2_CONFIG.testEmailProperty);
   if (isValidAefEmail_(saved)) return normalizeAefEmail_(saved);
-
-  const activeUserEmail = Session.getActiveUser().getEmail();
-  if (isValidAefEmail_(activeUserEmail)) return normalizeAefEmail_(activeUserEmail);
-  return AEF_COHORT_2_CONFIG.defaultTestEmail;
+  throw new Error(
+    "Set a test email recipient before sending a test. " +
+    "Use the spreadsheet menu or saveTestEmailRecipient(email)."
+  );
 }
 
 function withAefScriptLock_(callback) {

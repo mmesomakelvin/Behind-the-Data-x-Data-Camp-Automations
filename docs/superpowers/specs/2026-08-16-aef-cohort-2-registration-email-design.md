@@ -6,7 +6,7 @@ Create the first layer of the Analytics Engineering Fellowship Cohort 2 automati
 
 ## Project Isolation
 
-Add a standalone Apps Script project at:
+Add an isolated Apps Script project at:
 
 ```text
 projects/AEF_Cohort_2_Registration/
@@ -69,18 +69,19 @@ For each new response:
 2. Verify that the event belongs to `Form responses 1`.
 3. Ensure the tracking columns exist.
 4. Resolve and normalize the recipient email.
-5. Check whether an earlier row for that normalized email is already marked `Sent`.
-6. Send the acknowledgement only when the email has not already received one.
-7. Record the result on the submitted row.
-8. Release the lock.
+5. Check whether an earlier row for that normalized email is already marked `Sent` or `Sending`.
+6. Reserve the row as `Sending` and flush that sheet write before calling Gmail.
+7. Send the acknowledgement only when the email has not already received one.
+8. Record the final result on the submitted row.
+9. Release the lock.
 
-The setup function will install at most one matching form-submit trigger. Re-running setup will not create duplicate triggers.
+The setup function will install at most one matching form-submit trigger for the current trigger-owning account. Re-running setup from that account will not create duplicate triggers. Because Apps Script returns installable triggers only for the current user, one designated account must own the automation and be the only account permitted to run setup or trigger installation.
 
 ## Duplicate Handling
 
 Email comparison will trim whitespace and ignore case. Only one registration acknowledgement will be sent per unique email address.
 
-When a later submission repeats an email whose earlier row is marked `Sent`, the new row will be recorded as `Skipped - Duplicate`. It will not receive another email.
+When a later submission repeats an email whose earlier row is marked `Sent` or `Sending`, the new row will be recorded as `Skipped - Duplicate`. It will not receive another email.
 
 The script lock ensures that two near-simultaneous submissions using the same address cannot both pass the duplicate check before either is recorded.
 
@@ -94,6 +95,7 @@ The automation will append these columns to the end of `Form responses 1` when t
 
 Supported status values are:
 
+- `Sending`
 - `Sent`
 - `Failed`
 - `Skipped - Duplicate`
@@ -113,15 +115,21 @@ The spreadsheet menu will provide:
 - `Install Auto Trigger`
 - `Clear Auto Trigger`
 
-The test recipient will be stored in Script Properties. Test sends will not change any applicant row or tracking status.
+The test recipient will be stored explicitly in Script Properties. There will be no default address or active-user fallback. Test sends will not change any applicant row or tracking status.
 
-`Process Existing Registrations` will provide a safe catch-up path for rows submitted before the trigger is installed or for rows whose earlier send failed. It will skip rows already marked `Sent` and will apply the same unique-email rule as live submissions.
+The custom menu requires the Apps Script project to be bound to the response spreadsheet. The trigger and processing functions will remain compatible with a standalone project through the fixed spreadsheet ID; in that case setup is run from the Apps Script editor and the test-recipient Script Property is entered manually.
+
+`Process Existing Registrations` will provide a safe catch-up path for rows submitted before the trigger is installed or for rows whose earlier send failed. It will skip rows already marked `Sent` or `Sending` and will apply the same unique-email rule as live submissions.
+
+`Preview Pending Registrations` will be read-only. If setup has not yet created the tracking columns, preview will stop with a clear instruction to run setup rather than modifying the sheet.
 
 ## Error Handling
 
 - A missing email will be recorded as `Skipped - No Email`.
 - A mail-service or template failure will be recorded as `Failed`, with the error text stored in `Registration Email Error`.
 - A failed row remains eligible for a later catch-up attempt.
+- A `Sending` row is not retried automatically. It requires checking the Gmail Sent folder. If delivered, the operator sets `Sent`, clears the error, and records the delivery time; if not delivered, the operator sets `Failed`, records the reason, and clears the sent-at value.
+- A successful Gmail call followed by a tracking failure will never be converted to `Failed`; this prevents an automatic duplicate email.
 - A run that cannot acquire the script lock will log the condition without sending.
 - Missing required headers or an unavailable source sheet will stop the run with a clear error instead of guessing a different sheet.
 

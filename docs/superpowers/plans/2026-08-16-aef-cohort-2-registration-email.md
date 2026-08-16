@@ -352,6 +352,19 @@ git rev-parse origin/main
 
 Expected: `main` is synchronized with `origin/main`, and local/remote hashes match.
 
+### Post-review hardening amendment
+
+The implemented workflow adds these safety requirements after code review:
+
+- Write and flush a non-retryable `Sending` reservation before calling Gmail.
+- Treat both `Sending` and `Sent` as duplicate-blocking states.
+- Never convert a successful Gmail call into a retryable `Failed` row when final tracking fails.
+- Require explicit configuration of `AEF_COHORT_2_TEST_EMAIL`; no personal or active-user fallback is allowed.
+- Match installable triggers by handler, event type, spreadsheet source, and spreadsheet ID.
+- Keep preview read-only and require setup to create tracking columns first.
+- Use one designated Google account as the sole trigger owner and setup operator.
+- Support standalone execution through the fixed spreadsheet ID, while noting that custom menus require a spreadsheet-bound script.
+
 - [ ] **Step 5: Hand off the authorization-required live setup**
 
 In the spreadsheet, the owner must reload the file, choose `AEF Cohort 2 Registration` → `Setup Registration Automation`, authorize the requested Google permissions, configure the test recipient, and send the test email. Then use a controlled form submission to verify `Sent` and a repeated normalized email to verify `Skipped - Duplicate`.

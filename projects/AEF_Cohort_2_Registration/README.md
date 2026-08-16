@@ -39,10 +39,18 @@ Setup appends these columns when they do not already exist:
 
 Status values include:
 
+- `Sending` (reserved; do not retry automatically)
 - `Sent`
 - `Failed`
 - `Skipped - Duplicate`
 - `Skipped - No Email`
+
+`Sending` is a safety state written before Gmail is called. If a run is interrupted or
+final tracking cannot be saved, the row stays non-retryable so the applicant is not
+emailed twice. Check the account's Sent folder. If delivered, change the status to
+`Sent`, clear the error, and enter the delivery time in `Registration Email Sent At`.
+If not delivered, change the status to `Failed`, record the reason in the error column,
+and clear the sent-at value.
 
 ## Menu Actions
 
@@ -57,13 +65,27 @@ Status values include:
 ## Setup and Test
 
 1. Push the project to Apps Script.
-2. Reload the Google Sheet.
-3. Choose `AEF Cohort 2 Registration` → `Setup Registration Automation`.
+2. Confirm the supplied Apps Script project is bound to the response spreadsheet.
+3. Reload the Google Sheet and choose `AEF Cohort 2 Registration` → `Setup Registration Automation`.
 4. Authorize the requested Google permissions.
 5. Set your test email recipient.
 6. Send the test registration email and review it.
 7. Submit one controlled form response and confirm `Registration Email Status` becomes `Sent` with a timestamp.
 8. Submit the same normalized email again and confirm the new row becomes `Skipped - Duplicate` without a second email.
+
+The menu is available only when the Apps Script project is bound to the spreadsheet.
+If this Script ID is standalone, run `setupRegistrationAutomation()` directly from
+the Apps Script editor. Add the Script Property `AEF_COHORT_2_TEST_EMAIL` manually
+before running `sendRegistrationTestEmail()`. There is no default or personal fallback
+test address.
+
+Only one designated Google account should own this automation's installable trigger.
+That account must be the only account that runs `Setup Registration Automation` or
+`Install Auto Trigger`; Apps Script trigger listings are scoped to the user who created
+them, so other spreadsheet editors must not install another copy.
+
+`Preview Pending Registrations` is read-only and requires setup to have created the
+three tracking columns first.
 
 ## Push
 
