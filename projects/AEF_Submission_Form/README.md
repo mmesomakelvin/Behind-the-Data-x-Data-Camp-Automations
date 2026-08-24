@@ -14,6 +14,7 @@ Google Apps Script project for creating and processing the Analytics Engineering
 - Tells each fellow to submit the form four times, once for each completed engagement.
 - Validates GitHub and Google Drive/Docs links.
 - Records each engagement submission as its own row in the review tracker.
+- Asks whether the fellow would like to present that project during the final fellowship session.
 - Sends either a confirmation email or a correction-request email.
 
 ## Setup
@@ -32,7 +33,8 @@ engagement and its GitHub and/or Google Drive link. Fellows complete the same fo
 times to submit four engagements. The form allows corrections and repeat submissions;
 the review tracker shows each submission as a separate row, so reviewers can confirm
 that each fellow submitted four different engagements. The question order is Cohort,
-Engagement, GitHub link, then Google Drive/Docs link.
+Engagement, GitHub link, Google Drive/Docs link, final-session presentation choice,
+then reviewer notes.
 
 ## Key Files
 

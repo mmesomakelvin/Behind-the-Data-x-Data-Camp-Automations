@@ -308,15 +308,21 @@ test("the public updater refreshes the live form instructions", () => {
     asListItem: () => listItem
   };
   const githubItem = { getTitle: () => "GitHub repo link" };
+  const presentationItem = {
+    getTitle: () => "Would you like to present this project during our final fellowship session?",
+    getType: () => "MULTIPLE_CHOICE",
+    asMultipleChoiceItem: () => listItem
+  };
+  const notesItem = { getTitle: () => "Anything the reviewer should know? (optional)" };
   const form = {
     setDescription(value) { values.push(value); return this; },
     setConfirmationMessage(value) { values.push(value); return this; },
-    getItems: () => [cohortItem, engagementItem, githubItem],
+    getItems: () => [cohortItem, engagementItem, githubItem, presentationItem, notesItem],
     getEditUrl: () => "https://docs.google.com/forms/example/edit"
   };
   const context = loadCode({
     FormApp: {
-      ItemType: { LIST: "LIST" },
+      ItemType: { LIST: "LIST", MULTIPLE_CHOICE: "MULTIPLE_CHOICE" },
       openById: () => form
     },
     PropertiesService: {
@@ -352,8 +358,14 @@ test("rerunning setup updates an existing form instead of doing nothing", () => 
     asListItem: () => listItem
   };
   const githubItem = { getTitle: () => "GitHub repo link" };
+  const presentationItem = {
+    getTitle: () => "Would you like to present this project during our final fellowship session?",
+    getType: () => "MULTIPLE_CHOICE",
+    asMultipleChoiceItem: () => listItem
+  };
+  const notesItem = { getTitle: () => "Anything the reviewer should know? (optional)" };
   const form = {
-    getItems: () => [cohortItem, engagementItem, githubItem],
+    getItems: () => [cohortItem, engagementItem, githubItem, presentationItem, notesItem],
     setDescription(value) { values.push(value); return this; },
     setConfirmationMessage(value) { values.push(value); return this; },
     getPublishedUrl: () => "https://docs.google.com/forms/example/viewform",
@@ -361,7 +373,7 @@ test("rerunning setup updates an existing form instead of doing nothing", () => 
   };
   const context = loadCode({
     FormApp: {
-      ItemType: { LIST: "LIST" },
+      ItemType: { LIST: "LIST", MULTIPLE_CHOICE: "MULTIPLE_CHOICE" },
       openById: () => form
     },
     PropertiesService: {
@@ -380,8 +392,16 @@ test("rerunning setup updates an existing form instead of doing nothing", () => 
 
 test("the live update relabels the existing review tracker", () => {
   let writtenHeaders;
+  let insertedBefore;
+  const oldHeaders = [
+    "Submitted at", "Name", "Email", "Cohort", "Engagement submitted",
+    "# Engagements", "GitHub link", "Google link", "Status", "Issues", "Notes"
+  ];
   const sheet = {
-    getRange: () => ({
+    getLastColumn: () => oldHeaders.length,
+    insertColumnBefore(column) { insertedBefore = column; },
+    getRange: (row, column, rowCount, columnCount) => ({
+      getValues() { return [oldHeaders.slice(0, columnCount)]; },
       setValues(values) { writtenHeaders = values[0]; return this; }
     })
   };
@@ -398,4 +418,90 @@ test("the live update relabels the existing review tracker", () => {
 
   assert.equal(writtenHeaders[4], "Engagement submitted");
   assert.equal(writtenHeaders[5], "# Engagements");
+  assert.equal(insertedBefore, 9);
+  assert.equal(writtenHeaders[8], "Would present at final session?");
+});
+
+test("the final-session question is a required Yes or No choice", () => {
+  const calls = [];
+  const item = {
+    setTitle(value) { calls.push(["title", value]); return this; },
+    setHelpText(value) { calls.push(["help", value]); return this; },
+    setChoiceValues(value) { calls.push(["choices", value.slice()]); return this; },
+    setRequired(value) { calls.push(["required", value]); return this; }
+  };
+  const form = {
+    addMultipleChoiceItem() { calls.push(["type", "multiple-choice"]); return item; }
+  };
+  const context = loadCode();
+
+  context.buildPresentationQuestion_(form);
+
+  assert.deepEqual(calls[0], ["type", "multiple-choice"]);
+  assert.deepEqual(
+    Array.from(calls.find((call) => call[0] === "choices")[1]),
+    ["Yes", "No"]
+  );
+  assert.deepEqual(calls.at(-1), ["required", true]);
+});
+
+test("the presentation question is placed after Google links and before reviewer notes", () => {
+  const makeItem = (title, type) => ({
+    getTitle: () => title,
+    getType: () => type
+  });
+  const items = [
+    makeItem("Google Drive / Docs link", "TEXT"),
+    makeItem("Anything the reviewer should know? (optional)", "PARAGRAPH_TEXT")
+  ];
+  const configured = {
+    setTitle(value) { this.title = value; return this; },
+    setHelpText() { return this; },
+    setChoiceValues() { return this; },
+    setRequired() { return this; },
+    getTitle() { return this.title; },
+    getType() { return "MULTIPLE_CHOICE"; },
+    asMultipleChoiceItem() { return this; }
+  };
+  const form = {
+    getItems: () => items,
+    addMultipleChoiceItem() { items.push(configured); return configured; },
+    moveItem(item, index) {
+      items.splice(items.indexOf(item), 1);
+      items.splice(index, 0, item);
+    }
+  };
+  const context = loadCode({ FormApp: { ItemType: { MULTIPLE_CHOICE: "MULTIPLE_CHOICE" } } });
+
+  context.ensurePresentationQuestion_(form);
+
+  assert.deepEqual(items.map((item) => item.getTitle()), [
+    "Google Drive / Docs link",
+    "Would you like to present this project during our final fellowship session?",
+    "Anything the reviewer should know? (optional)"
+  ]);
+});
+
+test("the response reader and receipt keep the presentation choice", () => {
+  const context = loadCode();
+  const responses = [
+    ["Full name", "Ada Lovelace"],
+    ["Email address", "ada@example.com"],
+    ["Which engagement are you submitting?", "One"],
+    ["GitHub repo link", "https://github.com/example/project"],
+    ["Google Drive / Docs link", "Nill"],
+    ["Would you like to present this project during our final fellowship session?", "Yes"]
+  ].map(([title, value]) => ({
+    getItem: () => ({ getTitle: () => title }),
+    getResponse: () => value
+  }));
+
+  const answer = context.readResponse_({
+    getItemResponses: () => responses,
+    getTimestamp: () => new Date("2026-08-24T00:00:00Z")
+  });
+  const html = context.buildConfirmationEmailHtml_(answer);
+
+  assert.equal(answer.presentFinalSession, "Yes");
+  assert.match(html, /Present at the final fellowship session:<\/strong> Yes/i);
 });

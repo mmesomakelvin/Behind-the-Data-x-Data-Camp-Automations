@@ -49,6 +49,7 @@ var Q = {
   projects: 'Which engagement are you submitting?',
   github: 'GitHub repo link',
   google: 'Google Drive / Docs link',
+  presentFinalSession: 'Would you like to present this project during our final fellowship session?',
   notes: 'Anything the reviewer should know? (optional)'
 };
 
@@ -56,7 +57,8 @@ var LEGACY_PROJECTS_QUESTION = 'Which four engagements did you complete?';
 
 var TRACKER_HEADERS = [
   'Submitted at', 'Name', 'Email', 'Cohort', 'Engagement submitted',
-  '# Engagements', 'GitHub link', 'Google link', 'Status', 'Issues', 'Notes'
+  '# Engagements', 'GitHub link', 'Google link', 'Would present at final session?',
+  'Status', 'Issues', 'Notes'
 ];
 
 // Accepted ways of saying "I did not submit this one".
@@ -136,6 +138,8 @@ function buildQuestions_(form) {
     .setHelpText('A Drive folder, Doc or Slides link — or type Nill if you have none. Make sure sharing is set to "Anyone with the link can view".')
     .setRequired(true);
 
+  buildPresentationQuestion_(form);
+
   form.addParagraphTextItem()
     .setTitle(Q.notes)
     .setRequired(false);
@@ -147,6 +151,18 @@ function buildEngagementQuestion_(form) {
 
 function buildCohortQuestion_(form) {
   return configureCohortListItem_(form.addListItem());
+}
+
+function buildPresentationQuestion_(form) {
+  return configurePresentationQuestion_(form.addMultipleChoiceItem());
+}
+
+function configurePresentationQuestion_(item) {
+  return item
+    .setTitle(Q.presentFinalSession)
+    .setHelpText('Choose Yes if you would like to show this project during our final fellowship session.')
+    .setChoiceValues(['Yes', 'No'])
+    .setRequired(true);
 }
 
 function configureCohortListItem_(item) {
@@ -184,9 +200,46 @@ function migrateExistingForm_(form) {
   // Change the question first. If that fails, the old working instructions stay in place.
   replaceEngagementQuestion_(form);
   replaceCohortQuestion_(form);
+  ensurePresentationQuestion_(form);
   ensureCoreQuestionOrder_(form);
   form.setDescription(CONFIG.formDescription);
   form.setConfirmationMessage(getFormConfirmationMessage_());
+}
+
+function ensurePresentationQuestion_(form) {
+  var items = form.getItems();
+  var presentationItem = null;
+  var oldItems = [];
+  var preferredIndex = -1;
+
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].getTitle() !== Q.presentFinalSession) {
+      continue;
+    }
+    if (preferredIndex === -1) preferredIndex = i;
+
+    if (
+      items[i].getType() === FormApp.ItemType.MULTIPLE_CHOICE &&
+      !presentationItem
+    ) {
+      presentationItem = items[i];
+    } else {
+      oldItems.push(items[i]);
+    }
+  }
+
+  if (presentationItem) {
+    configurePresentationQuestion_(presentationItem.asMultipleChoiceItem());
+  } else {
+    presentationItem = configurePresentationQuestion_(form.addMultipleChoiceItem());
+    if (preferredIndex !== -1) form.moveItem(presentationItem, preferredIndex);
+  }
+
+  oldItems.forEach(function (item) {
+    form.deleteItem(item);
+  });
+  moveQuestionImmediatelyBefore_(form, Q.presentFinalSession, Q.notes);
+  return presentationItem;
 }
 
 function getFormConfirmationMessage_() {
@@ -338,6 +391,18 @@ function updateExistingTrackerHeaders_() {
     return;
   }
 
+  var lastColumn = Math.max(sheet.getLastColumn(), 1);
+  var existingHeaders = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  var presentationHeader = 'Would present at final session?';
+  var presentationIndex = existingHeaders.indexOf(presentationHeader);
+  var statusIndex = existingHeaders.indexOf('Status');
+
+  // Older tracker rows have Status in column I. Insert a real column so their
+  // existing Status, Issues and Notes values stay under the correct headers.
+  if (presentationIndex === -1 && statusIndex !== -1) {
+    sheet.insertColumnBefore(statusIndex + 1);
+  }
+
   sheet.getRange(1, 1, 1, TRACKER_HEADERS.length).setValues([TRACKER_HEADERS]);
 }
 
@@ -399,6 +464,7 @@ function readResponse_(formResponse) {
     legacyEngagementQuestion: hasLegacyQuestion && !hasNewQuestion,
     github: String(byTitle[Q.github] || '').trim(),
     google: String(byTitle[Q.google] || '').trim(),
+    presentFinalSession: String(byTitle[Q.presentFinalSession] || '').trim(),
     notes: String(byTitle[Q.notes] || '').trim()
   };
 }
@@ -473,6 +539,7 @@ function recordSubmission_(a, result) {
       a.projects.length,
       a.github,
       a.google,
+      a.presentFinalSession,
       result.valid ? 'OK' : 'NEEDS FIX',
       result.issues.join('\n'),
       a.notes
@@ -531,6 +598,8 @@ function buildConfirmationEmailHtml_(a) {
     projectListHtml_(a.projects) +
     linkLineHtml_('GitHub repo', a.github) +
     linkLineHtml_('Google Drive / Docs', a.google) +
+    '<p><strong>Present at the final fellowship session:</strong> ' +
+    escapeHtml_(a.presentFinalSession || 'No answer') + '</p>' +
     '<p>Please make sure both links stay accessible to reviewers until you hear back. ' +
     'If a link is private, we will not be able to grade it.</p>' +
     '<p>Remember to submit this form separately for each of your four engagements.</p>' +

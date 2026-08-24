@@ -14,7 +14,14 @@ const AEF_COHORT_2_CONFIG = {
   senderName: "Behind the Data Academy",
   subject: "Application Received – Analytics Engineering Fellowship Cohort 2",
   triggerHandler: "handleRegistrationSubmit",
-  testEmailProperty: "AEF_COHORT_2_TEST_EMAIL"
+  testEmailProperty: "AEF_COHORT_2_TEST_EMAIL",
+  selectionSheetName: "Selection Map",
+  acceptanceSubject: "You are Accepted: Analytics Engineering Fellowship Cohort 2 | Behind the Data Academy",
+  cohort1AcceptanceFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLSfqr5JO36Vo1R-HPTih64GFVGdoMBeXYPb2wcaq6yHZfmRCyg/viewform",
+  acceptanceFormIdProperty: "AEF_COHORT_2_ACCEPTANCE_FORM_ID",
+  acceptanceFormUrlProperty: "AEF_COHORT_2_ACCEPTANCE_FORM_URL",
+  oldComplianceDocumentId: "1r5aKeScDitYzioKv7fuBS3XWIEL9nXRzQKgSipVSzKM",
+  complianceDocumentUrl: "https://docs.google.com/document/d/1icI-afhVqYoaV6GLAr9CpU_A_2c26Zg-L3e-0fXKtOM/edit"
 };
 
 function onOpen() {
@@ -26,6 +33,11 @@ function onOpen() {
     .addItem("Send Test Registration Email", "sendRegistrationTestEmail")
     .addItem("Preview Pending Registrations", "previewPendingRegistrations")
     .addItem("Process Existing Registrations", "processExistingRegistrations")
+    .addSeparator()
+    .addItem("Refresh Selection Map", "refreshAefSelectionMap")
+    .addItem("Setup Cohort 2 Acceptance Form", "setupCohort2AcceptanceForm")
+    .addItem("Preview Acceptance Email", "previewAcceptanceEmail")
+    .addItem("Send Acceptance Test Email", "sendAcceptanceTestEmail")
     .addSeparator()
     .addItem("Install Auto Trigger", "installRegistrationTrigger")
     .addItem("Clear Auto Trigger", "clearRegistrationTrigger")
@@ -260,6 +272,467 @@ function sendRegistrationTestEmail() {
   );
 
   return logAndToastAef_("Test registration email sent to: " + recipient);
+}
+
+function refreshAefSelectionMap() {
+  return withAefScriptLock_(function () {
+    const spreadsheet = getAefSpreadsheet_();
+    const sourceSheet = getAefSourceSheet_();
+    let selectionSheet = spreadsheet.getSheetByName(AEF_COHORT_2_CONFIG.selectionSheetName);
+    if (!selectionSheet) {
+      selectionSheet = spreadsheet.insertSheet(AEF_COHORT_2_CONFIG.selectionSheetName);
+    }
+
+    const sourceHeaders = getAefHeaders_(sourceSheet);
+    const sourceRows = sourceSheet.getLastRow() < 2
+      ? []
+      : sourceSheet.getRange(
+        2,
+        1,
+        sourceSheet.getLastRow() - 1,
+        sourceSheet.getLastColumn()
+      ).getValues();
+
+    let existingHeaders = [];
+    let existingRows = [];
+    if (selectionSheet.getLastRow() >= 1) {
+      existingHeaders = getAefHeaders_(selectionSheet);
+      if (selectionSheet.getLastRow() >= 2) {
+        existingRows = selectionSheet.getRange(
+          2,
+          1,
+          selectionSheet.getLastRow() - 1,
+          selectionSheet.getLastColumn()
+        ).getValues();
+      }
+    }
+
+    const headers = getAefSelectionHeaders_();
+    const rows = buildAefSelectionRows_(
+      sourceHeaders,
+      sourceRows,
+      existingHeaders,
+      existingRows
+    );
+
+    selectionSheet.clearContents();
+    selectionSheet.getRange(1, 1, 1, headers.length)
+      .setValues([headers])
+      .setFontWeight("bold")
+      .setBackground("#0f2747")
+      .setFontColor("#ffffff");
+
+    if (rows.length) {
+      selectionSheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+      const decisionRule = SpreadsheetApp.newDataValidation()
+        .requireValueInList(["Under Review", "Accepted", "Not Selected"], true)
+        .setAllowInvalid(false)
+        .build();
+      selectionSheet.getRange(2, 10, rows.length, 1).setDataValidation(decisionRule);
+    }
+
+    selectionSheet.setFrozenRows(1);
+    selectionSheet.autoResizeColumns(1, headers.length);
+    selectionSheet.setColumnWidth(7, 260);
+    selectionSheet.setColumnWidth(8, 220);
+    selectionSheet.setColumnWidth(12, 260);
+
+    return logAndToastAef_(
+      "Selection Map refreshed. Applicants willing to make the deposit: " + rows.length
+    );
+  });
+}
+
+function setupCohort2AcceptanceForm() {
+  return withAefScriptLock_(function () {
+    const properties = PropertiesService.getScriptProperties();
+    const savedId = properties.getProperty(AEF_COHORT_2_CONFIG.acceptanceFormIdProperty);
+    let form;
+
+    if (savedId) {
+      try {
+        form = FormApp.openById(savedId);
+      } catch (error) {
+        form = null;
+      }
+    }
+
+    if (!form) {
+      const cohort1Form = findAefFormByPublishedUrl_(
+        AEF_COHORT_2_CONFIG.cohort1AcceptanceFormUrl
+      );
+      const copiedFile = DriveApp.getFileById(cohort1Form.getId()).makeCopy(
+        "Analytics Engineering Fellowship Cohort 2 - Acceptance Form"
+      );
+      form = FormApp.openById(copiedFile.getId());
+      // Save the copy immediately. If a later wording update fails, rerunning
+      // setup repairs this copy instead of creating another Cohort 2 form.
+      properties.setProperty(
+        AEF_COHORT_2_CONFIG.acceptanceFormIdProperty,
+        form.getId()
+      );
+    }
+
+    adaptAefCohort2AcceptanceForm_(form);
+    const publishedUrl = form.getPublishedUrl();
+    properties.setProperties({
+      AEF_COHORT_2_ACCEPTANCE_FORM_ID: form.getId(),
+      AEF_COHORT_2_ACCEPTANCE_FORM_URL: publishedUrl
+    });
+
+    logAndToastAef_("Cohort 2 acceptance form is ready: " + publishedUrl);
+    return publishedUrl;
+  });
+}
+
+function findAefFormByPublishedUrl_(publishedUrl) {
+  const targetUrl = normalizeAefPublishedFormUrl_(publishedUrl);
+  const files = DriveApp.searchFiles(
+    "mimeType = 'application/vnd.google-apps.form' and trashed = false"
+  );
+
+  while (files.hasNext()) {
+    const file = files.next();
+    try {
+      const form = FormApp.openById(file.getId());
+      if (normalizeAefPublishedFormUrl_(form.getPublishedUrl()) === targetUrl) {
+        return form;
+      }
+    } catch (error) {
+      // Skip forms this account can see in Drive but cannot edit through Apps Script.
+    }
+  }
+
+  throw new Error(
+    "The Cohort 1 acceptance form could not be found in this Google account. " +
+    "Make sure the account running this script can edit that form."
+  );
+}
+
+function normalizeAefPublishedFormUrl_(value) {
+  return String(value || "").trim().split("?")[0].replace(/\/$/, "");
+}
+
+function adaptAefCohort2AcceptanceForm_(form) {
+  form.setTitle("Analytics Engineering Fellowship Cohort 2 - Acceptance Form");
+
+  const description = replaceAefCohort2FormText_(form.getDescription());
+  const cohortNote =
+    "Cohort 2 starts September 1, 2026. The Beginner Phase runs for two months, " +
+    "followed by the two-month Advanced Phase.";
+  form.setDescription(description.indexOf(cohortNote) === -1
+    ? [description, cohortNote].filter(Boolean).join("\n\n")
+    : description);
+
+  const confirmation = replaceAefCohort2FormText_(form.getConfirmationMessage());
+  if (confirmation) form.setConfirmationMessage(confirmation);
+
+  form.getItems().forEach(function (item) {
+    item.setTitle(replaceAefCohort2FormText_(item.getTitle()));
+    const helpTextItem = getAefHelpTextItem_(item);
+    if (helpTextItem) {
+      helpTextItem.setHelpText(
+        replaceAefCohort2FormText_(helpTextItem.getHelpText())
+      );
+      adaptAefCohort2ChoiceText_(helpTextItem);
+    }
+  });
+
+  form.setAcceptingResponses(true);
+  return form;
+}
+
+function getAefHelpTextItem_(item) {
+  if (typeof item.getHelpText === "function" && typeof item.setHelpText === "function") {
+    return item;
+  }
+
+  const castMethods = [
+    ["CHECKBOX", "asCheckboxItem"],
+    ["CHECKBOX_GRID", "asCheckboxGridItem"],
+    ["DATE", "asDateItem"],
+    ["DATETIME", "asDateTimeItem"],
+    ["DURATION", "asDurationItem"],
+    ["FILE_UPLOAD", "asFileUploadItem"],
+    ["GRID", "asGridItem"],
+    ["LIST", "asListItem"],
+    ["MULTIPLE_CHOICE", "asMultipleChoiceItem"],
+    ["PAGE_BREAK", "asPageBreakItem"],
+    ["PARAGRAPH_TEXT", "asParagraphTextItem"],
+    ["SCALE", "asScaleItem"],
+    ["SECTION_HEADER", "asSectionHeaderItem"],
+    ["TEXT", "asTextItem"],
+    ["TIME", "asTimeItem"]
+  ];
+  const itemType = item.getType();
+
+  for (let i = 0; i < castMethods.length; i++) {
+    const typeName = castMethods[i][0];
+    const methodName = castMethods[i][1];
+    if (
+      FormApp.ItemType[typeName] === itemType &&
+      typeof item[methodName] === "function"
+    ) {
+      const typedItem = item[methodName]();
+      if (
+        typeof typedItem.getHelpText === "function" &&
+        typeof typedItem.setHelpText === "function"
+      ) {
+        return typedItem;
+      }
+    }
+  }
+  return null;
+}
+
+function adaptAefCohort2ChoiceText_(typedItem) {
+  let choices = null;
+  if (
+    typeof typedItem.getChoices === "function" &&
+    typeof typedItem.createChoice === "function" &&
+    typeof typedItem.setChoices === "function"
+  ) {
+    const originalChoices = typedItem.getChoices();
+    const updatedValues = originalChoices.map(function (choice) {
+      return replaceAefCohort2FormText_(choice.getValue());
+    });
+    const changed = updatedValues.some(function (value, index) {
+      return value !== originalChoices[index].getValue();
+    });
+    if (changed) {
+      typedItem.setChoices(originalChoices.map(function (choice, index) {
+        return createAdaptedAefChoice_(typedItem, choice, updatedValues[index]);
+      }));
+    }
+  } else if (
+    typeof typedItem.getChoiceValues === "function" &&
+    typeof typedItem.setChoiceValues === "function"
+  ) {
+    choices = typedItem.getChoiceValues();
+  } else if (
+    typeof typedItem.getChoices === "function" &&
+    typeof typedItem.setChoiceValues === "function"
+  ) {
+    choices = typedItem.getChoices().map(function (choice) {
+      return choice.getValue();
+    });
+  }
+
+  if (choices) {
+    const updatedChoices = choices.map(replaceAefCohort2FormText_);
+    if (updatedChoices.some(function (value, index) { return value !== choices[index]; })) {
+      typedItem.setChoiceValues(updatedChoices);
+    }
+  }
+
+  if (typeof typedItem.getRows === "function" && typeof typedItem.setRows === "function") {
+    const rows = typedItem.getRows();
+    const updatedRows = rows.map(replaceAefCohort2FormText_);
+    if (updatedRows.some(function (value, index) { return value !== rows[index]; })) {
+      typedItem.setRows(updatedRows);
+    }
+  }
+
+  if (
+    typeof typedItem.getColumns === "function" &&
+    typeof typedItem.setColumns === "function"
+  ) {
+    const columns = typedItem.getColumns();
+    const updatedColumns = columns.map(replaceAefCohort2FormText_);
+    if (updatedColumns.some(function (value, index) { return value !== columns[index]; })) {
+      typedItem.setColumns(updatedColumns);
+    }
+  }
+}
+
+function createAdaptedAefChoice_(typedItem, originalChoice, value) {
+  if (typeof originalChoice.getGotoPage === "function") {
+    const destination = originalChoice.getGotoPage();
+    if (destination) return typedItem.createChoice(value, destination);
+  }
+  if (typeof originalChoice.getPageNavigationType === "function") {
+    const navigationType = originalChoice.getPageNavigationType();
+    if (navigationType) return typedItem.createChoice(value, navigationType);
+  }
+  return typedItem.createChoice(value);
+}
+
+function replaceAefCohort2FormText_(value) {
+  return String(value || "")
+    .replace(/Cohort\s*1/gi, "Cohort 2")
+    .replace(new RegExp(AEF_COHORT_2_CONFIG.oldComplianceDocumentId, "g"),
+      "1icI-afhVqYoaV6GLAr9CpU_A_2c26Zg-L3e-0fXKtOM")
+    .replace(/(?:Wednesday,\s*)?(?:February\s*18|18\s+February),?\s*2026/gi,
+      "within 24 hours of receiving your acceptance email")
+    .replace(/First\s+3\s+Months/gi, "First 2 Months")
+    .replace(/Final\s+3\s+Months/gi, "Final 2 Months")
+    .replace(/six[- ]month/gi, "four-month");
+}
+
+function getAefCohort2AcceptanceFormUrl_() {
+  const savedUrl = PropertiesService.getScriptProperties()
+    .getProperty(AEF_COHORT_2_CONFIG.acceptanceFormUrlProperty);
+  if (savedUrl) return savedUrl;
+  throw new Error(
+    "Create the separate Cohort 2 acceptance form first. " +
+    "Use Setup Cohort 2 Acceptance Form in the spreadsheet menu."
+  );
+}
+
+function previewAcceptanceEmail() {
+  const html = HtmlService.createHtmlOutput(
+    getAefCohort2AcceptanceEmailHtml("Accepted Applicant")
+  ).setWidth(760).setHeight(650);
+  SpreadsheetApp.getUi().showModalDialog(html, "Cohort 2 Acceptance Email Preview");
+}
+
+function sendAcceptanceTestEmail() {
+  const recipient = getAefTestEmailRecipient_();
+  GmailApp.sendEmail(
+    recipient,
+    "[TEST] " + AEF_COHORT_2_CONFIG.acceptanceSubject,
+    getAefCohort2AcceptanceEmailPlainText("Accepted Applicant"),
+    {
+      htmlBody: getAefCohort2AcceptanceEmailHtml("Accepted Applicant"),
+      name: AEF_COHORT_2_CONFIG.senderName
+    }
+  );
+  return logAndToastAef_("Test acceptance email sent to: " + recipient);
+}
+
+function getAefSelectionHeaders_() {
+  return [
+    "Email address",
+    "Column 2",
+    "Full Name",
+    "Email Address",
+    "Country",
+    "State / Region",
+    "What best describes you right now?",
+    "LinkedIn Url",
+    "Able to Commit",
+    "Decision",
+    "Acceptance Email Status",
+    "Acceptance Email Error",
+    "Acceptance Email Sent At"
+  ];
+}
+
+function buildAefSelectionRows_(sourceHeaders, sourceRows, existingHeaders, existingRows) {
+  const sourceLabels = getAefSelectionHeaders_().slice(0, 8);
+  const sourceIndexes = sourceLabels.map(function (label) {
+    return findAefHeaderIndex_(sourceHeaders, label);
+  });
+  const missingLabels = sourceLabels.filter(function (label, index) {
+    return sourceIndexes[index] === -1;
+  });
+  const commitmentIndex = findAefCommitmentHeaderIndex_(sourceHeaders);
+  const timestampIndex = findAefHeaderIndex_(sourceHeaders, "Timestamp");
+
+  if (missingLabels.length || commitmentIndex === -1) {
+    throw new Error(
+      "The source sheet is missing required application columns: " +
+      missingLabels.concat(commitmentIndex === -1 ? ["commitment deposit answer"] : []).join(", ")
+    );
+  }
+
+  const preserved = getAefExistingSelectionState_(existingHeaders || [], existingRows || []);
+  const orderedKeys = [];
+  const latestByKey = {};
+
+  (sourceRows || []).forEach(function (sourceRow, rowIndex) {
+    const copied = sourceIndexes.map(function (columnIndex) {
+      return sourceRow[columnIndex];
+    });
+    const emailKey = normalizeAefEmail_(copied[0]) || normalizeAefEmail_(copied[3]);
+    const key = emailKey || "__source_row_" + rowIndex;
+    if (!Object.prototype.hasOwnProperty.call(latestByKey, key)) orderedKeys.push(key);
+
+    const candidate = {
+      copied: copied,
+      willing: normalizeAefHeader_(sourceRow[commitmentIndex]) === "yes",
+      timestamp: getAefTimestampValue_(
+        timestampIndex >= 0 ? sourceRow[timestampIndex] : ""
+      ),
+      rowIndex: rowIndex
+    };
+    const current = latestByKey[key];
+    if (!current || isNewerAefSourceResponse_(candidate, current)) {
+      latestByKey[key] = candidate;
+    }
+  });
+
+  return orderedKeys.filter(function (key) {
+    return latestByKey[key].willing;
+  }).map(function (key) {
+    const savedState = preserved[key] || ["", "", "", ""];
+    return latestByKey[key].copied.concat(["Yes"], savedState);
+  });
+}
+
+function getAefTimestampValue_(value) {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isNewerAefSourceResponse_(candidate, current) {
+  if (candidate.timestamp !== null && current.timestamp !== null) {
+    if (candidate.timestamp !== current.timestamp) {
+      return candidate.timestamp > current.timestamp;
+    }
+  } else if (candidate.timestamp !== null) {
+    return true;
+  } else if (current.timestamp !== null) {
+    return false;
+  }
+  return candidate.rowIndex > current.rowIndex;
+}
+
+function getAefExistingSelectionState_(headers, rows) {
+  const state = {};
+  if (!headers.length || !rows.length) return state;
+
+  const emailIndex = findAefHeaderIndex_(headers, "Email address");
+  const fallbackEmailIndex = findAefHeaderIndex_(headers, "Email Address");
+  const stateIndexes = [
+    findAefHeaderIndex_(headers, "Decision"),
+    findAefHeaderIndex_(headers, "Acceptance Email Status"),
+    findAefHeaderIndex_(headers, "Acceptance Email Error"),
+    findAefHeaderIndex_(headers, "Acceptance Email Sent At")
+  ];
+  if (emailIndex === -1 || stateIndexes.some(function (index) { return index === -1; })) {
+    return state;
+  }
+
+  rows.forEach(function (row) {
+    const key = normalizeAefEmail_(row[emailIndex]) ||
+      (fallbackEmailIndex >= 0 ? normalizeAefEmail_(row[fallbackEmailIndex]) : "");
+    if (!key) return;
+    state[key] = stateIndexes.map(function (index) { return row[index]; });
+  });
+  return state;
+}
+
+function findAefCommitmentHeaderIndex_(headers) {
+  for (let i = 0; i < headers.length; i++) {
+    const header = normalizeAefHeader_(headers[i]);
+    if (
+      header.indexOf("refundable commitment deposit") !== -1 &&
+      header.indexOf("within 24 hours") !== -1
+    ) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function findAefHeaderIndex_(headers, label) {
+  const exactLabel = String(label || "").trim();
+  for (let i = 0; i < headers.length; i++) {
+    if (String(headers[i] || "").trim() === exactLabel) return i;
+  }
+  return findExactAefHeaderIndex_(headers, label);
 }
 
 function processAefRegistrationRow_(sheet, rowNumber, columns, tracking, sentEmails) {

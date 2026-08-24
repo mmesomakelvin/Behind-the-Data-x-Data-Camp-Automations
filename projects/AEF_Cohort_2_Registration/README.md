@@ -20,6 +20,9 @@ Google Apps Script project for acknowledging Analytics Engineering Fellowship Co
 - Tells applicants not to pay until they receive an acceptance email.
 - Sends only one acknowledgement per normalized email address.
 - Provides test, preview, catch-up, trigger-installation, and trigger-removal actions.
+- Builds a `Selection Map` containing only applicants who answered `Yes` to the refundable commitment-deposit question.
+- Creates a separate Cohort 2 acceptance form by copying the Cohort 1 form and updating its cohort wording.
+- Previews and test-sends the Cohort 2 acceptance email without emailing applicants.
 
 ## Live Column Handling
 
@@ -59,6 +62,10 @@ and clear the sent-at value.
 - `Send Test Registration Email`
 - `Preview Pending Registrations`
 - `Process Existing Registrations`
+- `Refresh Selection Map`
+- `Setup Cohort 2 Acceptance Form`
+- `Preview Acceptance Email`
+- `Send Acceptance Test Email`
 - `Install Auto Trigger`
 - `Clear Auto Trigger`
 
@@ -72,6 +79,23 @@ and clear the sent-at value.
 6. Send the test registration email and review it.
 7. Submit one controlled form response and confirm `Registration Email Status` becomes `Sent` with a timestamp.
 8. Submit the same normalized email again and confirm the new row becomes `Skipped - Duplicate` without a second email.
+
+## Selection and Acceptance Review
+
+1. Choose `Refresh Selection Map` to create or update the shortlist. It copies applicants; it does not remove them from the response tab.
+2. Use the `Decision` dropdown for your manual review. Refreshing the list keeps your decisions and acceptance-email tracking.
+3. Choose `Setup Cohort 2 Acceptance Form` once. The script copies the Cohort 1 form, changes Cohort 1 wording to Cohort 2, adds the September 1, 2026 programme note, and saves the new public link.
+4. Choose `Preview Acceptance Email` to inspect the email on screen.
+5. Choose `Send Acceptance Test Email` to send it only to the saved test address.
+
+There is deliberately no live acceptance-email send button yet. This prevents anyone
+from receiving an acceptance message before the email and selection process are approved.
+
+Run the setup with a Google account that can edit the Cohort 1 acceptance form. The
+original form is only read and copied; its questions and responses are not changed.
+
+The Cohort 2 compliance document used in the preview is:
+`https://docs.google.com/document/d/1icI-afhVqYoaV6GLAr9CpU_A_2c26Zg-L3e-0fXKtOM/edit`
 
 The menu is available only when the Apps Script project is bound to the spreadsheet.
 If this Script ID is standalone, run `setupRegistrationAutomation()` directly from
