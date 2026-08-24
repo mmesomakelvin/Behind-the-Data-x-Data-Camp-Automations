@@ -438,7 +438,15 @@ function adaptAefCohort2AcceptanceForm_(form) {
     }
   });
 
-  form.setAcceptingResponses(true);
+  if (
+    typeof form.supportsAdvancedResponderPermissions === "function" &&
+    form.supportsAdvancedResponderPermissions()
+  ) {
+    // Copied forms can be unpublished. Publishing also enables responses.
+    form.setPublished(true);
+  } else {
+    form.setAcceptingResponses(true);
+  }
   return form;
 }
 

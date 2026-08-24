@@ -270,3 +270,25 @@ test("updating a choice keeps its answer-based section destination", () => {
     navigation: destination
   }]);
 });
+
+test("a copied form is published before it is made available to applicants", () => {
+  const calls = [];
+  const form = {
+    setTitle() { return this; },
+    getDescription: () => "",
+    setDescription() { return this; },
+    getConfirmationMessage: () => "Thank you",
+    setConfirmationMessage() { return this; },
+    getItems: () => [],
+    supportsAdvancedResponderPermissions: () => true,
+    setPublished(value) { calls.push(["published", value]); return this; },
+    setAcceptingResponses() {
+      throw new Error("Operation not supported on unpublished form");
+    }
+  };
+  const context = loadScripts(["EmailTemplate.js", "Code.js"]);
+
+  context.adaptAefCohort2AcceptanceForm_(form);
+
+  assert.deepEqual(calls, [["published", true]]);
+});
