@@ -94,11 +94,11 @@ test("selection uses the newest timestamp even when source rows are out of order
 });
 
 test("acceptance preview uses Cohort 2 links and a relative 24-hour payment window", () => {
-  const newFormUrl = "https://docs.google.com/forms/d/NEW_COHORT_2_FORM/edit";
+  const staleFormUrl = "https://docs.google.com/forms/d/e/OLD_SAVED_FORM/viewform";
   const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
     PropertiesService: {
       getScriptProperties: () => ({
-        getProperty: (key) => key === "AEF_COHORT_2_ACCEPTANCE_FORM_URL" ? newFormUrl : ""
+        getProperty: (key) => key === "AEF_COHORT_2_ACCEPTANCE_FORM_URL" ? staleFormUrl : ""
       })
     }
   });
@@ -113,7 +113,8 @@ test("acceptance preview uses Cohort 2 links and a relative 24-hour payment wind
     assert.match(body, /September 1, 2026/i);
     assert.match(body, /30,100/);
     assert.match(body, /1icI-afhVqYoaV6GLAr9CpU_A_2c26Zg-L3e-0fXKtOM/);
-    assert.match(body, /NEW_COHORT_2_FORM/);
+    assert.match(body, /1FAIpQLSe9cRTvZ_p6jCL2lWw8ryK2WWX_rG4QjbcvZEzQxJkJ6ceMLg/);
+    assert.doesNotMatch(body, /OLD_SAVED_FORM/);
     assert.doesNotMatch(body, /February 18/i);
     assert.doesNotMatch(body, /1r5aKeScDitYzioKv7fuBS3XWIEL9nXRzQKgSipVSzKM/);
     assert.doesNotMatch(body, /1FAIpQLSfqr5JO36Vo1R-HPTih64GFVGdoMBeXYPb2wcaq6yHZfmRCyg/);

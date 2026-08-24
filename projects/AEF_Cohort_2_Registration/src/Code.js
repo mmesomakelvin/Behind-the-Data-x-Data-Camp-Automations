@@ -18,6 +18,7 @@ const AEF_COHORT_2_CONFIG = {
   selectionSheetName: "Selection Map",
   acceptanceSubject: "You are Accepted: Analytics Engineering Fellowship Cohort 2 | Behind the Data Academy",
   cohort1AcceptanceFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLSfqr5JO36Vo1R-HPTih64GFVGdoMBeXYPb2wcaq6yHZfmRCyg/viewform",
+  acceptanceFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLSe9cRTvZ_p6jCL2lWw8ryK2WWX_rG4QjbcvZEzQxJkJ6ceMLg/viewform?usp=dialog",
   acceptanceFormIdProperty: "AEF_COHORT_2_ACCEPTANCE_FORM_ID",
   acceptanceFormUrlProperty: "AEF_COHORT_2_ACCEPTANCE_FORM_URL",
   oldComplianceDocumentId: "1r5aKeScDitYzioKv7fuBS3XWIEL9nXRzQKgSipVSzKM",
@@ -578,13 +579,7 @@ function replaceAefCohort2FormText_(value) {
 }
 
 function getAefCohort2AcceptanceFormUrl_() {
-  const savedUrl = PropertiesService.getScriptProperties()
-    .getProperty(AEF_COHORT_2_CONFIG.acceptanceFormUrlProperty);
-  if (savedUrl) return savedUrl;
-  throw new Error(
-    "Create the separate Cohort 2 acceptance form first. " +
-    "Use Setup Cohort 2 Acceptance Form in the spreadsheet menu."
-  );
+  return AEF_COHORT_2_CONFIG.acceptanceFormUrl;
 }
 
 function previewAcceptanceEmail() {
