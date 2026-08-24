@@ -15,13 +15,14 @@
 var CONFIG = {
   formTitle: 'Analytics Engineering Fellowship — Project Submission',
   formDescription:
-    'Submit the four capstone engagements you completed.\n\n' +
-    'Share your work as a GitHub repo link, a Google Drive/Docs link, or both. ' +
+    'Submit this form four separate times — once for each capstone engagement you completed.\n\n' +
+    'Choose one engagement in each submission, then share its GitHub repo link, ' +
+    'Google Drive/Docs link, or both. ' +
     'If you only have one of the two, type Nill in the other field — do not leave it blank.',
   spreadsheetName: 'AEF Submissions',
   trackerSheetName: 'Review Tracker',
   senderName: 'Analytics Engineering Fellowship',
-  requiredProjectCount: 4
+  requiredSubmissionCount: 4
 };
 
 // Titles match the engagement catalog table in the repo README.
@@ -44,11 +45,18 @@ var Q = {
   name: 'Full name',
   email: 'Email address',
   cohort: 'Cohort / group',
-  projects: 'Which four engagements did you complete?',
+  projects: 'Which engagement are you submitting?',
   github: 'GitHub repo link',
   google: 'Google Drive / Docs link',
   notes: 'Anything the reviewer should know? (optional)'
 };
+
+var LEGACY_PROJECTS_QUESTION = 'Which four engagements did you complete?';
+
+var TRACKER_HEADERS = [
+  'Submitted at', 'Name', 'Email', 'Cohort', 'Engagement submitted',
+  '# Engagements', 'GitHub link', 'Google link', 'Status', 'Issues', 'Notes'
+];
 
 // Accepted ways of saying "I did not submit this one".
 var NILL_TOKENS = ['nill', 'nil', 'none', 'n/a', 'na', '-'];
@@ -71,7 +79,9 @@ function setUpForm() {
 
   if (existingId) {
     var existing = FormApp.openById(existingId);
-    Logger.log('Form already exists — nothing created.');
+    migrateExistingForm_(existing);
+    updateExistingTrackerHeaders_();
+    Logger.log('Existing form checked and updated.');
     logUrls_(existing);
     return;
   }
@@ -81,10 +91,7 @@ function setUpForm() {
     .setCollectEmail(false) // we ask for email explicitly so non-Google users can submit
     .setLimitOneResponsePerUser(false)
     .setAllowResponseEdits(true)
-    .setConfirmationMessage(
-      'Submission received. You will get a confirmation email shortly — ' +
-      'if anything is wrong with your links, that email will tell you what to fix.'
-    );
+    .setConfirmationMessage(getFormConfirmationMessage_());
 
   buildQuestions_(form);
 
@@ -118,16 +125,7 @@ function buildQuestions_(form) {
     .setTitle(Q.cohort)
     .setRequired(false);
 
-  form.addCheckboxItem()
-    .setTitle(Q.projects)
-    .setHelpText('Select exactly ' + CONFIG.requiredProjectCount + '.')
-    .setChoiceValues(ENGAGEMENTS)
-    .setRequired(true)
-    .setValidation(
-      FormApp.createCheckboxValidation()
-        .requireSelectExactly(CONFIG.requiredProjectCount)
-        .build()
-    );
+  buildEngagementQuestion_(form);
 
   form.addTextItem()
     .setTitle(Q.github)
@@ -144,14 +142,92 @@ function buildQuestions_(form) {
     .setRequired(false);
 }
 
+function buildEngagementQuestion_(form) {
+  return configureEngagementListItem_(form.addListItem());
+}
+
+function configureEngagementListItem_(item) {
+  return item
+    .setTitle(Q.projects)
+    .setHelpText('Choose one engagement. Submit this form four times in total — once per engagement.')
+    .setChoiceValues(ENGAGEMENTS)
+    .setRequired(true);
+}
+
+/** Updates the already-created live form without rebuilding its response setup. */
+function updateExistingFormForSingleEngagementSubmissions() {
+  var formId = PropertiesService.getScriptProperties().getProperty('FORM_ID');
+  if (!formId) {
+    throw new Error('No saved form was found. Run setUpForm() first.');
+  }
+
+  var form = FormApp.openById(formId);
+  migrateExistingForm_(form);
+  updateExistingTrackerHeaders_();
+
+  Logger.log('Live form updated: ' + form.getEditUrl());
+  return form.getEditUrl();
+}
+
+function migrateExistingForm_(form) {
+  // Change the question first. If that fails, the old working instructions stay in place.
+  replaceEngagementQuestion_(form);
+  form.setDescription(CONFIG.formDescription);
+  form.setConfirmationMessage(getFormConfirmationMessage_());
+}
+
+function getFormConfirmationMessage_() {
+  return 'Engagement submission received. Submit this form ' +
+    CONFIG.requiredSubmissionCount + ' separate times in total — once for each ' +
+    'completed engagement. You will get a confirmation email shortly.';
+}
+
+function replaceEngagementQuestion_(form) {
+  var items = form.getItems();
+  var listItem = null;
+  var oldItems = [];
+  var engagementIndex = -1;
+
+  for (var i = 0; i < items.length; i++) {
+    var title = items[i].getTitle();
+    if (title === Q.projects && items[i].getType() === FormApp.ItemType.LIST && !listItem) {
+      listItem = items[i];
+      if (engagementIndex === -1) {
+        engagementIndex = i;
+      }
+    } else if (title === Q.projects || title === LEGACY_PROJECTS_QUESTION) {
+      oldItems.push(items[i]);
+      if (engagementIndex === -1) {
+        engagementIndex = i;
+      }
+    }
+  }
+
+  if (listItem) {
+    configureEngagementListItem_(listItem.asListItem());
+    oldItems.forEach(function (item) {
+      form.deleteItem(item);
+    });
+    return;
+  }
+
+  if (oldItems.length === 0) {
+    throw new Error('The engagement question could not be found in the live form.');
+  }
+
+  // Build and position the replacement before deleting the old required question.
+  // This keeps the live form usable if creating the dropdown fails halfway through.
+  var newItem = configureEngagementListItem_(form.addListItem());
+  form.moveItem(newItem, engagementIndex);
+  oldItems.forEach(function (item) {
+    form.deleteItem(item);
+  });
+}
+
 function createTrackerSheet_(ss) {
   var sheet = ss.insertSheet(CONFIG.trackerSheetName);
-  var headers = [
-    'Submitted at', 'Name', 'Email', 'Cohort', 'Projects selected',
-    '# Projects', 'GitHub link', 'Google link', 'Status', 'Issues', 'Notes'
-  ];
-  sheet.getRange(1, 1, 1, headers.length)
-    .setValues([headers])
+  sheet.getRange(1, 1, 1, TRACKER_HEADERS.length)
+    .setValues([TRACKER_HEADERS])
     .setFontWeight('bold')
     .setBackground('#1f2937')
     .setFontColor('#ffffff');
@@ -159,6 +235,20 @@ function createTrackerSheet_(ss) {
   sheet.setColumnWidth(5, 320);
   sheet.setColumnWidth(10, 320);
   return sheet;
+}
+
+function updateExistingTrackerHeaders_() {
+  var ssId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (!ssId) {
+    return;
+  }
+
+  var sheet = SpreadsheetApp.openById(ssId).getSheetByName(CONFIG.trackerSheetName);
+  if (!sheet) {
+    return;
+  }
+
+  sheet.getRange(1, 1, 1, TRACKER_HEADERS.length).setValues([TRACKER_HEADERS]);
 }
 
 function logUrls_(form) {
@@ -203,7 +293,9 @@ function readResponse_(formResponse) {
     byTitle[itemResponse.getItem().getTitle()] = itemResponse.getResponse();
   });
 
-  var projects = byTitle[Q.projects] || [];
+  var hasNewQuestion = Object.prototype.hasOwnProperty.call(byTitle, Q.projects);
+  var hasLegacyQuestion = Object.prototype.hasOwnProperty.call(byTitle, LEGACY_PROJECTS_QUESTION);
+  var projects = byTitle[Q.projects] || byTitle[LEGACY_PROJECTS_QUESTION] || [];
   if (!Array.isArray(projects)) {
     projects = [projects];
   }
@@ -214,6 +306,7 @@ function readResponse_(formResponse) {
     email: String(byTitle[Q.email] || '').trim(),
     cohort: String(byTitle[Q.cohort] || '').trim(),
     projects: projects,
+    legacyEngagementQuestion: hasLegacyQuestion && !hasNewQuestion,
     github: String(byTitle[Q.github] || '').trim(),
     google: String(byTitle[Q.google] || '').trim(),
     notes: String(byTitle[Q.notes] || '').trim()
@@ -257,10 +350,15 @@ function validate_(a) {
     );
   }
 
-  if (a.projects.length !== CONFIG.requiredProjectCount) {
+  if (a.legacyEngagementQuestion && a.projects.length !== CONFIG.requiredSubmissionCount) {
     issues.push(
-      'You selected ' + a.projects.length + ' engagement(s). Exactly ' +
-      CONFIG.requiredProjectCount + ' are required.'
+      'This response came from the older form and must contain exactly ' +
+      CONFIG.requiredSubmissionCount + ' engagements.'
+    );
+  } else if (!a.legacyEngagementQuestion && a.projects.length !== 1) {
+    issues.push(
+      'Choose one engagement per submission. You selected ' +
+      a.projects.length + ' engagement(s).'
     );
   }
 
@@ -326,24 +424,28 @@ function escapeHtml_(text) {
 }
 
 function sendConfirmationEmail_(a) {
-  var body =
+  MailApp.sendEmail({
+    to: a.email,
+    subject: 'Submission received — Analytics Engineering Fellowship',
+    htmlBody: buildConfirmationEmailHtml_(a),
+    name: CONFIG.senderName
+  });
+}
+
+function buildConfirmationEmailHtml_(a) {
+  return (
     '<p>Hi ' + escapeHtml_(a.name) + ',</p>' +
-    '<p>We have received your Analytics Engineering Fellowship submission. ' +
+    '<p>We have received this Analytics Engineering Fellowship engagement submission. ' +
     'Here is what we logged:</p>' +
-    '<p><strong>Engagements submitted:</strong></p>' +
+    '<p><strong>Engagement submitted:</strong></p>' +
     projectListHtml_(a.projects) +
     linkLineHtml_('GitHub repo', a.github) +
     linkLineHtml_('Google Drive / Docs', a.google) +
     '<p>Please make sure both links stay accessible to reviewers until you hear back. ' +
     'If a link is private, we will not be able to grade it.</p>' +
-    '<p>— ' + escapeHtml_(CONFIG.senderName) + '</p>';
-
-  MailApp.sendEmail({
-    to: a.email,
-    subject: 'Submission received — Analytics Engineering Fellowship',
-    htmlBody: body,
-    name: CONFIG.senderName
-  });
+    '<p>Remember to submit this form separately for each of your four engagements.</p>' +
+    '<p>— ' + escapeHtml_(CONFIG.senderName) + '</p>'
+  );
 }
 
 function sendFixItEmail_(a, issues) {

@@ -9,14 +9,28 @@ Google Apps Script project for creating and processing the Analytics Engineering
 ## What This Project Does
 
 - Creates the submission Google Form and response spreadsheet.
-- Requires exactly four selected engagements.
+- Requires one selected engagement per submission.
+- Tells each fellow to submit the form four times, once for each completed engagement.
 - Validates GitHub and Google Drive/Docs links.
-- Records submissions in a review tracker.
+- Records each engagement submission as its own row in the review tracker.
 - Sends either a confirmation email or a correction-request email.
 
 ## Setup
 
-Run `setUpForm()` once in Apps Script. The function is safe to rerun after setup because the created Form and spreadsheet IDs are stored in Script Properties.
+Run `setUpForm()` in Apps Script. The first run creates the form, response
+spreadsheet, review tracker, and automatic submission trigger.
+
+For an existing form, push the new code and immediately run `setUpForm()` again.
+It will safely replace the old four-choice checkbox with the new one-choice
+dropdown without creating another form or another trigger. Old four-choice
+responses are still accepted during this short changeover, so a response cannot
+be rejected just because it arrived while the form was being updated.
+
+The live form uses a single-choice engagement question. Each submission contains one
+engagement and its GitHub and/or Google Drive link. Fellows complete the same form four
+times to submit four engagements. The form allows corrections and repeat submissions;
+the review tracker shows each submission as a separate row, so reviewers can confirm
+that each fellow submitted four different engagements.
 
 ## Key Files
 
