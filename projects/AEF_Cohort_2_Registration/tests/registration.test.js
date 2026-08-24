@@ -153,6 +153,105 @@ test("trigger matching requires the correct handler, event, source, and spreadsh
   );
 });
 
+test("installing automation adds acceptance edit and retry triggers without duplicating registration", () => {
+  const created = [];
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30"
+  };
+  const ScriptApp = {
+    EventType: {
+      ON_FORM_SUBMIT: "ON_FORM_SUBMIT",
+      ON_EDIT: "ON_EDIT",
+      CLOCK: "CLOCK"
+    },
+    TriggerSource: { SPREADSHEETS: "SPREADSHEETS" },
+    getProjectTriggers: () => [{
+      getHandlerFunction: () => "handleRegistrationSubmit",
+      getEventType: () => "ON_FORM_SUBMIT",
+      getTriggerSource: () => "SPREADSHEETS",
+      getTriggerSourceId: () => spreadsheet.getId()
+    }],
+    deleteTrigger: () => {},
+    newTrigger(handler) {
+      const pending = { handler, event: "" };
+      return {
+        forSpreadsheet() { return this; },
+        onFormSubmit() { pending.event = "ON_FORM_SUBMIT"; return this; },
+        onEdit() { pending.event = "ON_EDIT"; return this; },
+        timeBased() { pending.event = "CLOCK"; return this; },
+        everyMinutes(minutes) { pending.minutes = minutes; return this; },
+        create() { created.push(pending); }
+      };
+    }
+  };
+  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
+    ScriptApp,
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+      getActive: () => ({ toast: () => {} })
+    },
+    Logger: { log: () => {} }
+  });
+
+  context.installRegistrationTrigger_();
+
+  assert.deepEqual(created, [
+    {
+      handler: "handleAcceptanceDecisionEdit",
+      event: "ON_EDIT"
+    },
+    {
+      handler: "processQueuedAcceptanceEdits",
+      event: "CLOCK",
+      minutes: 5
+    }
+  ]);
+});
+
+test("clearing automation removes registration, acceptance, and retry triggers", () => {
+  const removed = [];
+  const propertyKey = "AEF_ACCEPTANCE_RETRY_email%3Aada%40example.com";
+  const properties = {
+    [propertyKey]: "queued-event",
+    UNRELATED_SETTING: "keep-me"
+  };
+  const removedProperties = [];
+  const triggers = [
+    { getHandlerFunction: () => "handleRegistrationSubmit" },
+    { getHandlerFunction: () => "handleAcceptanceDecisionEdit" },
+    { getHandlerFunction: () => "processQueuedAcceptanceEdits" },
+    { getHandlerFunction: () => "unrelatedHandler" }
+  ];
+  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
+    ScriptApp: {
+      getProjectTriggers: () => triggers,
+      deleteTrigger: (trigger) => removed.push(trigger.getHandlerFunction())
+    },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperties: () => ({ ...properties }),
+        deleteProperty(key) {
+          removedProperties.push(key);
+          delete properties[key];
+        }
+      })
+    },
+    SpreadsheetApp: { getActive: () => ({ toast: () => {} }) },
+    Logger: { log: () => {} }
+  });
+
+  context.clearRegistrationTrigger_();
+
+  assert.deepEqual(removed, [
+    "handleRegistrationSubmit",
+    "handleAcceptanceDecisionEdit",
+    "processQueuedAcceptanceEdits"
+  ]);
+  assert.deepEqual(removedProperties, [propertyKey]);
+  assert.equal(properties[propertyKey], undefined);
+  assert.equal(properties.UNRELATED_SETTING, "keep-me");
+});
+
 test("a successful email is never marked retryable when final tracking fails", () => {
   let sendCount = 0;
   const callOrder = [];

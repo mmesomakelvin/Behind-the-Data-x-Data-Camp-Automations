@@ -75,6 +75,8 @@ and clear the sent-at value.
 1. Push the project to Apps Script.
 2. Confirm the supplied Apps Script project is bound to the response spreadsheet.
 3. Reload the Google Sheet and choose `AEF Cohort 2 Registration` → `Setup Registration Automation`.
+   This installs both the registration and acceptance triggers, so automatic acceptance
+   sending becomes active after authorization.
 4. Authorize the requested Google permissions.
 5. Set your test email recipient.
 6. Send the test registration email and review it.
@@ -88,16 +90,25 @@ and clear the sent-at value.
 3. Choose `Setup Cohort 2 Acceptance Form` once. The script copies the Cohort 1 form, changes Cohort 1 wording to Cohort 2, adds the September 1, 2026 programme note, and saves the new public link.
 4. Choose `Preview Acceptance Email` to inspect the email on screen.
 5. Choose `Send Acceptance Test Email` to send it only to the saved test address.
-6. In the `Decision` column, choose `Accepted` only for applicants you have approved.
-7. Choose `Send Accepted Applicants`, review the number shown, and confirm the send.
+6. If registration setup was completed before this automatic-acceptance update, choose
+   `Install Auto Trigger` once now. If you just ran `Setup Registration Automation`,
+   skip this step because both triggers are already installed.
+7. In the `Decision` column, choose `Accepted` only for applicants you have approved.
+   The acceptance email sends automatically within seconds.
+8. Use `Send Accepted Applicants` only when you deliberately want to retry or process
+   a batch; review the number shown before confirming.
 
-The live send is manual. Changing the `Decision` dropdown does not send an email by
-itself. The button emails only applicants marked `Accepted`. Rows already marked `Sent`
-are skipped. Each attempt updates `Acceptance Email Status`, `Acceptance Email Error`,
-and `Acceptance Email Sent At`, so failed sends can be corrected and retried safely.
+Changing the `Decision` dropdown to `Accepted` is the live-send action. There is no
+confirmation box, and the email cannot be recalled after it sends. Edits outside the
+`Decision` column do not send anything. Rows already marked `Sent` are skipped. Each
+attempt updates `Acceptance Email Status`, `Acceptance Email Error`, and
+`Acceptance Email Sent At`, so failed sends can be corrected and retried safely.
 If an acceptance row remains `Sending`, do not clear it and resend immediately. Check
 the Gmail Sent folder first. After confirming whether the email was delivered, set the
 row to `Sent` with its sent time, or change it to `Failed` before retrying.
+If another automation is busy, the applicant is kept in a private retry list and the
+script tries again within about five minutes. The row is not changed until that retry
+runs, which prevents a completed `Sent` result from being overwritten.
 
 Accepted applicants have 72 hours from receiving the acceptance email to pay the
 refundable commitment deposit.

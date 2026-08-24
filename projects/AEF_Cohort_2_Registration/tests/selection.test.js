@@ -457,6 +457,403 @@ test("acceptance sending continues when a failed email cannot be marked Failed",
   assert.equal(values[2][10], "Sent");
 });
 
+test("changing one Decision cell to Accepted emails only that edited row", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ], [
+    "grace@example.com", "", "Grace", "", "Ghana", "Accra", "Engineer", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const sentTo = [];
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30"
+  };
+  sheet.getName = () => "Selection Map";
+  sheet.getParent = () => spreadsheet;
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
+    },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    Logger: { log: () => {} }
+  });
+  const event = {
+    value: "Accepted",
+    range: {
+      getSheet: () => sheet,
+      getRow: () => 2,
+      getColumn: () => 10,
+      getNumRows: () => 1,
+      getNumColumns: () => 1
+    }
+  };
+
+  context.handleAcceptanceDecisionEdit(event);
+
+  assert.deepEqual(sentTo, ["ada@example.com"]);
+  assert.equal(values[1][10], "Sent");
+  assert.equal(values[2][10], "");
+});
+
+test("editing outside the Decision column never sends an acceptance email", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const sentTo = [];
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30"
+  };
+  sheet.getName = () => "Selection Map";
+  sheet.getParent = () => spreadsheet;
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
+    },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    Logger: { log: () => {} }
+  });
+
+  context.handleAcceptanceDecisionEdit({
+    range: {
+      getSheet: () => sheet,
+      getRow: () => 2,
+      getColumn: () => 9,
+      getNumRows: () => 1,
+      getNumColumns: () => 1
+    }
+  });
+
+  assert.deepEqual(sentTo, []);
+  assert.equal(values[1][10], "");
+});
+
+test("a queued Accepted edit follows the applicant email when rows are reordered", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ], [
+    "grace@example.com", "", "Grace", "", "Ghana", "Accra", "Engineer", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const sentTo = [];
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30"
+  };
+  sheet.getName = () => "Selection Map";
+  sheet.getParent = () => spreadsheet;
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    LockService: {
+      getScriptLock: () => ({
+        tryLock() {
+          const originalAda = values[1];
+          values[1] = values[2];
+          values[2] = originalAda;
+          return true;
+        },
+        releaseLock: () => {}
+      })
+    },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    Logger: { log: () => {} }
+  });
+
+  context.handleAcceptanceDecisionEdit({
+    value: "Accepted",
+    range: {
+      getSheet: () => sheet,
+      getRow: () => 2,
+      getColumn: () => 10,
+      getNumRows: () => 1,
+      getNumColumns: () => 1
+    }
+  });
+
+  assert.deepEqual(sentTo, ["ada@example.com"]);
+  assert.equal(values[1][10], "");
+  assert.equal(values[2][10], "Sent");
+});
+
+test("a single Decision edit that did not set Accepted never sends", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const sentTo = [];
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30"
+  };
+  sheet.getName = () => "Selection Map";
+  sheet.getParent = () => spreadsheet;
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
+    },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    Logger: { log: () => {} }
+  });
+
+  context.handleAcceptanceDecisionEdit({
+    value: "Under Review",
+    range: {
+      getSheet: () => sheet,
+      getRow: () => 2,
+      getColumn: () => 10,
+      getNumRows: () => 1,
+      getNumColumns: () => 1
+    }
+  });
+
+  assert.deepEqual(sentTo, []);
+  assert.equal(values[1][10], "");
+});
+
+test("a busy automation queues the Accepted applicant without changing tracking", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const sentTo = [];
+  const queued = {};
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30"
+  };
+  sheet.getName = () => "Selection Map";
+  sheet.getParent = () => spreadsheet;
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => false, releaseLock: () => {} })
+    },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        setProperty(key, value) { queued[key] = value; }
+      })
+    },
+    Utilities: { getUuid: () => "queued-event-id" },
+    Logger: { log: () => {} }
+  });
+
+  context.handleAcceptanceDecisionEdit({
+    value: "Accepted",
+    range: {
+      getSheet: () => sheet,
+      getRow: () => 2,
+      getColumn: () => 10,
+      getNumRows: () => 1,
+      getNumColumns: () => 1
+    }
+  });
+
+  assert.deepEqual(sentTo, []);
+  assert.equal(values[1][10], "");
+  assert.equal(values[1][11], "");
+  assert.deepEqual(Object.keys(queued), [
+    "AEF_ACCEPTANCE_RETRY_queued-event-id"
+  ]);
+  assert.equal(
+    JSON.parse(queued["AEF_ACCEPTANCE_RETRY_queued-event-id"]).applicantKey,
+    "email:ada@example.com"
+  );
+});
+
+test("a queued Accepted applicant is emailed on the next retry and removed from the queue", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const sentTo = [];
+  const propertyKey = "AEF_ACCEPTANCE_RETRY_older-event-id";
+  const properties = {
+    [propertyKey]: JSON.stringify({
+      applicantKey: "email:ada@example.com",
+      queuedAt: "2026-08-24T10:00:00.000Z"
+    })
+  };
+  const deleted = [];
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30",
+    getSheetByName: () => sheet
+  };
+  sheet.getName = () => "Selection Map";
+  sheet.getParent = () => spreadsheet;
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+      flush: () => {}
+    },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
+    },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperties: () => ({ ...properties }),
+        getProperty: (key) => properties[key],
+        deleteProperty(key) {
+          deleted.push(key);
+          delete properties[key];
+        }
+      })
+    },
+    Logger: { log: () => {} }
+  });
+
+  context.processQueuedAcceptanceEdits();
+
+  assert.deepEqual(sentTo, ["ada@example.com"]);
+  assert.equal(values[1][10], "Sent");
+  assert.deepEqual(deleted, [propertyKey]);
+  assert.equal(properties[propertyKey], undefined);
+});
+
+test("a newer edit queued during retry is kept for the next retry", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const propertyKey = "AEF_ACCEPTANCE_RETRY_older-event-id";
+  const newerPropertyKey = "AEF_ACCEPTANCE_RETRY_newer-event-id";
+  const properties = {
+    [propertyKey]: JSON.stringify({
+      applicantKey: "email:ada@example.com",
+      queuedAt: "2026-08-24T10:00:00.000Z"
+    })
+  };
+  const deleted = [];
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30",
+    getSheetByName: () => sheet
+  };
+  sheet.getName = () => "Selection Map";
+  sheet.getParent = () => spreadsheet;
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+      flush: () => {}
+    },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
+    },
+    GmailApp: {
+      sendEmail() {
+        properties[newerPropertyKey] = JSON.stringify({
+          applicantKey: "email:ada@example.com",
+          queuedAt: "2026-08-24T10:01:00.000Z"
+        });
+      }
+    },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperties: () => ({ ...properties }),
+        getProperty: (key) => properties[key],
+        deleteProperty(key) {
+          deleted.push(key);
+          delete properties[key];
+        }
+      })
+    },
+    Logger: { log: () => {} }
+  });
+
+  context.processQueuedAcceptanceEdits();
+
+  assert.equal(values[1][10], "Sent");
+  assert.equal(properties[propertyKey], undefined);
+  assert.ok(properties[newerPropertyKey]);
+  assert.deepEqual(deleted, [propertyKey]);
+});
+
+test("accepting an applicant without a valid email records a clear warning", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "not-an-email", "", "Ada", "", "Nigeria", "Lagos", "Analyst",
+    "https://linkedin.com/in/ada", "Yes", "Accepted", "", "", ""
+  ]];
+  const sentTo = [];
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30"
+  };
+  sheet.getName = () => "Selection Map";
+  sheet.getParent = () => spreadsheet;
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
+    },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    Logger: { log: () => {} }
+  });
+
+  context.handleAcceptanceDecisionEdit({
+    value: "Accepted",
+    range: {
+      getSheet: () => sheet,
+      getRow: () => 2,
+      getColumn: () => 10,
+      getNumRows: () => 1,
+      getNumColumns: () => 1
+    }
+  });
+
+  assert.deepEqual(sentTo, []);
+  assert.equal(values[1][10], "Skipped - No Email");
+  assert.match(values[1][11], /no valid recipient email/i);
+});
+
 function makeEditableSheet(values) {
   return {
     getLastRow: () => values.length,

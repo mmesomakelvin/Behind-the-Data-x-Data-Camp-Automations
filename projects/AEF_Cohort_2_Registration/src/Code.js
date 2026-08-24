@@ -14,6 +14,9 @@ const AEF_COHORT_2_CONFIG = {
   senderName: "Behind the Data Academy",
   subject: "Application Received – Analytics Engineering Fellowship Cohort 2",
   triggerHandler: "handleRegistrationSubmit",
+  acceptanceEditHandler: "handleAcceptanceDecisionEdit",
+  acceptanceRetryHandler: "processQueuedAcceptanceEdits",
+  acceptanceRetryPropertyPrefix: "AEF_ACCEPTANCE_RETRY_",
   testEmailProperty: "AEF_COHORT_2_TEST_EMAIL",
   selectionSheetName: "Selection Map",
   acceptanceSubject: "You are Accepted: Analytics Engineering Fellowship Cohort 2 | Behind the Data Academy",
@@ -86,10 +89,111 @@ function installRegistrationTrigger_() {
   }
 
   const state = keeperFound ? "already existed" : "installed";
+  const acceptanceState = installAcceptanceEditTrigger_();
+  const retryState = installAcceptanceRetryTrigger_();
   return logAndToastAef_(
     "Registration form-submit trigger " + state +
-    ". Duplicate or conflicting triggers removed: " + removedConflicts
+    ". Acceptance edit trigger " + acceptanceState.state +
+    ". Acceptance retry trigger " + retryState.state +
+    ". Duplicate or conflicting triggers removed: " +
+    (removedConflicts + acceptanceState.removed + retryState.removed)
   );
+}
+
+function installAcceptanceEditTrigger_() {
+  const triggers = ScriptApp.getProjectTriggers();
+  let keeperFound = false;
+  let removed = 0;
+
+  for (let i = 0; i < triggers.length; i++) {
+    if (
+      triggers[i].getHandlerFunction() !==
+      AEF_COHORT_2_CONFIG.acceptanceEditHandler
+    ) {
+      continue;
+    }
+
+    if (isMatchingAefAcceptanceEditTrigger_(triggers[i]) && !keeperFound) {
+      keeperFound = true;
+      continue;
+    }
+
+    ScriptApp.deleteTrigger(triggers[i]);
+    removed++;
+  }
+
+  if (!keeperFound) {
+    ScriptApp.newTrigger(AEF_COHORT_2_CONFIG.acceptanceEditHandler)
+      .forSpreadsheet(getAefSpreadsheet_())
+      .onEdit()
+      .create();
+  }
+
+  return {
+    state: keeperFound ? "already existed" : "installed",
+    removed: removed
+  };
+}
+
+function isMatchingAefAcceptanceEditTrigger_(trigger) {
+  try {
+    return Boolean(
+      trigger &&
+      trigger.getHandlerFunction() === AEF_COHORT_2_CONFIG.acceptanceEditHandler &&
+      trigger.getEventType() === ScriptApp.EventType.ON_EDIT &&
+      trigger.getTriggerSource() === ScriptApp.TriggerSource.SPREADSHEETS &&
+      trigger.getTriggerSourceId() === AEF_COHORT_2_CONFIG.spreadsheetId
+    );
+  } catch (error) {
+    return false;
+  }
+}
+
+function installAcceptanceRetryTrigger_() {
+  const triggers = ScriptApp.getProjectTriggers();
+  let keeperFound = false;
+  let removed = 0;
+
+  for (let i = 0; i < triggers.length; i++) {
+    if (
+      triggers[i].getHandlerFunction() !==
+      AEF_COHORT_2_CONFIG.acceptanceRetryHandler
+    ) {
+      continue;
+    }
+
+    if (isMatchingAefAcceptanceRetryTrigger_(triggers[i]) && !keeperFound) {
+      keeperFound = true;
+      continue;
+    }
+
+    ScriptApp.deleteTrigger(triggers[i]);
+    removed++;
+  }
+
+  if (!keeperFound) {
+    ScriptApp.newTrigger(AEF_COHORT_2_CONFIG.acceptanceRetryHandler)
+      .timeBased()
+      .everyMinutes(5)
+      .create();
+  }
+
+  return {
+    state: keeperFound ? "already existed" : "installed",
+    removed: removed
+  };
+}
+
+function isMatchingAefAcceptanceRetryTrigger_(trigger) {
+  try {
+    return Boolean(
+      trigger &&
+      trigger.getHandlerFunction() === AEF_COHORT_2_CONFIG.acceptanceRetryHandler &&
+      trigger.getEventType() === ScriptApp.EventType.CLOCK
+    );
+  } catch (error) {
+    return false;
+  }
 }
 
 function isMatchingAefRegistrationTrigger_(trigger) {
@@ -115,13 +219,37 @@ function clearRegistrationTrigger_() {
   let removed = 0;
 
   for (let i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === AEF_COHORT_2_CONFIG.triggerHandler) {
+    const handler = triggers[i].getHandlerFunction();
+    if (
+      handler === AEF_COHORT_2_CONFIG.triggerHandler ||
+      handler === AEF_COHORT_2_CONFIG.acceptanceEditHandler ||
+      handler === AEF_COHORT_2_CONFIG.acceptanceRetryHandler
+    ) {
       ScriptApp.deleteTrigger(triggers[i]);
       removed++;
     }
   }
 
-  return logAndToastAef_("Removed registration form-submit triggers: " + removed);
+  const queuedRemoved = clearAefAcceptanceRetryQueue_();
+
+  return logAndToastAef_(
+    "Removed registration, acceptance, and retry triggers: " + removed +
+    ". Cleared waiting acceptance emails: " + queuedRemoved
+  );
+}
+
+function clearAefAcceptanceRetryQueue_() {
+  const properties = PropertiesService.getScriptProperties();
+  const allProperties = properties.getProperties();
+  const prefix = AEF_COHORT_2_CONFIG.acceptanceRetryPropertyPrefix;
+  let removed = 0;
+
+  Object.keys(allProperties).forEach(function (key) {
+    if (key.indexOf(prefix) !== 0) return;
+    properties.deleteProperty(key);
+    removed++;
+  });
+  return removed;
 }
 
 function handleRegistrationSubmit(e) {
@@ -640,7 +768,196 @@ function sendAcceptedApplicants() {
   });
 }
 
-function processAefAcceptanceRows_(sheet) {
+function handleAcceptanceDecisionEdit(e) {
+  if (!e || !e.range) {
+    Logger.log("Acceptance edit event did not include a range.");
+    return;
+  }
+
+  const sheet = e.range.getSheet();
+  if (
+    !sheet ||
+    sheet.getName() !== AEF_COHORT_2_CONFIG.selectionSheetName ||
+    sheet.getParent().getId() !== AEF_COHORT_2_CONFIG.spreadsheetId
+  ) {
+    return;
+  }
+
+  const columns = getAefAcceptanceColumnIndexes_(getAefHeaders_(sheet));
+  const decisionColumn = columns.decisionIndex + 1;
+  const firstColumn = e.range.getColumn();
+  const lastColumn = firstColumn + e.range.getNumColumns() - 1;
+  if (decisionColumn < firstColumn || decisionColumn > lastColumn) return;
+
+  if (
+    e.range.getNumRows() === 1 &&
+    e.range.getNumColumns() === 1 &&
+    normalizeAefHeader_(e.value) !== "accepted"
+  ) {
+    return;
+  }
+
+  const firstRow = Math.max(e.range.getRow(), 2);
+  const lastRow = e.range.getRow() + e.range.getNumRows() - 1;
+  if (firstRow > lastRow) return;
+
+  const editedValues = sheet.getRange(
+    firstRow,
+    1,
+    lastRow - firstRow + 1,
+    sheet.getLastColumn()
+  ).getValues();
+  const editedApplicantKeys = [];
+  editedValues.forEach(function (row) {
+    if (normalizeAefHeader_(row[columns.decisionIndex]) !== "accepted") return;
+    const applicantKey = getAefAcceptanceApplicantKey_(row, columns);
+    if (applicantKey && editedApplicantKeys.indexOf(applicantKey) === -1) {
+      editedApplicantKeys.push(applicantKey);
+    }
+  });
+  if (!editedApplicantKeys.length) return;
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    let queued = 0;
+    try {
+      const properties = PropertiesService.getScriptProperties();
+      editedApplicantKeys.forEach(function (applicantKey) {
+        const propertyKey =
+          AEF_COHORT_2_CONFIG.acceptanceRetryPropertyPrefix + Utilities.getUuid();
+        properties.setProperty(
+          propertyKey,
+          JSON.stringify({
+            applicantKey: applicantKey,
+            queuedAt: new Date().toISOString()
+          })
+        );
+        queued++;
+      });
+    } catch (error) {
+      Logger.log("Could not queue delayed acceptance edits: " + truncateAefError_(error));
+    }
+    Logger.log("Acceptance edit queued for retry. Applicants queued: " + queued);
+    return { sent: 0, failed: 0, skipped: 0, review: queued };
+  }
+
+  try {
+    const currentColumns = getAefAcceptanceColumnIndexes_(getAefHeaders_(sheet));
+    if (sheet.getLastRow() < 2) {
+      return { sent: 0, failed: 0, skipped: 0, review: 0 };
+    }
+    const currentRows = sheet.getRange(
+      2,
+      1,
+      sheet.getLastRow() - 1,
+      sheet.getLastColumn()
+    ).getValues();
+    const editedApplicantSet = {};
+    editedApplicantKeys.forEach(function (applicantKey) {
+      editedApplicantSet[applicantKey] = true;
+    });
+    const currentRowNumbers = [];
+    currentRows.forEach(function (row, index) {
+      const applicantKey = getAefAcceptanceApplicantKey_(row, currentColumns);
+      if (editedApplicantSet[applicantKey]) currentRowNumbers.push(index + 2);
+    });
+
+    const summary = processAefAcceptanceRows_(sheet, currentRowNumbers);
+    Logger.log(
+      "Processed acceptance Decision edit. Sent: " + summary.sent +
+      ", Failed: " + summary.failed +
+      ", Needs review: " + summary.review
+    );
+    return summary;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function processQueuedAcceptanceEdits() {
+  const properties = PropertiesService.getScriptProperties();
+  const allProperties = properties.getProperties();
+  const prefix = AEF_COHORT_2_CONFIG.acceptanceRetryPropertyPrefix;
+  const queuedPropertyKeys = Object.keys(allProperties).filter(function (key) {
+    return key.indexOf(prefix) === 0;
+  });
+  const emptySummary = { sent: 0, failed: 0, skipped: 0, review: 0 };
+  if (!queuedPropertyKeys.length) return emptySummary;
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    Logger.log("Acceptance retry remains queued because another automation is busy.");
+    return emptySummary;
+  }
+
+  try {
+    const sheet = getAefSelectionSheet_();
+    const columns = getAefAcceptanceColumnIndexes_(getAefHeaders_(sheet));
+    const queuedApplicantSet = {};
+    queuedPropertyKeys.forEach(function (propertyKey) {
+      try {
+        const applicantKey = getAefAcceptanceRetryApplicantKey_(
+          propertyKey,
+          allProperties[propertyKey]
+        );
+        if (applicantKey) queuedApplicantSet[applicantKey] = true;
+      } catch (error) {
+        Logger.log("Ignored an invalid acceptance retry key: " + propertyKey);
+      }
+    });
+
+    const rowNumbers = [];
+    if (sheet.getLastRow() >= 2) {
+      const rows = sheet.getRange(
+        2,
+        1,
+        sheet.getLastRow() - 1,
+        sheet.getLastColumn()
+      ).getValues();
+      rows.forEach(function (row, index) {
+        const applicantKey = getAefAcceptanceApplicantKey_(row, columns);
+        if (
+          queuedApplicantSet[applicantKey] &&
+          normalizeAefHeader_(row[columns.decisionIndex]) === "accepted"
+        ) {
+          rowNumbers.push(index + 2);
+        }
+      });
+    }
+
+    const summary = processAefAcceptanceRows_(sheet, rowNumbers);
+    queuedPropertyKeys.forEach(function (propertyKey) {
+      properties.deleteProperty(propertyKey);
+    });
+    Logger.log(
+      "Processed queued acceptance edits. Sent: " + summary.sent +
+      ", Failed: " + summary.failed +
+      ", Needs review: " + summary.review
+    );
+    return summary;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getAefAcceptanceRetryApplicantKey_(propertyKey, propertyValue) {
+  try {
+    const payload = JSON.parse(String(propertyValue || ""));
+    if (payload && payload.applicantKey) {
+      return String(payload.applicantKey);
+    }
+  } catch (error) {
+    // Older retry entries stored the applicant key in the property name.
+  }
+
+  return decodeURIComponent(
+    String(propertyKey || "").slice(
+      AEF_COHORT_2_CONFIG.acceptanceRetryPropertyPrefix.length
+    )
+  );
+}
+
+function processAefAcceptanceRows_(sheet, onlyRowNumbers) {
   const headers = getAefHeaders_(sheet);
   const columns = getAefAcceptanceColumnIndexes_(headers);
   const tracking = {
@@ -661,6 +978,7 @@ function processAefAcceptanceRows_(sheet) {
 
   rows.forEach(function (row, index) {
     const rowNumber = index + 2;
+    if (onlyRowNumbers && onlyRowNumbers.indexOf(rowNumber) === -1) return;
     const email = resolveAefRegistrationEmail_(row, columns);
     const action = determineAefAcceptanceAction_(
       row[columns.decisionIndex],
@@ -1122,6 +1440,22 @@ function resolveAefRegistrationEmail_(row, columns) {
   return columns.fallbackEmailIndex >= 0
     ? normalizeAefEmail_(row[columns.fallbackEmailIndex])
     : "";
+}
+
+function getAefAcceptanceApplicantKey_(row, columns) {
+  const email = resolveAefRegistrationEmail_(row, columns);
+  if (isValidAefEmail_(email)) return "email:" + email;
+
+  const fullName = columns.fullNameIndex >= 0
+    ? normalizeAefHeader_(row[columns.fullNameIndex])
+    : "";
+  const primaryEmail = columns.primaryEmailIndex >= 0
+    ? normalizeAefEmail_(row[columns.primaryEmailIndex])
+    : "";
+  const fallbackEmail = columns.fallbackEmailIndex >= 0
+    ? normalizeAefEmail_(row[columns.fallbackEmailIndex])
+    : "";
+  return "profile:" + [fullName, primaryEmail, fallbackEmail].join("|");
 }
 
 function getAefRegistrationColumnIndexes_(headers) {
