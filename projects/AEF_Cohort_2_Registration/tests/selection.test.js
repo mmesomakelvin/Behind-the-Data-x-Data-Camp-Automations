@@ -93,7 +93,7 @@ test("selection uses the newest timestamp even when source rows are out of order
   assert.equal(rows[0][5], "Abuja");
 });
 
-test("acceptance preview uses Cohort 2 links and a relative 24-hour payment window", () => {
+test("acceptance preview uses Cohort 2 links and a 72-hour payment window", () => {
   const staleFormUrl = "https://docs.google.com/forms/d/e/OLD_SAVED_FORM/viewform";
   const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
     PropertiesService: {
@@ -109,7 +109,8 @@ test("acceptance preview uses Cohort 2 links and a relative 24-hour payment wind
   const plainText = context.getAefCohort2AcceptanceEmailPlainText("Ada Lovelace");
   for (const body of [html, plainText]) {
     assert.match(body, /Analytics Engineering Fellowship Cohort 2/i);
-    assert.match(body, /within 24 hours of receiving this email/i);
+    assert.match(body, /within 72 hours of receiving this email/i);
+    assert.doesNotMatch(body, /within 24 hours/i);
     assert.match(body, /September 1, 2026/i);
     assert.match(body, /30,100/);
     assert.match(body, /1icI-afhVqYoaV6GLAr9CpU_A_2c26Zg-L3e-0fXKtOM/);
@@ -130,7 +131,7 @@ test("acceptance form copy changes Cohort 1 wording and the old compliance link"
 
   assert.match(updated, /Analytics Engineering Fellowship Cohort 2/);
   assert.match(updated, /1icI-afhVqYoaV6GLAr9CpU_A_2c26Zg-L3e-0fXKtOM/);
-  assert.match(updated, /within 24 hours of receiving your acceptance email/i);
+  assert.match(updated, /within 72 hours of receiving your acceptance email/i);
   assert.doesNotMatch(updated, /Cohort 1/);
   assert.doesNotMatch(updated, /18 February 2026/i);
   assert.doesNotMatch(updated, /1r5aKeScDitYzioKv7fuBS3XWIEL9nXRzQKgSipVSzKM/);
@@ -293,3 +294,185 @@ test("a copied form is published before it is made available to applicants", () 
 
   assert.deepEqual(calls, [["published", true]]);
 });
+
+test("acceptance sending emails only Accepted unsent applicants and records delivery", () => {
+  const headers = [
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ];
+  const values = [
+    headers,
+    ["ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "", "Yes", "Accepted", "", "", ""],
+    ["grace@example.com", "", "Grace", "", "Ghana", "Accra", "Engineer", "", "Yes", "Under Review", "", "", ""],
+    ["linus@example.com", "", "Linus", "", "Finland", "Helsinki", "Engineer", "", "Yes", "Accepted", "Sent", "", "2026-08-24"]
+  ];
+  const sentTo = [];
+  const sheet = makeEditableSheet(values);
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    Logger: { log: () => {} }
+  });
+
+  const result = context.processAefAcceptanceRows_(sheet);
+
+  assert.deepEqual(sentTo, ["ada@example.com"]);
+  assert.equal(result.sent, 1);
+  assert.equal(result.failed, 0);
+  assert.equal(values[1][10], "Sent");
+  assert.equal(values[1][11], "");
+  assert.equal(typeof values[1][12].getTime, "function");
+  assert.equal(Number.isNaN(values[1][12].getTime()), false);
+  assert.equal(values[2][10], "");
+  assert.equal(values[3][10], "Sent");
+});
+
+test("a failed acceptance email is recorded and can be retried", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const sheet = makeEditableSheet(values);
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    GmailApp: { sendEmail: () => { throw new Error("mail unavailable"); } },
+    Logger: { log: () => {} }
+  });
+
+  const result = context.processAefAcceptanceRows_(sheet);
+
+  assert.equal(result.failed, 1);
+  assert.equal(values[1][10], "Failed");
+  assert.match(values[1][11], /mail unavailable/);
+  assert.equal(values[1][12], "");
+  assert.equal(
+    context.determineAefAcceptanceAction_("Accepted", "ada@example.com", "Failed", {}),
+    "send"
+  );
+});
+
+test("acceptance sending aborts when the confirmed recipient list changes", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ], [
+    "grace@example.com", "", "Grace", "", "Ghana", "Accra", "Engineer", "",
+    "Yes", "Under Review", "", "", ""
+  ]];
+  const sentTo = [];
+  const sheet = makeEditableSheet(values);
+  const spreadsheet = {
+    getId: () => "1BIA59dL4-hx8Io7JbVB0nXshOwG0I_8i8KK0GORdm30",
+    getSheetByName: () => sheet
+  };
+  const ui = {
+    ButtonSet: { YES_NO: "YES_NO" },
+    Button: { YES: "YES" },
+    alert() {
+      values[2][9] = "Accepted";
+      return this.Button.YES;
+    }
+  };
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+      getActive: () => ({ toast: () => {} }),
+      getUi: () => ui,
+      flush: () => {}
+    },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
+    },
+    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
+    Logger: { log: () => {} }
+  });
+
+  const message = context.sendAcceptedApplicants();
+
+  assert.deepEqual(sentTo, []);
+  assert.match(message, /selection changed/i);
+  assert.equal(values[1][10], "");
+  assert.equal(values[2][10], "");
+});
+
+test("acceptance sending continues when a failed email cannot be marked Failed", () => {
+  const values = [[
+    "Email address", "Column 2", "Full Name", "Email Address", "Country",
+    "State / Region", "What best describes you right now?", "LinkedIn Url",
+    "Able to Commit", "Decision", "Acceptance Email Status",
+    "Acceptance Email Error", "Acceptance Email Sent At"
+  ], [
+    "ada@example.com", "", "Ada", "", "Nigeria", "Lagos", "Analyst", "",
+    "Yes", "Accepted", "", "", ""
+  ], [
+    "grace@example.com", "", "Grace", "", "Ghana", "Accra", "Engineer", "",
+    "Yes", "Accepted", "", "", ""
+  ]];
+  const sentTo = [];
+  const sheet = makeEditableSheet(values);
+  const originalGetRange = sheet.getRange.bind(sheet);
+  sheet.getRange = function (rowNumber, columnNumber, rowCount, columnCount) {
+    const range = originalGetRange(rowNumber, columnNumber, rowCount, columnCount);
+    const originalSetValue = range.setValue;
+    range.setValue = function (value) {
+      if (rowNumber === 2 && columnNumber === 11 && value === "Failed") {
+        throw new Error("tracking write failed");
+      }
+      return originalSetValue.call(this, value);
+    };
+    return range;
+  };
+  const context = loadScripts(["EmailTemplate.js", "Code.js", "AcceptanceEmailTemplate.js"], {
+    SpreadsheetApp: { flush: () => {} },
+    GmailApp: {
+      sendEmail(recipient) {
+        if (recipient === "ada@example.com") throw new Error("mail unavailable");
+        sentTo.push(recipient);
+      }
+    },
+    Logger: { log: () => {} }
+  });
+
+  const result = context.processAefAcceptanceRows_(sheet);
+
+  assert.deepEqual(sentTo, ["grace@example.com"]);
+  assert.equal(result.sent, 1);
+  assert.equal(result.failed, 1);
+  assert.equal(result.review, 1);
+  assert.equal(values[1][10], "Sending");
+  assert.match(values[1][11], /mail unavailable/i);
+  assert.match(values[1][11], /tracking write failed/i);
+  assert.equal(values[2][10], "Sent");
+});
+
+function makeEditableSheet(values) {
+  return {
+    getLastRow: () => values.length,
+    getLastColumn: () => values[0].length,
+    getRange(rowNumber, columnNumber, rowCount, columnCount) {
+      const startRow = rowNumber - 1;
+      const startColumn = columnNumber - 1;
+      return {
+        getValues: () => values
+          .slice(startRow, startRow + (rowCount || 1))
+          .map((row) => row.slice(startColumn, startColumn + (columnCount || 1))),
+        setValue(value) {
+          values[startRow][startColumn] = value;
+          return this;
+        }
+      };
+    }
+  };
+}

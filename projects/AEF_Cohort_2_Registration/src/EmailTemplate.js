@@ -23,7 +23,7 @@ function getAefCohort2RegistrationEmailHtml(fullName) {
               <tr>
                 <td style="padding:16px 18px;">
                   <p style="margin:0 0 8px 0;font-size:15px;line-height:1.7;color:#1e3a8a;"><strong>Commitment deposit if selected</strong></p>
-                  <p style="margin:0;font-size:14px;line-height:1.75;color:#1e3a8a;">Selected applicants will be required to pay a <strong>₦30,100</strong> commitment deposit within 24 hours of receiving the acceptance email. <strong>₦30,000</strong> is refundable after successful completion of the fellowship, while <strong>₦100</strong> is retained as a processing fee.</p>
+                  <p style="margin:0;font-size:14px;line-height:1.75;color:#1e3a8a;">Selected applicants will be required to pay a <strong>₦30,100</strong> commitment deposit within 72 hours of receiving the acceptance email. <strong>₦30,000</strong> is refundable after successful completion of the fellowship, while <strong>₦100</strong> is retained as a processing fee.</p>
                 </td>
               </tr>
             </table>
@@ -49,7 +49,7 @@ function getAefCohort2RegistrationEmailPlainText(fullName) {
   return "Hello " + firstName + ",\n\n" +
     "We have received your application for the Analytics Engineering Fellowship Cohort 2. Your application is currently under review.\n\n" +
     "You will receive a separate email after the review process with our decision.\n\n" +
-    "If selected, you will be required to pay a ₦30,100 commitment deposit within 24 hours of receiving your acceptance email. ₦30,000 is refundable after successful completion of the fellowship, while ₦100 is retained as a processing fee.\n\n" +
+    "If selected, you will be required to pay a ₦30,100 commitment deposit within 72 hours of receiving your acceptance email. ₦30,000 is refundable after successful completion of the fellowship, while ₦100 is retained as a processing fee.\n\n" +
     "Do not make payment until you receive an acceptance email from us.\n\n" +
     "Warm regards,\n" +
     "Behind the Data Academy";

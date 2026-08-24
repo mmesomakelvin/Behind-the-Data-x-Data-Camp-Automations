@@ -38,7 +38,8 @@ test("registration email confirms review and defers payment until acceptance", (
     assert.match(body, /₦30,100/);
     assert.match(body, /₦30,000/);
     assert.match(body, /₦100/);
-    assert.match(body, /within 24 hours/i);
+    assert.match(body, /within 72 hours/i);
+    assert.doesNotMatch(body, /within 24 hours/i);
     assert.match(body, /do not make payment/i);
     assert.match(body, /acceptance email/i);
   }

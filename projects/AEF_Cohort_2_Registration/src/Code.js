@@ -39,6 +39,7 @@ function onOpen() {
     .addItem("Setup Cohort 2 Acceptance Form", "setupCohort2AcceptanceForm")
     .addItem("Preview Acceptance Email", "previewAcceptanceEmail")
     .addItem("Send Acceptance Test Email", "sendAcceptanceTestEmail")
+    .addItem("Send Accepted Applicants", "sendAcceptedApplicants")
     .addSeparator()
     .addItem("Install Auto Trigger", "installRegistrationTrigger")
     .addItem("Clear Auto Trigger", "clearRegistrationTrigger")
@@ -572,7 +573,8 @@ function replaceAefCohort2FormText_(value) {
     .replace(new RegExp(AEF_COHORT_2_CONFIG.oldComplianceDocumentId, "g"),
       "1icI-afhVqYoaV6GLAr9CpU_A_2c26Zg-L3e-0fXKtOM")
     .replace(/(?:Wednesday,\s*)?(?:February\s*18|18\s+February),?\s*2026/gi,
-      "within 24 hours of receiving your acceptance email")
+      "within 72 hours of receiving your acceptance email")
+    .replace(/within\s+24\s+hours/gi, "within 72 hours")
     .replace(/First\s+3\s+Months/gi, "First 2 Months")
     .replace(/Final\s+3\s+Months/gi, "Final 2 Months")
     .replace(/six[- ]month/gi, "four-month");
@@ -601,6 +603,262 @@ function sendAcceptanceTestEmail() {
     }
   );
   return logAndToastAef_("Test acceptance email sent to: " + recipient);
+}
+
+function sendAcceptedApplicants() {
+  const sheet = getAefSelectionSheet_();
+  const confirmedEmails = getAefPendingAcceptanceEmails_(sheet);
+  const pendingCount = confirmedEmails.length;
+  if (!pendingCount) {
+    return logAndToastAef_("No unsent applicants are marked Accepted.");
+  }
+
+  const ui = SpreadsheetApp.getUi();
+  const answer = ui.alert(
+    "Send acceptance emails?",
+    "This will email " + pendingCount +
+      " applicant(s) marked Accepted. Already-sent applicants will be skipped.",
+    ui.ButtonSet.YES_NO
+  );
+  if (answer !== ui.Button.YES) {
+    return logAndToastAef_("Acceptance email sending was cancelled.");
+  }
+
+  return withAefScriptLock_(function () {
+    const currentEmails = getAefPendingAcceptanceEmails_(getAefSelectionSheet_());
+    if (!areSameAefEmailLists_(confirmedEmails, currentEmails)) {
+      return logAndToastAef_(
+        "The Accepted selection changed. No emails were sent. Review it and click send again."
+      );
+    }
+    const summary = processAefAcceptanceRows_(getAefSelectionSheet_());
+    return logAndToastAef_(
+      "Acceptance emails finished. Sent: " + summary.sent +
+      ", Failed: " + summary.failed +
+      ", Needs review: " + summary.review
+    );
+  });
+}
+
+function processAefAcceptanceRows_(sheet) {
+  const headers = getAefHeaders_(sheet);
+  const columns = getAefAcceptanceColumnIndexes_(headers);
+  const tracking = {
+    statusIndex: columns.statusIndex,
+    errorIndex: columns.errorIndex,
+    sentAtIndex: columns.sentAtIndex
+  };
+  const sentEmails = getAefSentEmailSet_(sheet, columns, tracking);
+  const summary = { sent: 0, failed: 0, skipped: 0, review: 0 };
+
+  if (sheet.getLastRow() < 2) return summary;
+  const rows = sheet.getRange(
+    2,
+    1,
+    sheet.getLastRow() - 1,
+    sheet.getLastColumn()
+  ).getValues();
+
+  rows.forEach(function (row, index) {
+    const rowNumber = index + 2;
+    const email = resolveAefRegistrationEmail_(row, columns);
+    const action = determineAefAcceptanceAction_(
+      row[columns.decisionIndex],
+      email,
+      row[columns.statusIndex],
+      sentEmails
+    );
+
+    if (action === "skip-no-email") {
+      setAefRegistrationTracking_(
+        sheet,
+        rowNumber,
+        tracking,
+        "Skipped - No Email",
+        "No valid recipient email was found",
+        ""
+      );
+      summary.skipped++;
+      return;
+    }
+    if (action === "skip-reconciliation") {
+      summary.review++;
+      return;
+    }
+    if (action !== "send") {
+      summary.skipped++;
+      return;
+    }
+
+    try {
+      setAefRegistrationTracking_(sheet, rowNumber, tracking, "Sending", "", "");
+      SpreadsheetApp.flush();
+    } catch (error) {
+      Logger.log(
+        "Could not reserve acceptance row " + rowNumber +
+        " before sending: " + truncateAefError_(error)
+      );
+      summary.failed++;
+      summary.review++;
+      return;
+    }
+
+    const fullName = String(row[columns.fullNameIndex] || "").trim();
+    try {
+      GmailApp.sendEmail(
+        email,
+        AEF_COHORT_2_CONFIG.acceptanceSubject,
+        getAefCohort2AcceptanceEmailPlainText(fullName),
+        {
+          htmlBody: getAefCohort2AcceptanceEmailHtml(fullName),
+          name: AEF_COHORT_2_CONFIG.senderName
+        }
+      );
+    } catch (error) {
+      try {
+        setAefRegistrationTracking_(
+          sheet,
+          rowNumber,
+          tracking,
+          "Failed",
+          truncateAefError_(error),
+          ""
+        );
+      } catch (trackingError) {
+        Logger.log(
+          "Acceptance email failed for row " + rowNumber +
+          " and the failure could not be fully tracked: " +
+          truncateAefError_(trackingError)
+        );
+        try {
+          sheet.getRange(rowNumber, tracking.errorIndex + 1).setValue(
+            truncateAefError_(
+              "Email failed: " + error + "; tracking write failed: " + trackingError
+            )
+          );
+        } catch (secondaryError) {
+          Logger.log(
+            "Could not record the acceptance failure details for row " + rowNumber +
+            ": " + truncateAefError_(secondaryError)
+          );
+        }
+        summary.review++;
+      }
+      summary.failed++;
+      return;
+    }
+
+    sentEmails[email] = true;
+    summary.sent++;
+    try {
+      setAefRegistrationTracking_(sheet, rowNumber, tracking, "Sent", "", new Date());
+    } catch (error) {
+      Logger.log(
+        "Acceptance email was sent for row " + rowNumber +
+        ", but final tracking failed: " + truncateAefError_(error)
+      );
+      try {
+        sheet.getRange(rowNumber, tracking.errorIndex + 1).setValue(
+          truncateAefError_("Email sent; final tracking failed: " + error)
+        );
+      } catch (secondaryError) {
+        Logger.log(
+          "Could not record the acceptance tracking error for row " + rowNumber +
+          ": " + truncateAefError_(secondaryError)
+        );
+      }
+      summary.review++;
+    }
+  });
+
+  return summary;
+}
+
+function determineAefAcceptanceAction_(decision, email, currentStatus, sentEmails) {
+  if (normalizeAefHeader_(decision) !== "accepted") return "skip-decision";
+
+  const normalizedStatus = normalizeAefHeader_(currentStatus);
+  if (normalizedStatus === "sent") return "skip-sent";
+  if (normalizedStatus === "sending") return "skip-reconciliation";
+  if (!isValidAefEmail_(email)) return "skip-no-email";
+
+  const normalizedEmail = normalizeAefEmail_(email);
+  if (sentEmails && sentEmails[normalizedEmail]) return "skip-duplicate";
+  return "send";
+}
+
+function getAefPendingAcceptanceEmails_(sheet) {
+  if (sheet.getLastRow() < 2) return [];
+  const columns = getAefAcceptanceColumnIndexes_(getAefHeaders_(sheet));
+  const tracking = {
+    statusIndex: columns.statusIndex,
+    errorIndex: columns.errorIndex,
+    sentAtIndex: columns.sentAtIndex
+  };
+  const sentEmails = getAefSentEmailSet_(sheet, columns, tracking);
+  const rows = sheet.getRange(
+    2,
+    1,
+    sheet.getLastRow() - 1,
+    sheet.getLastColumn()
+  ).getValues();
+  const emails = [];
+
+  rows.forEach(function (row) {
+    const email = resolveAefRegistrationEmail_(row, columns);
+    if (
+      determineAefAcceptanceAction_(
+        row[columns.decisionIndex],
+        email,
+        row[columns.statusIndex],
+        sentEmails
+      ) === "send"
+    ) {
+      emails.push(email);
+      sentEmails[email] = true;
+    }
+  });
+  return emails.sort();
+}
+
+function areSameAefEmailLists_(left, right) {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (left[i] !== right[i]) return false;
+  }
+  return true;
+}
+
+function getAefAcceptanceColumnIndexes_(headers) {
+  const columns = {
+    primaryEmailIndex: findAefHeaderIndex_(headers, "Email address"),
+    fallbackEmailIndex: findAefHeaderIndex_(headers, "Email Address"),
+    fullNameIndex: findAefHeaderIndex_(headers, "Full Name"),
+    decisionIndex: findAefHeaderIndex_(headers, "Decision"),
+    statusIndex: findAefHeaderIndex_(headers, "Acceptance Email Status"),
+    errorIndex: findAefHeaderIndex_(headers, "Acceptance Email Error"),
+    sentAtIndex: findAefHeaderIndex_(headers, "Acceptance Email Sent At")
+  };
+  const missing = Object.keys(columns).filter(function (key) {
+    return columns[key] === -1;
+  });
+  if (missing.length) {
+    throw new Error(
+      "The Selection Map is missing required acceptance email columns. " +
+      "Run Refresh Selection Map first."
+    );
+  }
+  return columns;
+}
+
+function getAefSelectionSheet_() {
+  const sheet = getAefSpreadsheet_().getSheetByName(
+    AEF_COHORT_2_CONFIG.selectionSheetName
+  );
+  if (!sheet) {
+    throw new Error("Selection Map was not found. Run Refresh Selection Map first.");
+  }
+  return sheet;
 }
 
 function getAefSelectionHeaders_() {
@@ -722,7 +980,7 @@ function findAefCommitmentHeaderIndex_(headers) {
     const header = normalizeAefHeader_(headers[i]);
     if (
       header.indexOf("refundable commitment deposit") !== -1 &&
-      header.indexOf("within 24 hours") !== -1
+      /within\s+(?:24|72)\s+hours/.test(header)
     ) {
       return i;
     }

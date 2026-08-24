@@ -18,7 +18,7 @@ function getAefCohort2AcceptanceEmailHtml(fullName) {
             <p>Congratulations. You have been accepted into the <strong>Analytics Engineering Fellowship Cohort 2</strong>.</p>
             <p>The fellowship starts on <strong>September 1, 2026</strong>. It includes a two-month Beginner Phase followed by a two-month Advanced Phase.</p>
             <div style="margin:22px 0;padding:18px;border-left:4px solid #2563eb;background:#eff6ff;">
-              <p style="margin:0 0 8px;"><strong>Secure your place within 24 hours of receiving this email</strong></p>
+              <p style="margin:0 0 8px;"><strong>Secure your place within 72 hours of receiving this email</strong></p>
               <p style="margin:0;">Pay the <strong>NGN 30,100 refundable commitment deposit</strong>. NGN 30,000 is refunded after successful completion; NGN 100 is kept as a processing fee.</p>
             </div>
             <p><strong>Payment details</strong><br>
@@ -47,7 +47,7 @@ function getAefCohort2AcceptanceEmailPlainText(fullName) {
     "Congratulations. You have been accepted into the Analytics Engineering Fellowship Cohort 2.",
     "The fellowship starts on September 1, 2026. It includes a two-month Beginner Phase followed by a two-month Advanced Phase.",
     "",
-    "Secure your place within 24 hours of receiving this email by paying the NGN 30,100 refundable commitment deposit.",
+    "Secure your place within 72 hours of receiving this email by paying the NGN 30,100 refundable commitment deposit.",
     "NGN 30,000 is refunded after successful completion; NGN 100 is kept as a processing fee.",
     "",
     "Payment details:",

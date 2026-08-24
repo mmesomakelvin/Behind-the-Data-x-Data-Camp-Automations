@@ -66,6 +66,7 @@ and clear the sent-at value.
 - `Setup Cohort 2 Acceptance Form`
 - `Preview Acceptance Email`
 - `Send Acceptance Test Email`
+- `Send Accepted Applicants`
 - `Install Auto Trigger`
 - `Clear Auto Trigger`
 
@@ -87,9 +88,19 @@ and clear the sent-at value.
 3. Choose `Setup Cohort 2 Acceptance Form` once. The script copies the Cohort 1 form, changes Cohort 1 wording to Cohort 2, adds the September 1, 2026 programme note, and saves the new public link.
 4. Choose `Preview Acceptance Email` to inspect the email on screen.
 5. Choose `Send Acceptance Test Email` to send it only to the saved test address.
+6. In the `Decision` column, choose `Accepted` only for applicants you have approved.
+7. Choose `Send Accepted Applicants`, review the number shown, and confirm the send.
 
-There is deliberately no live acceptance-email send button yet. This prevents anyone
-from receiving an acceptance message before the email and selection process are approved.
+The live send is manual. Changing the `Decision` dropdown does not send an email by
+itself. The button emails only applicants marked `Accepted`. Rows already marked `Sent`
+are skipped. Each attempt updates `Acceptance Email Status`, `Acceptance Email Error`,
+and `Acceptance Email Sent At`, so failed sends can be corrected and retried safely.
+If an acceptance row remains `Sending`, do not clear it and resend immediately. Check
+the Gmail Sent folder first. After confirming whether the email was delivered, set the
+row to `Sent` with its sent time, or change it to `Failed` before retrying.
+
+Accepted applicants have 72 hours from receiving the acceptance email to pay the
+refundable commitment deposit.
 
 Run the setup with a Google account that can edit the Cohort 1 acceptance form. The
 original form is only read and copied; its questions and responses are not changed.
