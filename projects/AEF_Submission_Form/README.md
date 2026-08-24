@@ -9,6 +9,7 @@ Google Apps Script project for creating and processing the Analytics Engineering
 ## What This Project Does
 
 - Creates the submission Google Form and response spreadsheet.
+- Uses a required `AEF Cohort 1` dropdown so the cohort name is consistent.
 - Requires one selected engagement per submission.
 - Tells each fellow to submit the form four times, once for each completed engagement.
 - Validates GitHub and Google Drive/Docs links.
@@ -30,7 +31,8 @@ The live form uses a single-choice engagement question. Each submission contains
 engagement and its GitHub and/or Google Drive link. Fellows complete the same form four
 times to submit four engagements. The form allows corrections and repeat submissions;
 the review tracker shows each submission as a separate row, so reviewers can confirm
-that each fellow submitted four different engagements.
+that each fellow submitted four different engagements. The question order is Cohort,
+Engagement, GitHub link, then Google Drive/Docs link.
 
 ## Key Files
 

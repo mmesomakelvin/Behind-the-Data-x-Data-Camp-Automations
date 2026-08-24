@@ -22,6 +22,7 @@ var CONFIG = {
   spreadsheetName: 'AEF Submissions',
   trackerSheetName: 'Review Tracker',
   senderName: 'Analytics Engineering Fellowship',
+  cohortName: 'AEF Cohort 1',
   requiredSubmissionCount: 4
 };
 
@@ -121,9 +122,7 @@ function buildQuestions_(form) {
     .setRequired(true)
     .setValidation(FormApp.createTextValidation().requireTextIsEmail().build());
 
-  form.addTextItem()
-    .setTitle(Q.cohort)
-    .setRequired(false);
+  buildCohortQuestion_(form);
 
   buildEngagementQuestion_(form);
 
@@ -144,6 +143,18 @@ function buildQuestions_(form) {
 
 function buildEngagementQuestion_(form) {
   return configureEngagementListItem_(form.addListItem());
+}
+
+function buildCohortQuestion_(form) {
+  return configureCohortListItem_(form.addListItem());
+}
+
+function configureCohortListItem_(item) {
+  return item
+    .setTitle(Q.cohort)
+    .setHelpText('This submission form is for AEF Cohort 1.')
+    .setChoiceValues([CONFIG.cohortName])
+    .setRequired(true);
 }
 
 function configureEngagementListItem_(item) {
@@ -172,6 +183,8 @@ function updateExistingFormForSingleEngagementSubmissions() {
 function migrateExistingForm_(form) {
   // Change the question first. If that fails, the old working instructions stay in place.
   replaceEngagementQuestion_(form);
+  replaceCohortQuestion_(form);
+  ensureCoreQuestionOrder_(form);
   form.setDescription(CONFIG.formDescription);
   form.setConfirmationMessage(getFormConfirmationMessage_());
 }
@@ -222,6 +235,83 @@ function replaceEngagementQuestion_(form) {
   oldItems.forEach(function (item) {
     form.deleteItem(item);
   });
+}
+
+function replaceCohortQuestion_(form) {
+  var items = form.getItems();
+  var listItem = null;
+  var oldItems = [];
+  var cohortIndex = -1;
+
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].getTitle() !== Q.cohort) {
+      continue;
+    }
+
+    if (cohortIndex === -1) {
+      cohortIndex = i;
+    }
+
+    if (items[i].getType() === FormApp.ItemType.LIST && !listItem) {
+      listItem = items[i];
+    } else {
+      oldItems.push(items[i]);
+    }
+  }
+
+  if (listItem) {
+    configureCohortListItem_(listItem.asListItem());
+    oldItems.forEach(function (item) {
+      form.deleteItem(item);
+    });
+    return;
+  }
+
+  if (oldItems.length === 0) {
+    throw new Error('The cohort question could not be found in the live form.');
+  }
+
+  var newItem = configureCohortListItem_(form.addListItem());
+  form.moveItem(newItem, cohortIndex);
+  oldItems.forEach(function (item) {
+    form.deleteItem(item);
+  });
+}
+
+function ensureCoreQuestionOrder_(form) {
+  moveQuestionImmediatelyBefore_(form, Q.projects, Q.github);
+  moveQuestionImmediatelyBefore_(form, Q.cohort, Q.projects);
+}
+
+function moveQuestionImmediatelyBefore_(form, questionTitle, nextQuestionTitle) {
+  var items = form.getItems();
+  var question = null;
+  var questionIndex = -1;
+  var nextQuestionIndex = -1;
+
+  for (var i = 0; i < items.length; i++) {
+    var title = items[i].getTitle();
+    if (title === questionTitle) {
+      question = items[i];
+      questionIndex = i;
+    }
+    if (title === nextQuestionTitle) {
+      nextQuestionIndex = i;
+    }
+  }
+
+  if (!question || nextQuestionIndex === -1) {
+    throw new Error('The form questions could not be arranged in the required order.');
+  }
+
+  if (questionIndex === nextQuestionIndex - 1) {
+    return;
+  }
+
+  var destinationIndex = questionIndex < nextQuestionIndex
+    ? nextQuestionIndex - 1
+    : nextQuestionIndex;
+  form.moveItem(question, destinationIndex);
 }
 
 function createTrackerSheet_(ss) {

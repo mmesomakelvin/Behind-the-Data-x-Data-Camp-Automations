@@ -102,6 +102,91 @@ test("the engagement question allows one choice from the full catalog", () => {
   assert.deepEqual(calls.at(-1), ["required", true]);
 });
 
+test("the cohort question only allows the AEF Cohort 1 choice", () => {
+  const calls = [];
+  const item = {
+    setTitle(value) { calls.push(["title", value]); return this; },
+    setHelpText(value) { calls.push(["help", value]); return this; },
+    setChoiceValues(value) { calls.push(["choices", value.slice()]); return this; },
+    setRequired(value) { calls.push(["required", value]); return this; }
+  };
+  const form = {
+    addListItem() { calls.push(["type", "list"]); return item; }
+  };
+  const context = loadCode();
+
+  context.buildCohortQuestion_(form);
+
+  assert.deepEqual(calls[0], ["type", "list"]);
+  assert.deepEqual(
+    Array.from(calls.find((call) => call[0] === "choices")[1]),
+    ["AEF Cohort 1"]
+  );
+  assert.deepEqual(calls.at(-1), ["required", true]);
+});
+
+test("the live-form updater prepares the cohort dropdown before deleting the text box", () => {
+  const calls = [];
+  const oldItem = {
+    getTitle: () => "Cohort / group",
+    getType: () => "TEXT"
+  };
+  const newItem = {
+    setTitle(value) { calls.push(["title", value]); return this; },
+    setHelpText(value) { calls.push(["help", value]); return this; },
+    setChoiceValues(value) { calls.push(["choices", value.slice()]); return this; },
+    setRequired(value) { calls.push(["required", value]); return this; }
+  };
+  const form = {
+    getItems: () => [oldItem],
+    addListItem() { calls.push(["add", "list"]); return newItem; },
+    moveItem(item, index) { calls.push(["move", item, index]); },
+    deleteItem(item) { calls.push(["delete", item]); }
+  };
+  const context = loadCode({ FormApp: { ItemType: { LIST: "LIST" } } });
+
+  context.replaceCohortQuestion_(form);
+
+  assert.deepEqual(
+    Array.from(calls.find((call) => call[0] === "choices")[1]),
+    ["AEF Cohort 1"]
+  );
+  assert.ok(
+    calls.findIndex((call) => call[0] === "move") <
+      calls.findIndex((call) => call[0] === "delete"),
+    "the ready cohort dropdown must be in place before the old text box is deleted"
+  );
+});
+
+test("the live form keeps cohort then engagement directly before GitHub", () => {
+  const makeItem = (title) => ({ getTitle: () => title });
+  const items = [
+    makeItem("Full name"),
+    makeItem("GitHub repo link"),
+    makeItem("Google Drive / Docs link"),
+    makeItem("Cohort / group"),
+    makeItem("Which engagement are you submitting?")
+  ];
+  const form = {
+    getItems: () => items,
+    moveItem(item, index) {
+      items.splice(items.indexOf(item), 1);
+      items.splice(index, 0, item);
+    }
+  };
+  const context = loadCode();
+
+  context.ensureCoreQuestionOrder_(form);
+
+  assert.deepEqual(items.map((item) => item.getTitle()), [
+    "Full name",
+    "Cohort / group",
+    "Which engagement are you submitting?",
+    "GitHub repo link",
+    "Google Drive / Docs link"
+  ]);
+});
+
 test("the receipt describes one engagement for the current submission", () => {
   const context = loadCode();
   const html = context.buildConfirmationEmailHtml_({
@@ -212,14 +297,21 @@ test("the public updater refreshes the live form instructions", () => {
     setChoiceValues() { return this; },
     setRequired() { return this; }
   };
+  const cohortItem = {
+    getTitle: () => "Cohort / group",
+    getType: () => "LIST",
+    asListItem: () => listItem
+  };
+  const engagementItem = {
+    getTitle: () => "Which engagement are you submitting?",
+    getType: () => "LIST",
+    asListItem: () => listItem
+  };
+  const githubItem = { getTitle: () => "GitHub repo link" };
   const form = {
     setDescription(value) { values.push(value); return this; },
     setConfirmationMessage(value) { values.push(value); return this; },
-    getItems: () => [{
-      getTitle: () => "Which engagement are you submitting?",
-      getType: () => "LIST",
-      asListItem: () => listItem
-    }],
+    getItems: () => [cohortItem, engagementItem, githubItem],
     getEditUrl: () => "https://docs.google.com/forms/example/edit"
   };
   const context = loadCode({
@@ -249,12 +341,19 @@ test("rerunning setup updates an existing form instead of doing nothing", () => 
     setChoiceValues() { return this; },
     setRequired() { return this; }
   };
+  const cohortItem = {
+    getTitle: () => "Cohort / group",
+    getType: () => "LIST",
+    asListItem: () => listItem
+  };
+  const engagementItem = {
+    getTitle: () => "Which engagement are you submitting?",
+    getType: () => "LIST",
+    asListItem: () => listItem
+  };
+  const githubItem = { getTitle: () => "GitHub repo link" };
   const form = {
-    getItems: () => [{
-      getTitle: () => "Which engagement are you submitting?",
-      getType: () => "LIST",
-      asListItem: () => listItem
-    }],
+    getItems: () => [cohortItem, engagementItem, githubItem],
     setDescription(value) { values.push(value); return this; },
     setConfirmationMessage(value) { values.push(value); return this; },
     getPublishedUrl: () => "https://docs.google.com/forms/example/viewform",
