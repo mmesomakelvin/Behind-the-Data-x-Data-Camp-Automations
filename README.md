@@ -28,7 +28,7 @@ scripts/
 - `AI_Agents_Cohort_Acceptance` (cohort acceptance payment-confirmation workflow)
 - `AEF_Submission_Form` (Analytics Engineering Fellowship project-submission form workflow)
 - `AEF_Cohort_2_Registration` (Cohort 2 application acknowledgement workflow)
-- `AEF_Cohort_2_Payment_Confirmation` (Cohort 2 payment-confirmation workflow)
+- `AEF_Cohort_2_Payment_Confirmation` (Cohort 2 payment-review, receipt, and confirmation workflow)
 
 Project-specific details are documented in each project folder `README.md`.
 

@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       body { margin:0; padding:16px; font-family:Segoe UI,Arial,sans-serif; background:#f6f8fc; color:#0f172a; }
-      .card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; }
+      .card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:12px; }
       h2 { margin:0 0 8px; font-size:17px; }
+      h3 { margin:0 0 8px; font-size:14px; }
       p { margin:0 0 12px; font-size:13px; color:#475569; line-height:1.5; }
       .btn { width:100%; border:0; border-radius:8px; padding:10px 12px; margin:0 0 8px; font-size:13px; font-weight:600; cursor:pointer; }
       .primary { background:#1d4ed8; color:#fff; }
       .neutral { background:#0f766e; color:#fff; }
       .warn { background:#475569; color:#fff; }
+      .live { background:#b45309; color:#fff; }
       .danger { background:#b91c1c; color:#fff; }
       .input { width:100%; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin:0 0 8px; font-size:13px; }
       .status { margin-top:10px; min-height:18px; font-size:12px; color:#334155; }
@@ -20,19 +22,41 @@
   </head>
   <body>
     <div class="card">
-      <h2>AEF Cohort 2 Payment Confirmation</h2>
-      <p>Set up the tracking columns, preview or test the email, and safely process confirmed payments.</p>
+      <h2>AEF Cohort 2 Payment Review</h2>
+      <p>Set up the review sheet and automatic emails. Setup copies applicants but does not email them.</p>
+      <button class="btn primary" onclick="runAction('setupAefPaymentReviewAutomation')">1. Setup Payment Review Automation</button>
+      <button class="btn neutral" onclick="runAction('syncAefPaymentReviewRows')">Sync Current Form Submissions</button>
+    </div>
 
-      <button class="btn primary" onclick="runAction('setupAefPaymentConfirmationAutomation')">Setup Payment Confirmation Automation</button>
-      <input id="testEmail" class="input" type="email" placeholder="test@email.com" />
-      <button class="btn primary" onclick="saveTestEmail()">Save Test Email Recipient</button>
-      <button class="btn warn" onclick="runAction('previewAefPaymentConfirmationEmail')">Preview Payment Confirmation Email</button>
-      <button class="btn warn" onclick="runAction('sendAefPaymentConfirmationTestEmail')">Send Test Payment Confirmation Email</button>
-      <button class="btn neutral" onclick="runAction('previewPendingAefPaymentRows')">Preview Pending Confirmed Rows</button>
-      <button class="btn primary" onclick="runAction('sendPendingAefPaymentConfirmations')">Send Pending Payment Emails</button>
-      <button class="btn neutral" onclick="runAction('installAefPaymentConfirmationTriggers')">Install Auto Trigger</button>
-      <button class="btn danger" onclick="runAction('clearAefPaymentConfirmationTriggers')">Clear Auto Trigger</button>
+    <div class="card">
+      <h3>Test email address</h3>
+      <input id="testEmail" class="input" type="email" placeholder="your-test@email.com" />
+      <button class="btn primary" onclick="saveTestEmail()">Save Test Email Address</button>
+    </div>
 
+    <div class="card">
+      <h3>Payment evidence received email</h3>
+      <p>This says the evidence is under review. It does not confirm payment.</p>
+      <button class="btn warn" onclick="runAction('previewAefPaymentReceivedEmail')">Preview Received Email</button>
+      <button class="btn warn" onclick="runAction('sendAefPaymentReceivedTestEmail')">Send Received Email to Test Address</button>
+      <button class="btn neutral" onclick="runAction('previewPendingAefPaymentReceivedRows')">Count Existing Applicants Waiting</button>
+      <button class="btn live" onclick="runAction('sendAefPaymentReceivedEmailsToExistingApplicants')">LIVE: Email Existing Applicants</button>
+    </div>
+
+    <div class="card">
+      <h3>Payment confirmation email</h3>
+      <p>This is sent automatically when Payment Review Status becomes Confirmed.</p>
+      <button class="btn warn" onclick="runAction('previewAefPaymentConfirmationEmail')">Preview Confirmation Email</button>
+      <button class="btn warn" onclick="runAction('sendAefPaymentConfirmationTestEmail')">Send Confirmation Email to Test Address</button>
+      <button class="btn neutral" onclick="runAction('previewPendingAefPaymentConfirmationRows')">Count Confirmed Payments Waiting</button>
+      <button class="btn live" onclick="runAction('sendPendingAefPaymentConfirmations')">LIVE: Send Pending Confirmations</button>
+    </div>
+
+    <div class="card">
+      <h3>Automatic triggers</h3>
+      <button class="btn neutral" onclick="runAction('installAefPaymentReviewTriggers')">Install Automatic Triggers</button>
+      <button class="btn danger" onclick="runAction('clearAefPaymentReviewTriggers')">Clear Automatic Triggers</button>
+      <button class="btn danger" onclick="runAction('releaseAefPaymentTriggerOwnership')">Release Trigger Ownership</button>
       <div id="status" class="status"></div>
     </div>
 
@@ -46,9 +70,7 @@
       function runAction(functionName) {
         setStatus("Running ...", false);
         google.script.run
-          .withSuccessHandler(function (message) {
-            setStatus(message || "Completed.", false);
-          })
+          .withSuccessHandler(function (message) { setStatus(message || "Completed.", false); })
           .withFailureHandler(function (error) {
             setStatus(error && error.message ? error.message : String(error), true);
           })[functionName]();
@@ -58,9 +80,7 @@
         var email = document.getElementById("testEmail").value;
         setStatus("Saving ...", false);
         google.script.run
-          .withSuccessHandler(function (savedEmail) {
-            setStatus("Saved: " + savedEmail, false);
-          })
+          .withSuccessHandler(function (savedEmail) { setStatus("Saved: " + savedEmail, false); })
           .withFailureHandler(function (error) {
             setStatus(error && error.message ? error.message : String(error), true);
           })

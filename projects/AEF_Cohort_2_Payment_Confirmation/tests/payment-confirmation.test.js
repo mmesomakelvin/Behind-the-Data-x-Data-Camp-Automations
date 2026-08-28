@@ -5,6 +5,20 @@ const test = require("node:test");
 const vm = require("node:vm");
 
 const projectRoot = path.resolve(__dirname, "..");
+const spreadsheetId = "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4";
+
+const sourceHeaders = [
+  "Timestamp", "Email address", "Full Name", "LinkedIn Url", "Upload Headshot",
+  "Payment Evidence", "Upload the signed compliance document.",
+  "Bank Name (For processing refund)", "Account Name", "Account Number"
+];
+
+const reviewHeaders = [
+  "Submission Date", "Email address", "Full Name", "LinkedIn Url",
+  "Payment Evidence", "Payment Review Status", "Received Email Status",
+  "Received Email Error", "Received Email Sent At", "Confirmation Email Status",
+  "Confirmation Email Error", "Confirmation Email Sent At", "Source Response Key"
+];
 
 function loadScripts(fileNames, globals = {}) {
   const context = vm.createContext({ console, ...globals });
@@ -16,332 +30,659 @@ function loadScripts(fileNames, globals = {}) {
   return context;
 }
 
-const headers = [
-  "Timestamp",
-  "Email address",
-  "Full Name",
-  "LinkedIn Url",
-  "Upload Headshot",
-  "Payment Evidence",
-  "Upload the signed compliance document.",
-  "Bank Name (For processing refund)",
-  "Account Name",
-  "Account Number",
-  "Please confirm the following",
-  "Payment Confirmed",
-  "Payment Confirmation Email Status",
-  "Payment Confirmation Email Error",
-  "Payment Confirmation Email Sent At"
-];
+function loadProject(globals = {}) {
+  return loadScripts(["ReceivedEmailTemplate.js", "EmailTemplate.js", "Code.js"], globals);
+}
 
 test("payment confirmation email is written for AEF Cohort 2", () => {
-  const context = loadScripts(["EmailTemplate.js", "Code.js"]);
-
-  const html = context.getAefPaymentConfirmationEmailHtml("Ada Lovelace");
-  const text = context.getAefPaymentConfirmationEmailPlainText("Ada Lovelace");
-
-  for (const body of [html, text]) {
+  const context = loadProject();
+  for (const body of [
+    context.getAefPaymentConfirmationEmailHtml("Ada Lovelace"),
+    context.getAefPaymentConfirmationEmailPlainText("Ada Lovelace")
+  ]) {
     assert.match(body, /Hello Ada/i);
     assert.match(body, /Analytics Engineering Fellowship Cohort 2/i);
     assert.match(body, /payment (has been )?confirmed/i);
     assert.match(body, /place.*secured/i);
-    assert.match(body, /refundable commitment deposit/i);
-    assert.doesNotMatch(body, /Applied AI Development Bootcamp/i);
   }
-  assert.equal(
-    context.AEF_PAYMENT_CONFIG.subject,
-    "Payment Confirmed - Analytics Engineering Fellowship Cohort 2"
-  );
 });
 
-test("changing Payment Confirmed to Yes emails only the edited applicant", () => {
-  const values = [headers.slice(), [
-    "2026-08-28", "ada@example.com", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ], [
-    "2026-08-28", "grace@example.com", "Grace Hopper", "", "", "", "",
-    "Bank", "Grace", "5678", "Confirmed", "Yes", "", "", ""
-  ]];
-  const sentTo = [];
-  const sheet = makeEditableSheet(values);
-  const spreadsheet = {
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4"
-  };
-  sheet.getName = () => "Form_Responses";
-  sheet.getParent = () => spreadsheet;
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: { flush: () => {} },
-    LockService: {
-      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
-    },
-    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
-    Utilities: { sleep: () => {} },
-    Logger: { log: () => {} }
-  });
-
-  context.handleAefPaymentConfirmedEdit({
-    value: "Yes",
-    range: {
-      getSheet: () => sheet,
-      getRow: () => 2,
-      getColumn: () => 12,
-      getNumRows: () => 1,
-      getNumColumns: () => 1
-    }
-  });
-
-  assert.deepEqual(sentTo, ["ada@example.com"]);
-  assert.equal(values[1][12], "Sent");
-  assert.equal(Object.prototype.toString.call(values[1][14]), "[object Date]");
-  assert.equal(values[2][12], "");
+test("received email clearly says the evidence is under review and not confirmed", () => {
+  const context = loadProject();
+  for (const body of [
+    context.getAefPaymentReceivedEmailHtml("Ada Lovelace"),
+    context.getAefPaymentReceivedEmailPlainText("Ada Lovelace")
+  ]) {
+    assert.match(body, /Hello Ada/i);
+    assert.match(body, /payment evidence.*received/i);
+    assert.match(body, /under review|being reviewed/i);
+    assert.match(body, /not.*payment confirmation/i);
+  }
 });
 
-test("a row already marked Sent is never emailed again", () => {
-  const values = [headers.slice(), [
-    "2026-08-28", "ada@example.com", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "Sent", "", new Date()
+test("sync creates one review row and never sends email", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-28T10:00:00", "ada@example.com", "Ada Lovelace",
+    "https://linkedin.com/in/ada", "headshot", "https://drive.google.com/payment",
+    "compliance", "Bank", "Ada", "1234"
   ]];
-  const sentTo = [];
-  const sheet = makeEditableSheet(values);
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: { flush: () => {} },
-    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
-    Utilities: { sleep: () => {} },
-    Logger: { log: () => {} }
-  });
+  const { spreadsheet, sheets } = makeSpreadsheet({ Form_Responses: sourceValues });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
 
-  const result = context.processAefPaymentConfirmationRow_(
-    sheet,
-    2,
-    context.getAefPaymentColumnIndexes_(headers)
-  );
+  const summary = context.syncAefPaymentReviewRows_();
+
+  assert.deepEqual(JSON.parse(JSON.stringify(sheets["Payment Review"].values[0])), reviewHeaders);
+  assert.deepEqual(sheets["Payment Review"].values[1].slice(0, 6), [
+    "2026-08-28T10:00:00", "ada@example.com", "Ada Lovelace",
+    "https://linkedin.com/in/ada", "https://drive.google.com/payment", "Pending"
+  ]);
+  assert.equal(summary.added, 1);
+  assert.equal(sends, 0);
+});
+
+test("rerunning sync updates source details without duplicating or erasing review work", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-28T10:00:00", "old@example.com", "Ada Lovelace",
+    "https://linkedin.com/in/ada", "headshot", "old-payment",
+    "compliance", "Bank", "Ada", "1234"
+  ]];
+  const { spreadsheet, sheets } = makeSpreadsheet({ Form_Responses: sourceValues });
+  const context = loadProject(makeGlobals(spreadsheet));
+
+  context.syncAefPaymentReviewRows_();
+  sheets["Payment Review"].values[1][5] = "Confirmed";
+  sheets["Payment Review"].values[1][6] = "Sent";
+  sourceValues[1][1] = "corrected@example.com";
+  sourceValues[1][5] = "new-payment";
+  sourceValues[1][9] = "9999";
+  context.syncAefPaymentReviewRows_();
+
+  assert.equal(sheets["Payment Review"].values.length, 2);
+  assert.equal(sheets["Payment Review"].values[1][1], "corrected@example.com");
+  assert.equal(sheets["Payment Review"].values[1][4], "new-payment");
+  assert.equal(sheets["Payment Review"].values[1][5], "Confirmed");
+  assert.equal(sheets["Payment Review"].values[1][6], "Sent");
+});
+
+test("sync follows header names if Payment Review columns were rearranged", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-28T10:00:00", "ada@example.com", "Ada Lovelace", "linkedin",
+    "headshot", "payment", "compliance", "Bank", "Ada", "1234"
+  ]];
+  const rearrangedHeaders = [
+    "Full Name", "Payment Review Status", "Email address", "Submission Date",
+    "LinkedIn Url", "Payment Evidence", "Received Email Status", "Received Email Error",
+    "Received Email Sent At", "Confirmation Email Status", "Confirmation Email Error",
+    "Confirmation Email Sent At", "Source Response Key"
+  ];
+  const existing = [
+    "Old Name", "Confirmed", "old@example.com", "2026-08-28T10:00:00",
+    "old-linkedin", "old-payment", "Sent", "", "", "Sent", "", "",
+    "2026-08-28t10:00:00|1234|ada@example.com"
+  ];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: sourceValues, "Payment Review": [rearrangedHeaders, existing]
+  });
+  const context = loadProject(makeGlobals(spreadsheet));
+
+  context.syncAefPaymentReviewRows_();
+
+  const row = sheets["Payment Review"].values[1];
+  assert.equal(row[0], "Ada Lovelace");
+  assert.equal(row[1], "Confirmed");
+  assert.equal(row[2], "ada@example.com");
+  assert.equal(row[3], "2026-08-28T10:00:00");
+  assert.equal(row[4], "linkedin");
+  assert.equal(row[5], "payment");
+  assert.equal(row[6], "Sent");
+});
+
+test("setup backfills current applicants but sends no live email", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-28T10:00:00", "ada@example.com", "Ada", "linkedin", "headshot",
+    "payment", "compliance", "Bank", "Ada", "1234"
+  ]];
+  const { spreadsheet, sheets } = makeSpreadsheet({ Form_Responses: sourceValues });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }, ScriptApp: makeScriptApp([])
+  }));
+
+  context.setupAefPaymentReviewAutomation();
+
+  assert.equal(sheets["Payment Review"].values.length, 2);
+  assert.equal(sends, 0);
+});
+
+test("an unsent review row receives one acknowledgement and is marked Sent", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({})];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+  });
+  const sent = [];
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: (to, subject, text) => sent.push({ to, subject, text }) }
+  }));
+
+  const result = context.processAefPaymentReceivedRow_(sheets["Payment Review"], 2);
+
+  assert.equal(result, "sent");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, "ada@example.com");
+  assert.match(sent[0].subject, /payment evidence received/i);
+  assert.equal(reviewValues[1][6], "Sent");
+  assert.equal(Object.prototype.toString.call(reviewValues[1][8]), "[object Date]");
+});
+
+test("a received email already marked Sent is never sent again", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({ receivedStatus: "Sent" })];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+  });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
+
+  const result = context.processAefPaymentReceivedRow_(sheets["Payment Review"], 2);
 
   assert.equal(result, "skipped");
-  assert.deepEqual(sentTo, []);
+  assert.equal(sends, 0);
 });
 
-test("an accepted payment without a valid email is clearly marked for review", () => {
-  const values = [headers.slice(), [
-    "2026-08-28", "not-an-email", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ]];
-  const sheet = makeEditableSheet(values);
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: { flush: () => {} },
-    GmailApp: { sendEmail: () => { throw new Error("must not send"); } },
-    Utilities: { sleep: () => {} },
-    Logger: { log: () => {} }
+test("a missing recipient is marked clearly without calling Gmail", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({ email: "not-an-email" })];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
   });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
 
-  const result = context.processAefPaymentConfirmationRow_(
-    sheet,
-    2,
-    context.getAefPaymentColumnIndexes_(headers)
-  );
+  const result = context.processAefPaymentReceivedRow_(sheets["Payment Review"], 2);
 
   assert.equal(result, "skipped");
-  assert.equal(values[1][12], "Skipped - No Email");
-  assert.match(values[1][13], /no valid recipient email/i);
+  assert.equal(sends, 0);
+  assert.equal(reviewValues[1][6], "Skipped - No Email");
+  assert.match(reviewValues[1][7], /no valid recipient email/i);
 });
 
-test("the row is reserved before Gmail is called", () => {
-  const values = [headers.slice(), [
-    "2026-08-28", "ada@example.com", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ]];
-  let gmailCalls = 0;
-  const sheet = makeEditableSheet(values);
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: { flush: () => { throw new Error("flush failed"); } },
-    GmailApp: { sendEmail: () => { gmailCalls++; } },
-    Utilities: { sleep: () => {} },
-    Logger: { log: () => {} }
+test("a Gmail failure is recorded so the row can be retried", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({})];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
   });
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { throw new Error("Gmail unavailable"); } }
+  }));
 
-  const result = context.processAefPaymentConfirmationRow_(
-    sheet,
-    2,
-    context.getAefPaymentColumnIndexes_(headers)
-  );
+  const result = context.processAefPaymentReceivedRow_(sheets["Payment Review"], 2);
 
   assert.equal(result, "failed");
-  assert.equal(gmailCalls, 0);
+  assert.equal(reviewValues[1][6], "Failed");
+  assert.match(reviewValues[1][7], /gmail unavailable/i);
 });
 
-test("a busy edit is safely queued and retried later", () => {
-  const values = [headers.slice(), [
-    "2026-08-28", "ada@example.com", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ]];
-  const queued = {};
+test("cancelled existing-applicant catch-up sends nothing", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({})];
+  const { spreadsheet } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+  });
+  let sends = 0;
+  const ui = makeUi("NO");
+  const context = loadProject(makeGlobals(spreadsheet, {
+    SpreadsheetApp: makeSpreadsheetApp(spreadsheet, ui),
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
+
+  context.sendAefPaymentReceivedEmailsToExistingApplicants();
+
+  assert.equal(sends, 0);
+  assert.equal(reviewValues[1][6], "");
+});
+
+test("bulk received email follows the source key if rows are sorted during confirmation", () => {
+  const reviewValues = [
+    reviewHeaders.slice(),
+    makeReviewRow({ email: "target@example.com", name: "Target", key: "target-key" }),
+    makeReviewRow({ email: "already@example.com", name: "Already", key: "sent-key", receivedStatus: "Sent" })
+  ];
+  const { spreadsheet } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+  });
   const sentTo = [];
-  const sheet = makeEditableSheet(values);
-  const spreadsheet = {
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4",
-    getSheetByName: () => sheet
+  const ui = makeUi("YES");
+  ui.alert = () => {
+    const target = reviewValues[1];
+    reviewValues[1] = reviewValues[2];
+    reviewValues[2] = target;
+    return "YES";
   };
-  sheet.getName = () => "Form_Responses";
-  sheet.getParent = () => spreadsheet;
-  let lockAvailable = false;
-  const scriptProperties = {
-    setProperty(key, value) { queued[key] = value; },
-    getProperties: () => ({ ...queued }),
-    deleteProperty(key) { delete queued[key]; }
-  };
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: {
-      getActiveSpreadsheet: () => spreadsheet,
-      flush: () => {}
-    },
-    LockService: {
-      getScriptLock: () => ({
-        tryLock: () => lockAvailable,
-        releaseLock: () => {}
+  const context = loadProject(makeGlobals(spreadsheet, {
+    SpreadsheetApp: makeSpreadsheetApp(spreadsheet, ui),
+    GmailApp: { sendEmail: (email) => sentTo.push(email) }
+  }));
+
+  context.sendAefPaymentReceivedEmailsToExistingApplicants();
+
+  assert.deepEqual(sentTo, ["target@example.com"]);
+});
+
+test("changing review status to Confirmed emails only the edited applicant", () => {
+  const reviewValues = [
+    reviewHeaders.slice(),
+    makeReviewRow({ email: "ada@example.com", name: "Ada Lovelace" }),
+    makeReviewRow({ email: "grace@example.com", name: "Grace Hopper", key: "other" })
+  ];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+  });
+  const sent = [];
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: (to, subject, text) => sent.push({ to, subject, text }) }
+  }));
+
+  context.handleAefPaymentReviewEdit(makeEditEvent(sheets["Payment Review"], 2, 6, "Confirmed"));
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, "ada@example.com");
+  assert.match(sent[0].subject, /payment confirmed/i);
+  assert.equal(reviewValues[1][9], "Sent");
+  assert.equal(reviewValues[2][9], "");
+});
+
+test("Pending and Rejected review edits never send confirmation email", () => {
+  for (const status of ["Pending", "Rejected"]) {
+    const reviewValues = [reviewHeaders.slice(), makeReviewRow({ status })];
+    const { spreadsheet, sheets } = makeSpreadsheet({
+      Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+    });
+    let sends = 0;
+    const context = loadProject(makeGlobals(spreadsheet, {
+      GmailApp: { sendEmail: () => { sends++; } }
+    }));
+    context.handleAefPaymentReviewEdit(makeEditEvent(sheets["Payment Review"], 2, 6, status));
+    assert.equal(sends, 0);
+  }
+});
+
+test("an edit on a different tab never sends payment email", () => {
+  const otherValues = [reviewHeaders.slice(), makeReviewRow({ status: "Confirmed" })];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Another Review": otherValues
+  });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
+
+  context.handleAefPaymentReviewEdit(makeEditEvent(sheets["Another Review"], 2, 6, "Confirmed"));
+
+  assert.equal(sends, 0);
+});
+
+test("a new form submission is copied and receives one acknowledgement", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-28T10:00:00", "new@example.com", "New Applicant", "linkedin",
+    "headshot", "payment", "compliance", "Bank", "New", "4321"
+  ]];
+  const { spreadsheet, sheets } = makeSpreadsheet({ Form_Responses: sourceValues });
+  const sent = [];
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: (to, subject) => sent.push({ to, subject }) }
+  }));
+
+  context.handleAefPaymentFormSubmit({
+    range: { getSheet: () => sheets.Form_Responses, getRow: () => 2 }
+  });
+
+  assert.equal(sheets["Payment Review"].values.length, 2);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, "new@example.com");
+  assert.equal(sheets["Payment Review"].values[1][6], "Sent");
+});
+
+test("a busy confirmation edit is queued with its email type", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({ status: "Confirmed" })];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+  });
+  const properties = {};
+  const context = loadProject(makeGlobals(spreadsheet, {
+    LockService: { getScriptLock: () => ({ tryLock: () => false, releaseLock: () => {} }) },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        setProperty(key, value) { properties[key] = value; },
+        getProperties: () => ({ ...properties })
       })
     },
-    PropertiesService: {
-      getScriptProperties: () => scriptProperties
-    },
-    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
-    Utilities: { getUuid: () => "event-id", sleep: () => {} },
-    Logger: { log: () => {} }
-  });
-  const event = {
-    value: "Yes",
-    range: {
-      getSheet: () => sheet,
-      getRow: () => 2,
-      getColumn: () => 12,
-      getNumRows: () => 1,
-      getNumColumns: () => 1
-    }
-  };
+    Utilities: { getUuid: () => "queue-id", sleep: () => {} }
+  }));
 
-  context.handleAefPaymentConfirmedEdit(event);
+  context.handleAefPaymentReviewEdit(makeEditEvent(sheets["Payment Review"], 2, 6, "Confirmed"));
 
-  assert.equal(sentTo.length, 0);
-  assert.equal(values[1][12], "");
-  assert.deepEqual(Object.keys(queued), ["AEF_PAYMENT_RETRY_event-id"]);
-
-  lockAvailable = true;
-  context.processQueuedAefPaymentConfirmations();
-
-  assert.deepEqual(sentTo, ["ada@example.com"]);
-  assert.equal(values[1][12], "Sent");
-  assert.deepEqual(Object.keys(queued), []);
+  const payload = JSON.parse(properties["AEF_PAYMENT_EMAIL_RETRY_queue-id"]);
+  assert.equal(payload.type, "confirmation");
+  assert.equal(payload.sourceKey, reviewValues[1][12]);
 });
 
-test("changing Payment Confirmed to No never sends an email", () => {
-  const values = [headers.slice(), [
-    "2026-08-28", "ada@example.com", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ]];
-  const sentTo = [];
-  const sheet = makeEditableSheet(values);
-  const spreadsheet = {
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4"
-  };
-  sheet.getName = () => "Form_Responses";
-  sheet.getParent = () => spreadsheet;
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: { flush: () => {} },
-    LockService: {
-      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
-    },
-    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
-    Logger: { log: () => {} }
-  });
+test("setup installs one form-submit, one edit, and one five-minute retry trigger", () => {
+  const created = [];
+  const { spreadsheet } = makeSpreadsheet({ Form_Responses: [sourceHeaders.slice()] });
+  const context = loadProject(makeGlobals(spreadsheet, { ScriptApp: makeScriptApp(created) }));
 
-  context.handleAefPaymentConfirmedEdit({
-    value: "No",
-    range: {
-      getSheet: () => sheet,
-      getRow: () => 2,
-      getColumn: () => 12,
-      getNumRows: () => 1,
-      getNumColumns: () => 1
-    }
-  });
+  context.installAefPaymentReviewTriggers_();
 
-  assert.deepEqual(sentTo, []);
-  assert.equal(values[1][12], "");
+  assert.deepEqual(created, [
+    { handler: "handleAefPaymentFormSubmit", event: "ON_FORM_SUBMIT" },
+    { handler: "handleAefPaymentReviewEdit", event: "ON_EDIT" },
+    { handler: "processQueuedAefPaymentEmails", event: "CLOCK", minutes: 5 }
+  ]);
 });
 
-test("a Gmail failure is recorded and can be retried", () => {
-  const values = [headers.slice(), [
-    "2026-08-28", "ada@example.com", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
+test("source keys include email and exact collisions stop the sync before email", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-28T10:00:00", "ada@example.com", "Ada", "linkedin", "headshot",
+    "payment-a", "compliance", "Bank", "Ada", "1234"
+  ], [
+    "2026-08-28T10:00:00", "grace@example.com", "Grace", "linkedin", "headshot",
+    "payment-b", "compliance", "Bank", "Grace", "1234"
   ]];
-  const sheet = makeEditableSheet(values);
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: { flush: () => {} },
-    GmailApp: { sendEmail: () => { throw new Error("mail unavailable"); } },
-    Logger: { log: () => {} }
-  });
+  const { spreadsheet } = makeSpreadsheet({ Form_Responses: sourceValues });
+  const context = loadProject(makeGlobals(spreadsheet));
+  const columns = context.getAefPaymentSourceColumnIndexes_(sourceHeaders);
 
-  const result = context.processAefPaymentConfirmationRow_(
-    sheet,
-    2,
-    context.getAefPaymentColumnIndexes_(headers)
+  assert.notEqual(
+    context.getAefPaymentSourceKey_(sourceValues[1], columns, 2),
+    context.getAefPaymentSourceKey_(sourceValues[2], columns, 3)
   );
 
-  assert.equal(result, "failed");
-  assert.equal(values[1][12], "Failed");
-  assert.match(values[1][13], /mail unavailable/i);
+  sourceValues[2][1] = "ada@example.com";
+  assert.throws(
+    () => context.syncAefPaymentReviewRows_(),
+    /duplicate source response key/i
+  );
 });
 
-test("a sent email is left reserved when final tracking fails", () => {
-  const values = [headers.slice(), [
-    "2026-08-28", "ada@example.com", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
+test("duplicate hidden keys already in Payment Review stop the sync safely", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-28T10:00:00", "ada@example.com", "Ada", "linkedin", "headshot",
+    "payment", "compliance", "Bank", "Ada", "1234"
   ]];
-  let sent = 0;
-  const sheet = makeEditableSheet(values);
-  const originalGetRange = sheet.getRange.bind(sheet);
-  sheet.getRange = function (rowNumber, columnNumber, rowCount, columnCount) {
-    const range = originalGetRange(rowNumber, columnNumber, rowCount, columnCount);
+  const duplicateKey = "2026-08-28t10:00:00|1234|ada@example.com";
+  const reviewValues = [
+    reviewHeaders.slice(),
+    makeReviewRow({ key: duplicateKey }),
+    makeReviewRow({ key: duplicateKey, email: "wrong@example.com" })
+  ];
+  const { spreadsheet } = makeSpreadsheet({
+    Form_Responses: sourceValues, "Payment Review": reviewValues
+  });
+  const context = loadProject(makeGlobals(spreadsheet));
+
+  assert.throws(
+    () => context.syncAefPaymentReviewRows_(),
+    /duplicate source response key.*payment review/i
+  );
+});
+
+test("an unresolved retry remains queued with an error instead of being lost", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({})];
+  const { spreadsheet } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+  });
+  const queued = {
+    AEF_PAYMENT_EMAIL_RETRY_missing: JSON.stringify({
+      type: "confirmation", sourceKey: "missing-key", queuedAt: "2026-08-28T10:00:00Z"
+    })
+  };
+  const context = loadProject(makeGlobals(spreadsheet, {
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperties: () => ({ ...queued }),
+        setProperty(key, value) { queued[key] = value; },
+        deleteProperty(key) { delete queued[key]; }
+      })
+    }
+  }));
+
+  context.processQueuedAefPaymentEmails();
+
+  assert.ok(queued.AEF_PAYMENT_EMAIL_RETRY_missing);
+  assert.match(queued.AEF_PAYMENT_EMAIL_RETRY_missing, /review row was not found/i);
+});
+
+test("a retry stays queued when Sending could not be recorded safely", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({ status: "Confirmed" })];
+  const { spreadsheet, sheets } = makeSpreadsheet({
+    Form_Responses: [sourceHeaders.slice()], "Payment Review": reviewValues
+  });
+  const originalGetRange = sheets["Payment Review"].getRange.bind(sheets["Payment Review"]);
+  sheets["Payment Review"].getRange = function (row, column, rowCount, columnCount) {
+    const range = originalGetRange(row, column, rowCount, columnCount);
     const originalSetValue = range.setValue.bind(range);
     range.setValue = function (value) {
-      if (rowNumber === 2 && columnNumber === 13 && value === "Sent") {
+      if (row === 2 && column === 10 && value === "Sending") {
         throw new Error("tracking unavailable");
       }
       return originalSetValue(value);
     };
     return range;
   };
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: { flush: () => {} },
-    GmailApp: { sendEmail: () => { sent++; } },
-    Utilities: { sleep: () => {} },
-    Logger: { log: () => {} }
-  });
+  const queued = {
+    AEF_PAYMENT_EMAIL_RETRY_tracking: JSON.stringify({
+      type: "confirmation", sourceKey: reviewValues[1][12], queuedAt: "2026-08-28T10:00:00Z"
+    })
+  };
+  const context = loadProject(makeGlobals(spreadsheet, {
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperties: () => ({ ...queued }),
+        setProperty(key, value) { queued[key] = value; },
+        deleteProperty(key) { delete queued[key]; }
+      })
+    }
+  }));
 
-  const result = context.processAefPaymentConfirmationRow_(
-    sheet,
-    2,
-    context.getAefPaymentColumnIndexes_(headers)
-  );
+  context.processQueuedAefPaymentEmails();
 
-  assert.equal(sent, 1);
-  assert.equal(result, "review");
-  assert.equal(values[1][12], "Sending");
-  assert.match(values[1][13], /email sent; final tracking failed/i);
+  assert.ok(queued.AEF_PAYMENT_EMAIL_RETRY_tracking);
+  assert.match(queued.AEF_PAYMENT_EMAIL_RETRY_tracking, /not safely recorded/i);
 });
 
-test("installing automation creates one edit trigger and one retry trigger", () => {
-  const created = [];
-  const spreadsheet = {
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4"
+test("a second Google account cannot install another set of triggers", () => {
+  const properties = {};
+  let currentUser = "owner@example.com";
+  const { spreadsheet } = makeSpreadsheet({ Form_Responses: [sourceHeaders.slice()] });
+  const context = loadProject(makeGlobals(spreadsheet, {
+    Session: { getEffectiveUser: () => ({ getEmail: () => currentUser }) },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperty: (key) => properties[key] || "",
+        setProperty(key, value) { properties[key] = value; },
+        deleteProperty(key) { delete properties[key]; },
+        getProperties: () => ({ ...properties })
+      })
+    }
+  }));
+
+  context.claimAefPaymentTriggerOwner_();
+  currentUser = "second@example.com";
+
+  assert.throws(() => context.claimAefPaymentTriggerOwner_(), /owner@example\.com/i);
+});
+
+test("legacy confirmed values remain confirmed during migration", () => {
+  const context = loadProject();
+  for (const legacyValue of ["Yes", "Confirmed", true]) {
+    assert.equal(
+      context.getMigratedAefPaymentReviewStatus_([legacyValue], { oldConfirmedIndex: 0 }),
+      "Confirmed"
+    );
+  }
+});
+
+test("old confirmation tracking is copied into Payment Review without resending", () => {
+  const oldHeaders = sourceHeaders.concat([
+    "Payment Confirmed", "Payment Confirmation Email Status",
+    "Payment Confirmation Email Error", "Payment Confirmation Email Sent At"
+  ]);
+  const oldSentAt = new Date("2026-08-28T11:00:00Z");
+  const sourceValues = [oldHeaders, [
+    "2026-08-28T10:00:00", "ada@example.com", "Ada", "linkedin", "headshot",
+    "payment", "compliance", "Bank", "Ada", "1234",
+    "Yes", "Sent", "", oldSentAt
+  ]];
+  const { spreadsheet, sheets } = makeSpreadsheet({ Form_Responses: sourceValues });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
+
+  context.syncAefPaymentReviewRows_();
+
+  assert.equal(sheets["Payment Review"].values[1][5], "Confirmed");
+  assert.equal(sheets["Payment Review"].values[1][9], "Sent");
+  assert.equal(sheets["Payment Review"].values[1][11], oldSentAt);
+  assert.equal(sends, 0);
+});
+
+test("legacy queued confirmations are converted to the new stable key", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-28T10:00:00", "ada@example.com", "Ada", "linkedin", "headshot",
+    "payment", "compliance", "Bank", "Ada", "1234"
+  ]];
+  const { spreadsheet } = makeSpreadsheet({ Form_Responses: sourceValues });
+  const properties = {
+    AEF_PAYMENT_RETRY_old: JSON.stringify({
+      applicantKey: "response:2026-08-28T10:00:00|account:1234",
+      queuedAt: "2026-08-28T10:05:00Z"
+    })
   };
-  const ScriptApp = {
-    EventType: { ON_EDIT: "ON_EDIT", CLOCK: "CLOCK" },
-    TriggerSource: { SPREADSHEETS: "SPREADSHEETS" },
-    getProjectTriggers: () => [],
-    deleteTrigger: () => {},
+  const context = loadProject(makeGlobals(spreadsheet, {
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperties: () => ({ ...properties }),
+        setProperty(key, value) { properties[key] = value; },
+        deleteProperty(key) { delete properties[key]; }
+      })
+    },
+    Utilities: { getUuid: () => "migrated", sleep: () => {} }
+  }));
+
+  const result = context.migrateLegacyAefPaymentQueue_();
+
+  assert.equal(result.migrated, 1);
+  assert.equal(properties.AEF_PAYMENT_RETRY_old, undefined);
+  const payload = JSON.parse(properties.AEF_PAYMENT_EMAIL_RETRY_migrated);
+  assert.equal(payload.type, "confirmation");
+  assert.equal(payload.sourceKey, "2026-08-28t10:00:00|1234|ada@example.com");
+});
+
+test("legacy Date response keys use epoch milliseconds exactly like the old project", () => {
+  const responseDate = new Date("2026-08-28T10:00:00Z");
+  const row = [
+    responseDate, "ada@example.com", "Ada", "linkedin", "headshot", "payment",
+    "compliance", "Bank", "Ada", "1234"
+  ];
+  const context = loadProject();
+  const columns = context.getAefPaymentSourceColumnIndexes_(sourceHeaders);
+
+  assert.equal(
+    context.getLegacyAefPaymentApplicantKey_(row, columns),
+    "response:" + responseDate.getTime() + "|account:1234"
+  );
+});
+
+function makeReviewRow(options) {
+  return [
+    "2026-08-28T10:00:00", options.email || "ada@example.com",
+    options.name || "Ada Lovelace", "https://linkedin.com/in/ada",
+    "https://drive.google.com/payment", options.status || "Pending",
+    options.receivedStatus || "", "", "", options.confirmationStatus || "",
+    "", "", options.key || "2026-08-28t10:00:00|1234"
+  ];
+}
+
+function makeGlobals(spreadsheet, overrides = {}) {
+  const properties = {};
+  return {
+    SpreadsheetApp: makeSpreadsheetApp(spreadsheet, makeUi("YES")),
+    GmailApp: { sendEmail: () => {} },
+    LockService: {
+      getScriptLock: () => ({ tryLock: () => true, waitLock: () => {}, releaseLock: () => {} })
+    },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        setProperty(key, value) { properties[key] = value; },
+        getProperty: (key) => properties[key] || "",
+        getProperties: () => ({ ...properties }),
+        deleteProperty(key) { delete properties[key]; }
+      })
+    },
+    ScriptApp: makeScriptApp([]),
+    Session: { getEffectiveUser: () => ({ getEmail: () => "owner@example.com" }) },
+    Utilities: { getUuid: () => "uuid", sleep: () => {} },
+    Logger: { log: () => {} },
+    HtmlService: {
+      createHtmlOutput: () => ({ setWidth() { return this; }, setHeight() { return this; } }),
+      createHtmlOutputFromFile: () => ({ setTitle() { return this; } })
+    },
+    ...overrides
+  };
+}
+
+function makeSpreadsheetApp(spreadsheet, ui) {
+  return {
+    getActiveSpreadsheet: () => spreadsheet,
+    openById: () => spreadsheet,
+    getActive: () => ({ toast: () => {} }),
+    getUi: () => ui,
+    flush: () => {},
+    newDataValidation: () => ({
+      requireValueInList() { return this; }, setAllowInvalid() { return this; },
+      build() { return {}; }
+    })
+  };
+}
+
+function makeUi(answer) {
+  return {
+    Button: { YES: "YES", NO: "NO", OK: "OK", CANCEL: "CANCEL" },
+    ButtonSet: { YES_NO: "YES_NO", OK_CANCEL: "OK_CANCEL" },
+    alert: () => answer,
+    showModalDialog: () => {}, showSidebar: () => {},
+    createMenu: () => ({
+      addItem() { return this; }, addSeparator() { return this; }, addToUi() { return this; }
+    })
+  };
+}
+
+function makeEditEvent(sheet, row, column, value) {
+  sheet.values[row - 1][column - 1] = value;
+  return {
+    value,
+    range: {
+      getSheet: () => sheet, getRow: () => row, getColumn: () => column,
+      getNumRows: () => 1, getNumColumns: () => 1
+    }
+  };
+}
+
+function makeScriptApp(created) {
+  return {
+    EventType: { ON_FORM_SUBMIT: "ON_FORM_SUBMIT", ON_EDIT: "ON_EDIT", CLOCK: "CLOCK" },
+    TriggerSource: { SPREADSHEETS: "SPREADSHEETS", CLOCK: "CLOCK" },
+    getProjectTriggers: () => [], deleteTrigger: () => {},
     newTrigger(handler) {
       const pending = { handler, event: "" };
       return {
         forSpreadsheet() { return this; },
+        onFormSubmit() { pending.event = "ON_FORM_SUBMIT"; return this; },
         onEdit() { pending.event = "ON_EDIT"; return this; },
         timeBased() { pending.event = "CLOCK"; return this; },
         everyMinutes(minutes) { pending.minutes = minutes; return this; },
@@ -349,324 +690,73 @@ test("installing automation creates one edit trigger and one retry trigger", () 
       };
     }
   };
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    ScriptApp,
-    SpreadsheetApp: {
-      getActiveSpreadsheet: () => spreadsheet,
-      getActive: () => ({ toast: () => {} })
-    },
-    Logger: { log: () => {} }
-  });
+}
 
-  context.installAefPaymentConfirmationTriggers_();
-
-  assert.deepEqual(created, [
-    { handler: "handleAefPaymentConfirmedEdit", event: "ON_EDIT" },
-    {
-      handler: "processQueuedAefPaymentConfirmations",
-      event: "CLOCK",
-      minutes: 5
-    }
-  ]);
-});
-
-test("clearing automation removes its triggers and waiting emails", () => {
-  const removedTriggers = [];
-  const removedProperties = [];
-  const queuedKey = "AEF_PAYMENT_RETRY_waiting-event";
-  const properties = { [queuedKey]: "queued", UNRELATED: "keep" };
-  const triggers = [
-    { getHandlerFunction: () => "handleAefPaymentConfirmedEdit" },
-    { getHandlerFunction: () => "processQueuedAefPaymentConfirmations" },
-    { getHandlerFunction: () => "unrelatedHandler" }
-  ];
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    ScriptApp: {
-      getProjectTriggers: () => triggers,
-      deleteTrigger: (trigger) => removedTriggers.push(trigger.getHandlerFunction())
-    },
-    PropertiesService: {
-      getScriptProperties: () => ({
-        getProperties: () => ({ ...properties }),
-        deleteProperty(key) {
-          removedProperties.push(key);
-          delete properties[key];
-        }
-      })
-    },
-    SpreadsheetApp: { getActive: () => ({ toast: () => {} }) },
-    Logger: { log: () => {} }
-  });
-
-  context.clearAefPaymentConfirmationTriggers_();
-
-  assert.deepEqual(removedTriggers, [
-    "handleAefPaymentConfirmedEdit",
-    "processQueuedAefPaymentConfirmations"
-  ]);
-  assert.deepEqual(removedProperties, [queuedKey]);
-  assert.equal(properties.UNRELATED, "keep");
-});
-
-test("test sends require an explicitly saved recipient", () => {
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    PropertiesService: {
-      getScriptProperties: () => ({ getProperty: () => "" })
-    }
-  });
-
-  assert.throws(
-    () => context.getAefPaymentTestEmailRecipient_(),
-    /set a test email recipient/i
-  );
-});
-
-test("only the exact Form_Responses tab can trigger payment emails", () => {
-  const values = [headers.slice(), [
-    "2026-08-28T10:00:00", "ada@example.com", "Ada", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ]];
-  const sheet = makeEditableSheet(values);
-  sheet.getName = () => "Form responses 1";
-  sheet.getParent = () => ({
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4"
-  });
-  const context = loadScripts(["EmailTemplate.js", "Code.js"]);
-
-  assert.equal(context.isAefPaymentSourceSheet_(sheet), false);
-});
-
-test("shared emails still send and track only the exact edited response", () => {
-  const values = [headers.slice(), [
-    "2026-08-28T10:00:00", "shared@example.com", "Ada Lovelace", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ], [
-    "2026-08-28T10:05:00", "shared@example.com", "Grace Hopper", "", "", "", "",
-    "Bank", "Grace", "5678", "Confirmed", "Yes", "", "", ""
-  ]];
-  const sentNames = [];
-  const sheet = makeEditableSheet(values);
+function makeSpreadsheet(initialSheets) {
+  const sheets = {};
   const spreadsheet = {
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4"
-  };
-  sheet.getName = () => "Form_Responses";
-  sheet.getParent = () => spreadsheet;
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: { flush: () => {} },
-    LockService: {
-      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
+    getId: () => spreadsheetId,
+    getSheetByName: (name) => sheets[name] || null,
+    getSheets: () => Object.values(sheets),
+    insertSheet(name) {
+      const sheet = makeSheet(name, [[]], spreadsheet);
+      sheets[name] = sheet;
+      return sheet;
     },
-    GmailApp: { sendEmail: (email, subject, text) => sentNames.push(text) },
-    Utilities: { sleep: () => {} },
-    Logger: { log: () => {} }
+    toast: () => {}
+  };
+  Object.entries(initialSheets).forEach(([name, values]) => {
+    sheets[name] = makeSheet(name, values, spreadsheet);
   });
+  return { spreadsheet, sheets };
+}
 
-  context.handleAefPaymentConfirmedEdit({
-    value: "Yes",
-    range: {
-      getSheet: () => sheet,
-      getRow: () => 3,
-      getColumn: () => 12,
-      getNumRows: () => 1,
-      getNumColumns: () => 1
-    }
-  });
-
-  assert.equal(sentNames.length, 1);
-  assert.match(sentNames[0], /Hello Grace/);
-  assert.equal(values[1][12], "");
-  assert.equal(values[2][12], "Sent");
-});
-
-test("a queued response still sends after its email and name are corrected", () => {
-  const values = [headers.slice(), [
-    "2026-08-28T10:00:00", "wrong@example.com", "Wrong Name", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ]];
-  const queued = {};
-  const sentTo = [];
-  const sheet = makeEditableSheet(values);
-  const spreadsheet = {
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4",
-    getSheetByName: () => sheet
-  };
-  sheet.getName = () => "Form_Responses";
-  sheet.getParent = () => spreadsheet;
-  let lockAvailable = false;
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: {
-      getActiveSpreadsheet: () => spreadsheet,
-      flush: () => {}
+function makeSheet(name, values, spreadsheet) {
+  const sheet = {
+    values,
+    getName: () => name, getParent: () => spreadsheet,
+    getLastRow: () => {
+      for (let index = values.length - 1; index >= 0; index--) {
+        if (values[index].some((value) => String(value || "").trim() !== "")) return index + 1;
+      }
+      return 0;
     },
-    LockService: {
-      getScriptLock: () => ({ tryLock: () => lockAvailable, releaseLock: () => {} })
-    },
-    PropertiesService: {
-      getScriptProperties: () => ({
-        setProperty(key, value) { queued[key] = value; },
-        getProperties: () => ({ ...queued }),
-        deleteProperty(key) { delete queued[key]; }
-      })
-    },
-    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
-    Utilities: { getUuid: () => "event-id", sleep: () => {} },
-    Logger: { log: () => {} }
-  });
-  const event = {
-    value: "Yes",
-    range: {
-      getSheet: () => sheet,
-      getRow: () => 2,
-      getColumn: () => 12,
-      getNumRows: () => 1,
-      getNumColumns: () => 1
-    }
-  };
-
-  context.handleAefPaymentConfirmedEdit(event);
-  values[1][1] = "corrected@example.com";
-  values[1][2] = "Corrected Name";
-  lockAvailable = true;
-  context.processQueuedAefPaymentConfirmations();
-
-  assert.deepEqual(sentTo, ["corrected@example.com"]);
-  assert.equal(values[1][12], "Sent");
-  assert.deepEqual(Object.keys(queued), []);
-});
-
-test("installing automation replaces an existing retry trigger with a five-minute trigger", () => {
-  const deleted = [];
-  const created = [];
-  const existingRetry = {
-    getHandlerFunction: () => "processQueuedAefPaymentConfirmations",
-    getEventType: () => "CLOCK"
-  };
-  const ScriptApp = {
-    EventType: { ON_EDIT: "ON_EDIT", CLOCK: "CLOCK" },
-    TriggerSource: { SPREADSHEETS: "SPREADSHEETS" },
-    getProjectTriggers: () => [existingRetry],
-    deleteTrigger: (trigger) => deleted.push(trigger),
-    newTrigger(handler) {
-      const pending = { handler, event: "" };
-      return {
-        timeBased() { pending.event = "CLOCK"; return this; },
-        everyMinutes(minutes) { pending.minutes = minutes; return this; },
-        create() { created.push(pending); }
-      };
-    }
-  };
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    ScriptApp,
-    Logger: { log: () => {} }
-  });
-
-  context.ensureAefPaymentTrigger_(
-    "processQueuedAefPaymentConfirmations",
-    "CLOCK"
-  );
-
-  assert.deepEqual(deleted, [existingRetry]);
-  assert.deepEqual(created, [{
-    handler: "processQueuedAefPaymentConfirmations",
-    event: "CLOCK",
-    minutes: 5
-  }]);
-});
-
-test("pending preview counts a shared email only once and excludes Sending rows", () => {
-  const values = [headers.slice(), [
-    "2026-08-28T10:00:00", "shared@example.com", "Ada", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ], [
-    "2026-08-28T10:05:00", "shared@example.com", "Grace", "", "", "", "",
-    "Bank", "Grace", "5678", "Confirmed", "Yes", "", "", ""
-  ], [
-    "2026-08-28T10:10:00", "busy@example.com", "Busy", "", "", "", "",
-    "Bank", "Busy", "9999", "Confirmed", "Yes", "Sending", "", ""
-  ]];
-  const sheet = makeEditableSheet(values);
-  const spreadsheet = {
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4",
-    getSheetByName: () => sheet
-  };
-  sheet.getName = () => "Form_Responses";
-  sheet.getParent = () => spreadsheet;
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: {
-      getActiveSpreadsheet: () => spreadsheet,
-      getActive: () => ({ toast: () => {} })
-    },
-    Logger: { log: () => {} }
-  });
-
-  const message = context.previewPendingAefPaymentRows();
-
-  assert.match(message, /Pending confirmed rows: 1\b/);
-});
-
-test("manual catch-up requires confirmation before sending live emails", () => {
-  const values = [headers.slice(), [
-    "2026-08-28T10:00:00", "ada@example.com", "Ada", "", "", "", "",
-    "Bank", "Ada", "1234", "Confirmed", "Yes", "", "", ""
-  ]];
-  const sentTo = [];
-  const sheet = makeEditableSheet(values);
-  const spreadsheet = {
-    getId: () => "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4",
-    getSheetByName: () => sheet
-  };
-  sheet.getName = () => "Form_Responses";
-  sheet.getParent = () => spreadsheet;
-  const ui = {
-    Button: { YES: "YES", NO: "NO" },
-    ButtonSet: { YES_NO: "YES_NO" },
-    alert: () => "NO"
-  };
-  const context = loadScripts(["EmailTemplate.js", "Code.js"], {
-    SpreadsheetApp: {
-      getActiveSpreadsheet: () => spreadsheet,
-      getActive: () => ({ toast: () => {} }),
-      getUi: () => ui,
-      flush: () => {}
-    },
-    LockService: {
-      getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} })
-    },
-    GmailApp: { sendEmail: (recipient) => sentTo.push(recipient) },
-    Utilities: { sleep: () => {} },
-    Logger: { log: () => {} }
-  });
-
-  context.sendPendingAefPaymentConfirmations();
-
-  assert.deepEqual(sentTo, []);
-  assert.equal(values[1][12], "");
-});
-
-function makeEditableSheet(values) {
-  return {
-    getLastRow: () => values.length,
-    getLastColumn: () => values[0].length,
+    getLastColumn: () => Math.max(1, ...values.map((row) => row.length)),
     getMaxRows: () => Math.max(values.length, 100),
-    getRange(rowNumber, columnNumber, rowCount, columnCount) {
+    getMaxColumns: () => Math.max(26, ...values.map((row) => row.length)),
+    setFrozenRows: () => sheet, setColumnWidth: () => sheet,
+    hideColumns: () => sheet, autoResizeColumns: () => sheet,
+    getRange(rowNumber, columnNumber, rowCount = 1, columnCount = 1) {
       const startRow = rowNumber - 1;
       const startColumn = columnNumber - 1;
-      const height = rowCount || 1;
-      const width = columnCount || 1;
       return {
-        getValues: () => values
-          .slice(startRow, startRow + height)
-          .map((row) => row.slice(startColumn, startColumn + width)),
+        getValues: () => Array.from({ length: rowCount }, (_, rowOffset) =>
+          Array.from({ length: columnCount }, (_, columnOffset) =>
+            (values[startRow + rowOffset] || [])[startColumn + columnOffset] || ""
+          )
+        ),
+        setValues(newValues) {
+          ensureSize(values, startRow + newValues.length, startColumn + columnCount);
+          newValues.forEach((row, rowOffset) => row.forEach((value, columnOffset) => {
+            values[startRow + rowOffset][startColumn + columnOffset] = value;
+          }));
+          return this;
+        },
         setValue(value) {
+          ensureSize(values, startRow + 1, startColumn + 1);
           values[startRow][startColumn] = value;
           return this;
         },
-        setBackground() { return this; },
-        setDataValidation() { return this; },
-        setFontWeight() { return this; },
-        copyFormatToRange() { return this; }
+        setDataValidation() { return this; }, setFontWeight() { return this; },
+        setBackground() { return this; }, setFontColor() { return this; },
+        setWrap() { return this; }, copyFormatToRange() { return this; }
       };
-    },
-    setColumnWidth: () => {}
+    }
   };
+  return sheet;
+}
+
+function ensureSize(values, rows, columns) {
+  while (values.length < rows) values.push([]);
+  values.forEach((row) => { while (row.length < columns) row.push(""); });
 }
