@@ -1,0 +1,6 @@
+{
+  "timeZone": "Africa/Lagos",
+  "dependencies": {},
+  "runtimeVersion": "V8",
+  "exceptionLogging": "STACKDRIVER"
+}
