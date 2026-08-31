@@ -62,7 +62,7 @@ and clear the sent-at value.
 - `Send Test Registration Email`
 - `Preview Pending Registrations`
 - `Process Existing Registrations`
-- `Refresh Selection Map`
+- `Add New Applicants to Selection Map`
 - `Setup Cohort 2 Acceptance Form`
 - `Preview Acceptance Email`
 - `Send Acceptance Test Email`
@@ -85,8 +85,8 @@ and clear the sent-at value.
 
 ## Selection and Acceptance Review
 
-1. Choose `Refresh Selection Map` to create or update the shortlist. It copies applicants; it does not remove them from the response tab.
-2. Use the `Decision` dropdown for your manual review. Refreshing the list keeps your decisions and acceptance-email tracking.
+1. Choose `Add New Applicants to Selection Map` to append new applicants who answered `Yes` to the commitment-deposit question. Existing shortlist rows are never cleared, changed, or reordered.
+2. The action skips email addresses already in the shortlist. Use the `Decision` dropdown for your manual review.
 3. Choose `Setup Cohort 2 Acceptance Form` once. The script copies the Cohort 1 form, changes Cohort 1 wording to Cohort 2, adds the September 1, 2026 programme note, and saves the new public link.
 4. Choose `Preview Acceptance Email` to inspect the email on screen.
 5. Choose `Send Acceptance Test Email` to send it only to the saved test address.

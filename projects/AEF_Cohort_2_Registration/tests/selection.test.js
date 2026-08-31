@@ -52,6 +52,48 @@ test("selection map keeps only applicants who answered Yes", () => {
   ]);
 });
 
+test("selection append keeps existing rows and returns only new Yes applicants", () => {
+  const context = loadScripts(["EmailTemplate.js", "Code.js"]);
+  assert.equal(typeof context.buildAefNewSelectionRows_, "function");
+
+  const selectionHeaders = Array.from(context.getAefSelectionHeaders_());
+  const existingRows = [[
+    "ada@example.com", "", "Ada", "ada.alt@example.com", "Nigeria", "Lagos",
+    "Analyst", "", "Yes", "Accepted", "Sent", "", "2026-08-26"
+  ]];
+  const sourceRows = [
+    ["2026-08-20T10:00:00Z", "ada@example.com", "", "Ada", "ada.alt@example.com", "Nigeria", "Lagos", "Analyst", "", "Yes"],
+    ["2026-08-21T10:00:00Z", "new@example.com", "", "New Applicant", "new.alt@example.com", "Ghana", "Accra", "Engineer", "", "Yes"],
+    ["2026-08-22T10:00:00Z", "no@example.com", "", "No Applicant", "", "Kenya", "Nairobi", "Student", "", "No"],
+    ["2026-08-23T10:00:00Z", "different@example.com", "", "Same Ada", "ada.alt@example.com", "Nigeria", "Abuja", "Engineer", "", "Yes"]
+  ];
+
+  const rows = context.buildAefNewSelectionRows_(
+    sourceHeaders,
+    sourceRows,
+    selectionHeaders,
+    existingRows
+  );
+
+  assert.equal(rows.length, 1);
+  assert.deepEqual(Array.from(rows[0]), [
+    "new@example.com", "", "New Applicant", "new.alt@example.com", "Ghana", "Accra",
+    "Engineer", "", "Yes", "", "", "", ""
+  ]);
+  assert.equal(existingRows[0][9], "Accepted");
+  assert.equal(existingRows[0][10], "Sent");
+});
+
+test("selection append skips a Yes applicant when both email fields are blank", () => {
+  const context = loadScripts(["EmailTemplate.js", "Code.js"]);
+  const rows = context.buildAefNewSelectionRows_(sourceHeaders, [[
+    "2026-08-24T10:00:00Z", "", "", "No Email", "", "Nigeria", "Lagos",
+    "Student", "", "Yes"
+  ]], context.getAefSelectionHeaders_(), []);
+
+  assert.deepEqual(Array.from(rows), []);
+});
+
 test("selection refresh keeps one latest row per person and preserves manual review work", () => {
   const context = loadScripts(["EmailTemplate.js", "Code.js"]);
   const selectionHeaders = Array.from(context.getAefSelectionHeaders_());

@@ -38,7 +38,7 @@ function onOpen() {
     .addItem("Preview Pending Registrations", "previewPendingRegistrations")
     .addItem("Process Existing Registrations", "processExistingRegistrations")
     .addSeparator()
-    .addItem("Refresh Selection Map", "refreshAefSelectionMap")
+    .addItem("Add New Applicants to Selection Map", "refreshAefSelectionMap")
     .addItem("Setup Cohort 2 Acceptance Form", "setupCohort2AcceptanceForm")
     .addItem("Preview Acceptance Email", "previewAcceptanceEmail")
     .addItem("Send Acceptance Test Email", "sendAcceptanceTestEmail")
@@ -438,27 +438,29 @@ function refreshAefSelectionMap() {
     }
 
     const headers = getAefSelectionHeaders_();
-    const rows = buildAefSelectionRows_(
+    const rows = buildAefNewSelectionRows_(
       sourceHeaders,
       sourceRows,
       existingHeaders,
       existingRows
     );
 
-    selectionSheet.clearContents();
-    selectionSheet.getRange(1, 1, 1, headers.length)
-      .setValues([headers])
-      .setFontWeight("bold")
-      .setBackground("#0f2747")
-      .setFontColor("#ffffff");
+    if (!existingHeaders.length) {
+      selectionSheet.getRange(1, 1, 1, headers.length)
+        .setValues([headers])
+        .setFontWeight("bold")
+        .setBackground("#0f2747")
+        .setFontColor("#ffffff");
+    }
 
     if (rows.length) {
-      selectionSheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+      const firstNewRow = selectionSheet.getLastRow() + 1;
+      selectionSheet.getRange(firstNewRow, 1, rows.length, headers.length).setValues(rows);
       const decisionRule = SpreadsheetApp.newDataValidation()
         .requireValueInList(["Under Review", "Accepted", "Not Selected"], true)
         .setAllowInvalid(false)
         .build();
-      selectionSheet.getRange(2, 10, rows.length, 1).setDataValidation(decisionRule);
+      selectionSheet.getRange(firstNewRow, 10, rows.length, 1).setDataValidation(decisionRule);
     }
 
     selectionSheet.setFrozenRows(1);
@@ -468,7 +470,7 @@ function refreshAefSelectionMap() {
     selectionSheet.setColumnWidth(12, 260);
 
     return logAndToastAef_(
-      "Selection Map refreshed. Applicants willing to make the deposit: " + rows.length
+      "Selection Map updated. New Yes applicants added: " + rows.length
     );
   });
 }
@@ -1163,7 +1165,7 @@ function getAefAcceptanceColumnIndexes_(headers) {
   if (missing.length) {
     throw new Error(
       "The Selection Map is missing required acceptance email columns. " +
-      "Run Refresh Selection Map first."
+      "Run Add New Applicants to Selection Map first."
     );
   }
   return columns;
@@ -1174,7 +1176,9 @@ function getAefSelectionSheet_() {
     AEF_COHORT_2_CONFIG.selectionSheetName
   );
   if (!sheet) {
-    throw new Error("Selection Map was not found. Run Refresh Selection Map first.");
+    throw new Error(
+      "Selection Map was not found. Run Add New Applicants to Selection Map first."
+    );
   }
   return sheet;
 }
@@ -1246,6 +1250,34 @@ function buildAefSelectionRows_(sourceHeaders, sourceRows, existingHeaders, exis
   }).map(function (key) {
     const savedState = preserved[key] || ["", "", "", ""];
     return latestByKey[key].copied.concat(["Yes"], savedState);
+  });
+}
+
+function buildAefNewSelectionRows_(sourceHeaders, sourceRows, existingHeaders, existingRows) {
+  const candidates = buildAefSelectionRows_(sourceHeaders, sourceRows, [], []);
+  const existingEmailKeys = {};
+  const primaryEmailIndex = findAefHeaderIndex_(existingHeaders || [], "Email address");
+  const fallbackEmailIndex = findAefHeaderIndex_(existingHeaders || [], "Email Address");
+
+  (existingRows || []).forEach(function (row) {
+    [primaryEmailIndex, fallbackEmailIndex].forEach(function (index) {
+      if (index < 0) return;
+      const key = normalizeAefEmail_(row[index]);
+      if (key) existingEmailKeys[key] = true;
+    });
+  });
+
+  return candidates.filter(function (row) {
+    const candidateKeys = [normalizeAefEmail_(row[0]), normalizeAefEmail_(row[3])]
+      .filter(function (key, index, keys) {
+        return key && keys.indexOf(key) === index;
+      });
+    if (!candidateKeys.length) return false;
+    if (candidateKeys.some(function (key) { return existingEmailKeys[key]; })) {
+      return false;
+    }
+    candidateKeys.forEach(function (key) { existingEmailKeys[key] = true; });
+    return true;
   });
 }
 
