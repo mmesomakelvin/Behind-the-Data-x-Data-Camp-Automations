@@ -83,6 +83,25 @@ test("sync creates one review row and never sends email", () => {
   assert.equal(sends, 0);
 });
 
+test("setup reads the real Google Sheets tab named Form responses 1", () => {
+  const sourceValues = [sourceHeaders.slice(), [
+    "2026-08-31T10:00:00", "real-tab@example.com", "Real Tab Applicant",
+    "https://linkedin.com/in/real-tab", "headshot", "payment",
+    "compliance", "Bank", "Real Tab", "2468"
+  ]];
+  const { spreadsheet, sheets } = makeSpreadsheet({ "Form responses 1": sourceValues });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
+
+  const summary = context.syncAefPaymentReviewRows_();
+
+  assert.equal(summary.added, 1);
+  assert.equal(sheets["Payment Review"].values[1][1], "real-tab@example.com");
+  assert.equal(sends, 0);
+});
+
 test("rerunning sync updates source details without duplicating or erasing review work", () => {
   const sourceValues = [sourceHeaders.slice(), [
     "2026-08-28T10:00:00", "old@example.com", "Ada Lovelace",
@@ -697,7 +716,7 @@ function makeSpreadsheet(initialSheets) {
   const spreadsheet = {
     getId: () => spreadsheetId,
     getSheetByName: (name) => sheets[name] || null,
-    getSheets: () => Object.values(sheets),
+    getSheets: () => Array.from(new Set(Object.values(sheets))),
     insertSheet(name) {
       const sheet = makeSheet(name, [[]], spreadsheet);
       sheets[name] = sheet;
@@ -706,7 +725,10 @@ function makeSpreadsheet(initialSheets) {
     toast: () => {}
   };
   Object.entries(initialSheets).forEach(([name, values]) => {
-    sheets[name] = makeSheet(name, values, spreadsheet);
+    const actualName = name === "Form_Responses" ? "Form responses 1" : name;
+    const sheet = makeSheet(actualName, values, spreadsheet);
+    sheets[actualName] = sheet;
+    if (actualName !== name) sheets[name] = sheet;
   });
   return { spreadsheet, sheets };
 }

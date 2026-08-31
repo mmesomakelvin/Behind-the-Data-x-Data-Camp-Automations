@@ -7,7 +7,7 @@ This Google Apps Script project manages the Cohort 2 acceptance-form payment wor
 - Apps Script project ID: `1Qr0SzfzYm3m0Rg_E62inOC61lsP7iuPvFlPlZMFmWC9RdlLYTj4K24BJ`
 - Spreadsheet: `Analytics Engineering Fellowship Cohort 2 - Acceptance Form (Responses)`
 - Spreadsheet URL: `https://docs.google.com/spreadsheets/d/10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4/edit`
-- Form response tab: `Form_Responses`
+- Form response tab: `Form responses 1`
 - Working tab created by setup: `Payment Review`
 
 ## What it does
@@ -66,9 +66,9 @@ Rows already marked `Sent` or `Sending` are skipped.
 ## If something goes wrong
 
 - `Failed`: read the nearby error column, correct the issue, then use the appropriate pending-email action to try again.
-- `Skipped - No Email`: the row has no valid email address. Correct the address in `Form_Responses`, run `Sync Current Form Submissions`, then retry.
+- `Skipped - No Email`: the row has no valid email address. Correct the address in `Form responses 1`, run `Sync Current Form Submissions`, then retry.
 - `Sending` for a long time: check the sender's Gmail Sent folder before changing anything. If the message was sent, manually change the tracking status to `Sent`. This avoids sending it twice.
-- Duplicate source-key warning: the script found two responses it cannot safely tell apart. It stops before sending email. Check the named rows in `Form_Responses` or `Payment Review`, correct the duplicate, and run sync again.
+- Duplicate source-key warning: the script found two responses it cannot safely tell apart. It stops before sending email. Check the named rows in `Form responses 1` or `Payment Review`, correct the duplicate, and run sync again.
 
 ## Change the Google account that sends emails
 

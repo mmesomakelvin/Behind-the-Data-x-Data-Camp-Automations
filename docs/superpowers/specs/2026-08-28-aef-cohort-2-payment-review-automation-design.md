@@ -15,10 +15,10 @@ The first email is only an acknowledgement. It must never tell the applicant tha
 
 - Apps Script project ID: `1Qr0SzfzYm3m0Rg_E62inOC61lsP7iuPvFlPlZMFmWC9RdlLYTj4K24BJ`
 - Spreadsheet ID: `10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4`
-- Form response tab: `Form_Responses`
+- Form response tab: `Form responses 1`
 - New working tab: `Payment Review`
 
-The original `Form_Responses` tab remains unchanged. The automation copies the needed information into `Payment Review`; it does not move or delete form responses.
+The original `Form responses 1` tab remains unchanged. The automation copies the needed information into `Payment Review`; it does not move or delete form responses.
 
 ## Payment Review columns
 
@@ -45,7 +45,7 @@ The sheet will also contain a hidden `Source Response Key` column. This is an in
 
 When a new form submission arrives, the automation will:
 
-1. Find the submitted response in `Form_Responses`.
+1. Find the submitted response in `Form responses 1`.
 2. Create or update its row in `Payment Review`.
 3. Set its review status to `Pending`.
 4. Send the “payment evidence received” email.
@@ -61,7 +61,7 @@ The acknowledgement email will clearly say:
 
 ## Existing submissions
 
-The setup action will copy all current `Form_Responses` rows into `Payment Review`. It will not email them during setup.
+The setup action will copy all current `Form responses 1` rows into `Payment Review`. It will not email them during setup.
 
 The menu will provide:
 

@@ -4,7 +4,7 @@
 
 **Goal:** Create a safe `Payment Review` workflow that acknowledges submitted payment evidence and sends the final confirmation only after the team marks payment as confirmed.
 
-**Architecture:** `Form_Responses` remains the permanent source. A sync layer copies selected fields into `Payment Review` using a hidden stable response key, while two separate mail paths write to separate tracking columns. Installable form-submit, edit, and five-minute retry triggers run the automatic parts.
+**Architecture:** `Form responses 1` remains the permanent source. A sync layer copies selected fields into `Payment Review` using a hidden stable response key, while two separate mail paths write to separate tracking columns. Installable form-submit, edit, and five-minute retry triggers run the automatic parts.
 
 **Tech Stack:** Google Apps Script JavaScript, Google Sheets, GmailApp, installable Apps Script triggers, Node.js built-in test runner.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Use spreadsheet ID `10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4`.
-- Read only from the exact source tab `Form_Responses` and manage decisions only in `Payment Review`.
+- Read only from the exact source tab `Form responses 1` and manage decisions only in `Payment Review`.
 - Setup and sync must not send live participant email.
 - The acknowledgement must say the payment evidence is under review, not confirmed.
 - Existing-applicant catch-up must show a count and require a Yes/No confirmation.

@@ -3,7 +3,7 @@
  */
 var AEF_PAYMENT_CONFIG = {
   spreadsheetId: "10v2U9Sn6JpcPP3Zr1d_z46s7PIuuJQlgjj7VY2mb0Y4",
-  sourceSheetName: "Form_Responses",
+  sourceSheetName: "Form responses 1",
   reviewSheetName: "Payment Review",
   senderName: "Behind the Data Academy",
   receivedSubject: "Payment Evidence Received - Analytics Engineering Fellowship Cohort 2",
@@ -145,7 +145,7 @@ function syncAefPaymentReviewRows_() {
     const timestampKey = getAefPaymentTimestampFromSourceKey_(key);
     if (seenSourceKeys[key]) {
       throw new Error(
-        "Duplicate source response key found on Form_Responses rows " +
+        "Duplicate source response key found on Form responses 1 rows " +
         seenSourceKeys[key] + " and " + (sourceIndex + 2) +
         ". No rows were synced. Please make one response unique before running setup again."
       );
@@ -188,7 +188,7 @@ function syncAefPaymentReviewRows_() {
         } else if (baseMatches.length || timestampMatches.length) {
           throw new Error(
             "A source response changed but could not be matched safely because its timestamp is shared. " +
-            "No email was sent. Review the matching Form_Responses rows before syncing again."
+            "No email was sent. Review the matching Form responses 1 rows before syncing again."
           );
         }
       }
@@ -890,7 +890,7 @@ function getAefPaymentSpreadsheet_() {
 
 function getAefPaymentSourceSheet_() {
   const sheet = getAefPaymentSpreadsheet_().getSheetByName(AEF_PAYMENT_CONFIG.sourceSheetName);
-  if (!sheet) throw new Error("The Form_Responses tab could not be found.");
+  if (!sheet) throw new Error("The Form responses 1 tab could not be found.");
   return sheet;
 }
 
