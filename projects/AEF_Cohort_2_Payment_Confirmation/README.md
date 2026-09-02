@@ -16,7 +16,8 @@ This Google Apps Script project manages the Cohort 2 acceptance-form payment wor
 - Sends a “payment evidence received” email after a new form submission. This email says the evidence is under review; it does not say payment is confirmed.
 - Lets you send the same acknowledgement to current applicants after you preview the count and approve the live send.
 - Sends the final payment-confirmation email when you change `Payment Review Status` to `Confirmed`.
-- Records whether each received or confirmation email is `Sending`, `Sent`, `Failed`, or `Skipped - No Email`.
+- Lets you send a separate onboarding email to confirmed participants. It includes the WhatsApp group, the Saturday webinar details, and the Google Meet link.
+- Records whether each received, confirmation, or onboarding email is `Sending`, `Sent`, `Failed`, or `Skipped - No Email`.
 - Uses a hidden source key to update the correct row and avoid duplicate review rows.
 
 ## Payment Review Status
@@ -51,6 +52,25 @@ The script saves that account as the trigger owner and blocks a second account f
 8. Confirm that its `Confirmation Email Status` becomes `Sent` and the confirmation arrives.
 
 Changing a real person's status to `Confirmed` is a live-send action. Email cannot be recalled after it is sent.
+
+## Send the Cohort 2 onboarding details
+
+The onboarding email is a separate manual batch. Marking a payment `Confirmed` does not send it automatically.
+
+1. Refresh the spreadsheet after the new code is published.
+2. Open `AEF Cohort 2 Payment Review` -> `Preview Onboarding Email`.
+3. Use `Send Test Onboarding Email` and check your own inbox.
+4. Click `Count Confirmed Participants Waiting` and check the number.
+5. Click `LIVE: Send Onboarding Details` only when you are ready.
+6. Read the warning and choose `Yes` to send.
+
+The first count or live action safely creates these tracking columns if they do not exist:
+
+- `Onboarding Email Status`
+- `Onboarding Email Error`
+- `Onboarding Email Sent At`
+
+Only rows with `Payment Review Status` set to `Confirmed` qualify. Rows already marked `Sent` or `Sending` are skipped.
 
 ## Email current applicants
 

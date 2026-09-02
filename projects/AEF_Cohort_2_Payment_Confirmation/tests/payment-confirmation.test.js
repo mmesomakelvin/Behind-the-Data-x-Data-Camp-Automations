@@ -17,7 +17,8 @@ const reviewHeaders = [
   "Submission Date", "Email address", "Full Name", "LinkedIn Url",
   "Payment Evidence", "Payment Review Status", "Received Email Status",
   "Received Email Error", "Received Email Sent At", "Confirmation Email Status",
-  "Confirmation Email Error", "Confirmation Email Sent At", "Source Response Key"
+  "Confirmation Email Error", "Confirmation Email Sent At", "Source Response Key",
+  "Onboarding Email Status", "Onboarding Email Error", "Onboarding Email Sent At"
 ];
 
 function loadScripts(fileNames, globals = {}) {
@@ -31,8 +32,29 @@ function loadScripts(fileNames, globals = {}) {
 }
 
 function loadProject(globals = {}) {
-  return loadScripts(["ReceivedEmailTemplate.js", "EmailTemplate.js", "Code.js"], globals);
+  return loadScripts([
+    "ReceivedEmailTemplate.js", "EmailTemplate.js", "OnboardingEmailTemplate.js", "Code.js"
+  ], globals);
 }
+
+test("onboarding email gives confirmed fellows the WhatsApp and webinar details", () => {
+  const context = loadProject();
+  assert.equal(typeof context.getAefPaymentOnboardingEmailHtml, "function");
+  assert.equal(typeof context.getAefPaymentOnboardingEmailPlainText, "function");
+
+  for (const body of [
+    context.getAefPaymentOnboardingEmailHtml("Ada Lovelace"),
+    context.getAefPaymentOnboardingEmailPlainText("Ada Lovelace")
+  ]) {
+    assert.match(body, /Hello Ada/i);
+    assert.match(body, /Saturday, 5 September 2026/i);
+    assert.match(body, /4:00 PM[^]*5:00 PM/i);
+    assert.match(body, /Africa\/Lagos/i);
+    assert.match(body, /chat\.whatsapp\.com\/BEZrwguJ3qdEnPNzX3hlfV/i);
+    assert.match(body, /meet\.google\.com\/xgv-wmoa-bja/i);
+    assert.match(body, /access[^.]*after[^.]*onboarding/i);
+  }
+});
 
 test("payment confirmation email is written for AEF Cohort 2", () => {
   const context = loadProject();
@@ -58,6 +80,125 @@ test("received email clearly says the evidence is under review and not confirmed
     assert.match(body, /under review|being reviewed/i);
     assert.match(body, /not.*payment confirmation/i);
   }
+});
+
+test("onboarding target list includes only confirmed fellows not already sent", () => {
+  const reviewValues = [
+    reviewHeaders.slice(),
+    makeReviewRow({
+      email: "ready@example.com", status: "Confirmed", confirmationStatus: "Sent",
+      key: "ready-key"
+    }),
+    makeReviewRow({
+      email: "pending@example.com", status: "Pending", confirmationStatus: "Sent",
+      key: "pending-key"
+    }),
+    makeReviewRow({
+      email: "sent@example.com", status: "Confirmed", confirmationStatus: "Sent",
+      onboardingStatus: "Sent", key: "sent-key"
+    }),
+    makeReviewRow({
+      email: "sending@example.com", status: "Confirmed", confirmationStatus: "Sent",
+      onboardingStatus: "Sending", key: "sending-key"
+    }),
+    makeReviewRow({
+      email: "not-an-email", status: "Confirmed", confirmationStatus: "Sent",
+      key: "invalid-key"
+    })
+  ];
+  const { spreadsheet } = makeSpreadsheet({ "Payment Review": reviewValues });
+  const context = loadProject(makeGlobals(spreadsheet));
+
+  const targets = context.getPendingAefPaymentEmailTargets_("onboarding");
+
+  assert.deepEqual(Array.from(targets.keys), ["ready-key", "invalid-key"]);
+  assert.equal(targets.valid, 1);
+  assert.equal(targets.invalid, 1);
+});
+
+test("onboarding send uses its own message and tracking columns", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({
+    email: "ready@example.com", name: "Ada Lovelace", status: "Confirmed",
+    confirmationStatus: "Sent", key: "ready-key"
+  })];
+  const { spreadsheet, sheets } = makeSpreadsheet({ "Payment Review": reviewValues });
+  const sent = [];
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: {
+      sendEmail(email, subject, plainText, options) {
+        sent.push({ email, subject, plainText, html: options.htmlBody });
+      }
+    }
+  }));
+
+  const result = context.processAefPaymentEmailRow_(sheets["Payment Review"], 2, "onboarding");
+
+  assert.equal(result, "sent");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].email, "ready@example.com");
+  assert.match(sent[0].subject, /onboarding/i);
+  assert.match(sent[0].plainText, /chat\.whatsapp\.com\/BEZrwguJ3qdEnPNzX3hlfV/i);
+  assert.match(sent[0].html, /meet\.google\.com\/xgv-wmoa-bja/i);
+  assert.equal(reviewValues[1][13], "Sent");
+  assert.equal(reviewValues[1][14], "");
+  assert.ok(reviewValues[1][15]);
+  assert.equal(reviewValues[1][9], "Sent");
+});
+
+test("cancelling the live onboarding warning sends nothing", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({
+    email: "ready@example.com", status: "Confirmed", confirmationStatus: "Sent",
+    key: "ready-key"
+  })];
+  const { spreadsheet } = makeSpreadsheet({ "Payment Review": reviewValues });
+  let sends = 0;
+  const globals = makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  });
+  globals.SpreadsheetApp = makeSpreadsheetApp(spreadsheet, makeUi("NO"));
+  const context = loadProject(globals);
+  assert.equal(typeof context.sendAefPaymentOnboardingDetails, "function");
+
+  context.sendAefPaymentOnboardingDetails();
+
+  assert.equal(sends, 0);
+  assert.equal(reviewValues[1][13], "");
+});
+
+test("existing confirmation emails still work before onboarding columns are created", () => {
+  const oldHeaders = reviewHeaders.slice(0, 13);
+  const oldRow = makeReviewRow({
+    email: "ready@example.com", status: "Confirmed", key: "ready-key"
+  }).slice(0, 13);
+  const reviewValues = [oldHeaders, oldRow];
+  const { spreadsheet, sheets } = makeSpreadsheet({ "Payment Review": reviewValues });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
+
+  context.processAefPaymentConfirmationRow_(sheets["Payment Review"], 2);
+
+  assert.equal(sends, 1);
+  assert.equal(reviewValues[1][9], "Sent");
+});
+
+test("setup appends onboarding columns after the existing source key", () => {
+  const oldHeaders = reviewHeaders.slice(0, 13);
+  const oldRow = makeReviewRow({
+    email: "ready@example.com", status: "Confirmed", key: "ready-key"
+  }).slice(0, 13);
+  const reviewValues = [oldHeaders, oldRow];
+  const { spreadsheet } = makeSpreadsheet({ "Payment Review": reviewValues });
+  const context = loadProject(makeGlobals(spreadsheet));
+
+  context.ensureAefPaymentReviewSheet_();
+
+  assert.equal(reviewValues[0][12], "Source Response Key");
+  assert.deepEqual(reviewValues[0].slice(13, 16), [
+    "Onboarding Email Status", "Onboarding Email Error", "Onboarding Email Sent At"
+  ]);
+  assert.equal(reviewValues[1][12], "ready-key");
 });
 
 test("sync creates one review row and never sends email", () => {
@@ -623,7 +764,8 @@ function makeReviewRow(options) {
     options.name || "Ada Lovelace", "https://linkedin.com/in/ada",
     "https://drive.google.com/payment", options.status || "Pending",
     options.receivedStatus || "", "", "", options.confirmationStatus || "",
-    "", "", options.key || "2026-08-28t10:00:00|1234"
+    "", "", options.key || "2026-08-28t10:00:00|1234",
+    options.onboardingStatus || "", "", ""
   ];
 }
 
