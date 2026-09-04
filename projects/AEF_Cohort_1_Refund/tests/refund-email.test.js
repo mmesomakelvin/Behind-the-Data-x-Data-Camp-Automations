@@ -98,6 +98,44 @@ function makeSpreadsheetApp(spreadsheet, ui = {}) {
   };
 }
 
+function makeUi(answer = "YES") {
+  return {
+    Button: { YES: "YES", NO: "NO", OK: "OK", CANCEL: "CANCEL" },
+    ButtonSet: { YES_NO: "YES_NO", OK_CANCEL: "OK_CANCEL" },
+    alert: () => answer,
+    prompt: () => ({ getSelectedButton: () => "CANCEL", getResponseText: () => "" })
+  };
+}
+
+function makeRuntime(spreadsheet, options = {}) {
+  const sent = options.sent || [];
+  const ui = options.ui || makeUi();
+  const properties = options.properties || {};
+  return {
+    sent,
+    globals: {
+      SpreadsheetApp: makeSpreadsheetApp(spreadsheet, ui),
+      GmailApp: options.GmailApp || {
+        sendEmail(email, subject, plainText, emailOptions) {
+          sent.push({ email, subject, plainText, htmlBody: emailOptions.htmlBody });
+        }
+      },
+      LockService: {
+        getScriptLock: () => ({
+          tryLock: () => true,
+          releaseLock() {}
+        })
+      },
+      PropertiesService: {
+        getScriptProperties: () => ({
+          getProperty: (key) => properties[key] || null,
+          setProperty: (key, value) => { properties[key] = value; }
+        })
+      }
+    }
+  };
+}
+
 test("refund email confirms the completed refund", () => {
   const context = loadProject();
 
@@ -159,4 +197,170 @@ test("pending refund rows exclude blank, Sent, and Sending records", () => {
   const rows = context.getPendingAefRefundRows_(sheet);
 
   assert.deepEqual(Array.from(rows), [2, 5]);
+});
+
+test("live cancellation changes no refund values and sends nothing", () => {
+  const values = [
+    baseHeaders.slice(),
+    ["ada@example.com", "Ada Lovelace", "1234", "Bank", "Ada", "", "Submitted"]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const sent = [];
+  const runtime = makeRuntime(spreadsheet, { ui: makeUi("NO"), sent });
+  const context = loadProject(runtime.globals);
+
+  context.sendAefRefundEmailsLive();
+
+  assert.equal(values[1][5], "");
+  assert.equal(sent.length, 0);
+  assert.equal(values[1][7] || "", "");
+});
+
+test("live batch marks every eligible row refunded and tailors the certificate sentence", () => {
+  const values = [
+    baseHeaders.slice(),
+    ["standard@example.com", "Standard Person", "1", "Bank", "Standard", "", ""],
+    ["submitted@example.com", "Submitted Person", "2", "Bank", "Submitted", "", "  sUbMiTtEd  "]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet);
+  const context = loadProject(runtime.globals);
+
+  context.sendAefRefundEmailsLive();
+
+  assert.equal(values[1][5], "Yes");
+  assert.equal(values[2][5], "Yes");
+  assert.equal(values[1][7], "Sent");
+  assert.equal(values[2][7], "Sent");
+  assert.ok(Number.isFinite(new Date(values[1][9]).getTime()));
+  assert.ok(Number.isFinite(new Date(values[2][9]).getTime()));
+  assert.equal(runtime.sent.length, 2);
+  assert.doesNotMatch(runtime.sent[0].plainText, /certificate/i);
+  assert.match(runtime.sent[1].plainText, /certificate will be sent by the weekend/i);
+});
+
+test("invalid email is recorded and Gmail is not called", () => {
+  const values = [
+    baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
+    ["not-an-email", "Invalid Person", "1", "Bank", "Invalid", "", "Submitted", "", "", ""]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet);
+  const context = loadProject(runtime.globals);
+
+  const result = context.processAefRefundRow_(sheet, 2);
+
+  assert.equal(result, "invalid");
+  assert.equal(values[1][5], "Yes");
+  assert.equal(values[1][7], "Error");
+  assert.match(values[1][8], /valid email/i);
+  assert.equal(runtime.sent.length, 0);
+});
+
+test("Gmail failure is recorded so the row can be retried", () => {
+  const values = [
+    baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
+    ["ada@example.com", "Ada Lovelace", "1", "Bank", "Ada", "", "", "", "", ""]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet, {
+    GmailApp: { sendEmail() { throw new Error("Daily email limit reached"); } }
+  });
+  const context = loadProject(runtime.globals);
+
+  const result = context.processAefRefundRow_(sheet, 2);
+
+  assert.equal(result, "error");
+  assert.equal(values[1][5], "Yes");
+  assert.equal(values[1][7], "Error");
+  assert.match(values[1][8], /Daily email limit reached/i);
+});
+
+test("test email goes only to the saved address and changes no participant tracking", () => {
+  const values = [
+    baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
+    ["participant@example.com", "Participant Person", "1", "Bank", "Participant", "", "Submitted", "", "", ""]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet, {
+    properties: { AEF_COHORT_1_REFUND_TEST_EMAIL: "admin@example.com" }
+  });
+  const context = loadProject(runtime.globals);
+
+  context.sendAefRefundTestEmail();
+
+  assert.equal(runtime.sent.length, 1);
+  assert.equal(runtime.sent[0].email, "admin@example.com");
+  assert.match(runtime.sent[0].subject, /^\[TEST\]/);
+  assert.match(runtime.sent[0].plainText, /certificate will be sent by the weekend/i);
+  assert.equal(values[1][5], "");
+  assert.equal(values[1][7], "");
+});
+
+test("count reports unsent participant rows without sending email", () => {
+  const values = [
+    baseHeaders.slice(),
+    ["one@example.com", "One Person", "1", "Bank", "One", "", ""],
+    ["two@example.com", "Two Person", "2", "Bank", "Two", "", "Submitted"]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet);
+  const context = loadProject(runtime.globals);
+
+  const count = context.countAefRefundEmailsWaiting();
+
+  assert.equal(count, 2);
+  assert.equal(runtime.sent.length, 0);
+  assert.equal(values[1][5], "");
+  assert.equal(values[2][5], "");
+});
+
+test("setting the test recipient saves a valid email address", () => {
+  const values = [baseHeaders.slice()];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const properties = {};
+  const ui = makeUi();
+  ui.prompt = () => ({
+    getSelectedButton: () => "OK",
+    getResponseText: () => " admin@example.com "
+  });
+  const runtime = makeRuntime(spreadsheet, { properties, ui });
+  const context = loadProject(runtime.globals);
+
+  context.setAefRefundTestEmailRecipient();
+
+  assert.equal(properties.AEF_COHORT_1_REFUND_TEST_EMAIL, "admin@example.com");
+});
+
+test("preview opens the submitted-portfolio email without sending", () => {
+  const values = [baseHeaders.slice()];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const ui = makeUi();
+  let dialog = null;
+  ui.showModalDialog = (output, title) => { dialog = { output, title }; };
+  const runtime = makeRuntime(spreadsheet, { ui });
+  runtime.globals.HtmlService = {
+    createHtmlOutput(html) {
+      return {
+        html,
+        setWidth() { return this; },
+        setHeight() { return this; }
+      };
+    }
+  };
+  const context = loadProject(runtime.globals);
+
+  context.previewAefRefundEmail();
+
+  assert.match(dialog.title, /refund email/i);
+  assert.match(dialog.output.html, /certificate will be sent by the weekend/i);
+  assert.equal(runtime.sent.length, 0);
 });
