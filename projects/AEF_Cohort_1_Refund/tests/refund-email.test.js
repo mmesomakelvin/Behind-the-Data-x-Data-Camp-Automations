@@ -43,6 +43,7 @@ function makeSheet(name, values) {
         return this;
       },
       setValue(value) {
+        if (sheet.beforeSetValue) sheet.beforeSetValue({ row, column, value });
         if (!values[row - 1]) values[row - 1] = [];
         values[row - 1][column - 1] = value;
         return this;
@@ -61,6 +62,7 @@ function makeSheet(name, values) {
   const sheet = {
     values,
     validation: null,
+    beforeSetValue: null,
     getName: () => name,
     getLastRow: () => values.length,
     getLastColumn: () => Math.max(0, ...values.map((row) => row.length)),
@@ -278,6 +280,47 @@ test("Gmail failure is recorded so the row can be retried", () => {
   assert.equal(values[1][5], "Yes");
   assert.equal(values[1][7], "Error");
   assert.match(values[1][8], /Daily email limit reached/i);
+});
+
+test("a tracking failure after Gmail sends cannot make the row retryable", () => {
+  const values = [
+    baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
+    ["ada@example.com", "Ada Lovelace", "1", "Bank", "Ada", "", "", "", "", ""]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  sheet.beforeSetValue = ({ row, column, value }) => {
+    if (row === 2 && column === 8 && value === "Sent") {
+      throw new Error("Protected tracking cell");
+    }
+  };
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet);
+  const context = loadProject(runtime.globals);
+
+  const result = context.processAefRefundRow_(sheet, 2);
+
+  assert.equal(runtime.sent.length, 1);
+  assert.equal(result, "tracking-error");
+  assert.equal(values[1][7], "Sending");
+  assert.deepEqual(Array.from(context.getPendingAefRefundRows_(sheet)), []);
+});
+
+test("a row with account details but no email or name is marked as an error", () => {
+  const values = [
+    baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
+    ["", "", "1234", "Bank", "Account Holder", "", "", "", "", ""]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet);
+  const context = loadProject(runtime.globals);
+
+  context.sendAefRefundEmailsLive();
+
+  assert.equal(values[1][5], "Yes");
+  assert.equal(values[1][7], "Error");
+  assert.match(values[1][8], /valid email/i);
+  assert.equal(runtime.sent.length, 0);
 });
 
 test("test email goes only to the saved address and changes no participant tracking", () => {

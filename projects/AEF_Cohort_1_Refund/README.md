@@ -27,6 +27,8 @@ The test email uses a sample submitted participant so you can see the certificat
 
 `Sent` means the email was delivered to Gmail for sending. `Error` means that row needs attention. Running the live option again retries Error rows but skips Sent and Sending rows.
 
+If a row remains on `Sending`, do not clear it or retry it automatically. Gmail may already have accepted that email even though the sheet could not finish recording `Sent`. Check the participant's email activity before changing that status.
+
 ## Important safety notes
 
 - Publishing or setting up the script does not send participant emails.

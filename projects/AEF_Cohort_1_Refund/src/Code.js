@@ -105,15 +105,20 @@ function findAefRefundHeaderIndex_(headers, wanted) {
 }
 
 function getPendingAefRefundRows_(sheet) {
-  const columns = getAefRefundColumns_(getAefRefundHeaders_(sheet));
+  const headers = getAefRefundHeaders_(sheet);
+  const columns = getAefRefundColumns_(headers);
+  const participantIndexes = AEF_REFUND_CONFIG.requiredHeaders.map(function (label) {
+    return findAefRefundHeaderIndex_(headers, label);
+  });
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
   const rows = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
   const pending = [];
   rows.forEach(function (row, offset) {
-    const email = String(row[columns.emailIndex] || "").trim();
-    const name = String(row[columns.nameIndex] || "").trim();
-    if (!email && !name) return;
+    const hasParticipantData = participantIndexes.some(function (columnIndex) {
+      return String(row[columnIndex] == null ? "" : row[columnIndex]).trim() !== "";
+    });
+    if (!hasParticipantData) return;
     const status = normalizeAefRefundValue_(row[columns.emailStatusIndex]);
     if (status === "sent" || status === "sending") return;
     pending.push(offset + 2);
@@ -193,18 +198,20 @@ function sendAefRefundEmailsLive() {
 
   return withAefRefundLock_(function () {
     const currentRows = getPendingAefRefundRows_(sheet);
-    const summary = { sent: 0, invalid: 0, errors: 0, skipped: 0 };
+    const summary = { sent: 0, invalid: 0, errors: 0, trackingErrors: 0, skipped: 0 };
     currentRows.forEach(function (rowNumber) {
       const result = processAefRefundRow_(sheet, rowNumber);
       if (result === "sent") summary.sent++;
       else if (result === "invalid") summary.invalid++;
       else if (result === "error") summary.errors++;
+      else if (result === "tracking-error") summary.trackingErrors++;
       else summary.skipped++;
     });
     toastAefRefund_(
       "Refund email run complete. Sent: " + summary.sent +
       ". Invalid email: " + summary.invalid +
       ". Other errors: " + summary.errors +
+      ". Sent but needs tracking review: " + summary.trackingErrors +
       ". Skipped: " + summary.skipped + "."
     );
     return summary;
@@ -248,14 +255,30 @@ function processAefRefundRow_(sheet, rowNumber) {
         name: AEF_REFUND_CONFIG.senderName
       }
     );
-    statusCell.setValue("Sent");
-    errorCell.setValue("");
-    sentAtCell.setValue(new Date());
-    return "sent";
   } catch (error) {
     statusCell.setValue("Error");
     errorCell.setValue(getAefRefundErrorMessage_(error));
     return "error";
+  }
+
+  try {
+    statusCell.setValue("Sent");
+    errorCell.setValue("");
+    sentAtCell.setValue(new Date());
+    return "sent";
+  } catch (trackingError) {
+    console.error(
+      "Refund email was accepted by Gmail for row " + rowNumber +
+      ", but its tracking could not be completed: " + getAefRefundErrorMessage_(trackingError)
+    );
+    try {
+      errorCell.setValue(
+        "Email was sent, but tracking needs review: " + getAefRefundErrorMessage_(trackingError)
+      );
+    } catch (ignoredError) {
+      console.error("The tracking warning could not be written for row " + rowNumber + ".");
+    }
+    return "tracking-error";
   }
 }
 
