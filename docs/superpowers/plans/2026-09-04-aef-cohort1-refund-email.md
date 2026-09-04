@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a safe menu button that marks all listed AEF Cohort 1 participants as refunded and sends each person one refund email, with a certificate-by-weekend note only for submitted portfolios.
+**Goal:** Send one refund email only for AEF Cohort 1 rows marked `Refund = Yes`, through either a safe batch button or an automatic edit trigger, with a certificate-by-weekend note only for submitted portfolios.
 
 **Architecture:** The bound Apps Script reads the sheet by heading names instead of relying on a tab name or fixed column letters. `Code.js` owns the menu, sheet setup, recipient selection, sending safety, and tracking; `RefundEmailTemplate.js` owns the HTML and plain-text message. Node tests run both files in a controlled Apps Script-like environment.
 
@@ -14,10 +14,11 @@
 
 - Publishing code must not send participant emails.
 - Live email requires a menu action followed by a Yes/No warning.
-- Every populated participant row is marked `Refund = Yes` only after live confirmation.
+- Only rows already marked `Refund = Yes` are eligible for batch sending.
+- Changing one Refund cell to `Yes` automatically sends that eligible row.
 - `Sent` and `Sending` rows are never sent again.
 - Only `Portfolio Status = Submitted`, ignoring case and surrounding spaces, receives the certificate-by-weekend sentence.
-- No edit, form-submit, or time-based trigger is installed.
+- Setup installs one edit trigger; no form-submit or time-based trigger is installed.
 
 ---
 
@@ -96,7 +97,7 @@ test("setup adds dropdown and tracking columns without moving existing data", ()
 });
 ```
 
-Add a second test proving only populated rows whose status is not `Sent` or `Sending` are returned.
+Add a second test proving only populated `Yes` rows whose status is not `Sent` or `Sending` are returned.
 
 - [ ] **Step 2: Run tests and verify the missing setup function causes failure**
 
@@ -125,14 +126,14 @@ Expected: PASS.
 
 ---
 
-### Task 3: Safe live sending and test controls
+### Task 3: Safe batch, edit-trigger sending, and test controls
 
 **Files:**
 - Modify: `projects/AEF_Cohort_1_Refund/src/Code.js`
 - Modify: `projects/AEF_Cohort_1_Refund/tests/refund-email.test.js`
 
 **Interfaces:**
-- Produces: `setAefRefundTestEmailRecipient()`, `previewAefRefundEmail()`, `sendAefRefundTestEmail()`, `countAefRefundEmailsWaiting()`, `sendAefRefundEmailsLive()`, and `processAefRefundRow_(sheet, rowNumber)`.
+- Produces: `setAefRefundTestEmailRecipient()`, `previewAefRefundEmail()`, `sendAefRefundTestEmail()`, `countAefRefundEmailsWaiting()`, `sendAefRefundEmailsLive()`, `handleAefRefundEdit(e)`, and `processAefRefundRow_(sheet, rowNumber)`.
 
 - [ ] **Step 1: Write failing tests for live cancellation, tailored sending, duplicate prevention, and invalid addresses**
 
@@ -143,7 +144,7 @@ test("live cancellation changes no refund values and sends nothing", () => {
   assert.equal(sent.length, 0);
 });
 
-test("confirmed live batch marks everyone refunded and tailors the certificate sentence", () => {
+test("confirmed live batch sends only Yes rows and tailors the certificate sentence", () => {
   context.sendAefRefundEmailsLive();
   assert.equal(values[1][5], "Yes");
   assert.doesNotMatch(sent[0].plainText, /certificate/i);
@@ -179,7 +180,7 @@ function sendAefRefundEmailsLive() {
 }
 ```
 
-Inside `processAefRefundRow_`, write `Yes` and `Sending` before Gmail is called. On success write `Sent`, clear the error, and store a Date. On failure write `Error` and the plain error message. Missing or malformed email addresses must never call Gmail.
+Inside `processAefRefundRow_`, write `Sending` before Gmail is called. On success write `Sent`, clear the error, and store a Date. On failure write `Error` and the plain error message. Missing or malformed email addresses must never call Gmail. Install one edit trigger during setup; `handleAefRefundEdit(e)` processes only a single Refund-column edit whose new value is `Yes`.
 
 - [ ] **Step 4: Run the entire suite and verify it passes**
 
@@ -209,7 +210,7 @@ Set Test Email Recipient.
 Preview Refund Email.
 Send Test Refund Email.
 Count Refund Emails Waiting.
-LIVE: Mark All Refunded and Send Emails only when ready.
+LIVE: Send Refund Emails Marked Yes only when ready.
 ```
 
 - [ ] **Step 2: Run final local verification**

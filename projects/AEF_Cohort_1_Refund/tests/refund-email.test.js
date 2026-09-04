@@ -33,6 +33,11 @@ function makeSheet(name, values) {
       getValue() {
         return (values[row - 1] || [])[column - 1] ?? "";
       },
+      getSheet: () => sheet,
+      getRow: () => row,
+      getColumn: () => column,
+      getNumRows: () => numRows,
+      getNumColumns: () => numColumns,
       setValues(newValues) {
         newValues.forEach((newRow, rowOffset) => {
           if (!values[row - 1 + rowOffset]) values[row - 1 + rowOffset] = [];
@@ -113,6 +118,7 @@ function makeRuntime(spreadsheet, options = {}) {
   const sent = options.sent || [];
   const ui = options.ui || makeUi();
   const properties = options.properties || {};
+  const triggers = options.triggers || [];
   return {
     sent,
     globals: {
@@ -133,6 +139,23 @@ function makeRuntime(spreadsheet, options = {}) {
           getProperty: (key) => properties[key] || null,
           setProperty: (key, value) => { properties[key] = value; }
         })
+      },
+      Session: {
+        getEffectiveUser: () => ({ getEmail: () => options.userEmail || "admin@example.com" })
+      },
+      ScriptApp: {
+        getProjectTriggers: () => triggers,
+        newTrigger(handlerFunction) {
+          return {
+            forSpreadsheet() { return this; },
+            onEdit() { return this; },
+            create() {
+              const trigger = { getHandlerFunction: () => handlerFunction };
+              triggers.push(trigger);
+              return trigger;
+            }
+          };
+        }
       }
     }
   };
@@ -171,7 +194,8 @@ test("setup adds the dropdown and tracking columns without moving existing data"
   ];
   const sheet = makeSheet("Refund list", values);
   const spreadsheet = makeSpreadsheet(sheet);
-  const context = loadProject({ SpreadsheetApp: makeSpreadsheetApp(spreadsheet) });
+  const runtime = makeRuntime(spreadsheet);
+  const context = loadProject(runtime.globals);
 
   context.setupAefRefundEmailAutomation();
 
@@ -184,13 +208,15 @@ test("setup adds the dropdown and tracking columns without moving existing data"
   assert.equal(sheet.validation.column, 6);
 });
 
-test("pending refund rows exclude blank, Sent, and Sending records", () => {
+test("pending refund rows include only Yes and exclude blank, No, Sent, and Sending", () => {
   const values = [
     baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
-    ["ready@example.com", "Ready Person", "1", "Bank", "Ready", "", ""],
+    ["ready@example.com", "Ready Person", "1", "Bank", "Ready", "Yes", ""],
+    ["blank@example.com", "Blank Person", "2", "Bank", "Blank", "", "Submitted"],
+    ["no@example.com", "No Person", "3", "Bank", "No", "No", "Submitted"],
     ["sent@example.com", "Sent Person", "2", "Bank", "Sent", "Yes", "Submitted", "Sent"],
     ["sending@example.com", "Sending Person", "3", "Bank", "Sending", "Yes", "Submitted", "Sending"],
-    ["", "No Email Person", "4", "Bank", "No Email", "", "Submitted"]
+    ["", "No Email Person", "4", "Bank", "No Email", "Yes", "Submitted"]
   ];
   const sheet = makeSheet("Renamed tab", values);
   const spreadsheet = makeSpreadsheet(sheet);
@@ -198,13 +224,13 @@ test("pending refund rows exclude blank, Sent, and Sending records", () => {
 
   const rows = context.getPendingAefRefundRows_(sheet);
 
-  assert.deepEqual(Array.from(rows), [2, 5]);
+  assert.deepEqual(Array.from(rows), [2, 7]);
 });
 
 test("live cancellation changes no refund values and sends nothing", () => {
   const values = [
     baseHeaders.slice(),
-    ["ada@example.com", "Ada Lovelace", "1234", "Bank", "Ada", "", "Submitted"]
+    ["ada@example.com", "Ada Lovelace", "1234", "Bank", "Ada", "Yes", "Submitted"]
   ];
   const sheet = makeSheet("Refund list", values);
   const spreadsheet = makeSpreadsheet(sheet);
@@ -214,16 +240,18 @@ test("live cancellation changes no refund values and sends nothing", () => {
 
   context.sendAefRefundEmailsLive();
 
-  assert.equal(values[1][5], "");
+  assert.equal(values[1][5], "Yes");
   assert.equal(sent.length, 0);
   assert.equal(values[1][7] || "", "");
 });
 
-test("live batch marks every eligible row refunded and tailors the certificate sentence", () => {
+test("live batch sends only Yes rows and tailors the certificate sentence", () => {
   const values = [
     baseHeaders.slice(),
-    ["standard@example.com", "Standard Person", "1", "Bank", "Standard", "", ""],
-    ["submitted@example.com", "Submitted Person", "2", "Bank", "Submitted", "", "  sUbMiTtEd  "]
+    ["standard@example.com", "Standard Person", "1", "Bank", "Standard", "Yes", ""],
+    ["submitted@example.com", "Submitted Person", "2", "Bank", "Submitted", "Yes", "  sUbMiTtEd  "],
+    ["waiting@example.com", "Waiting Person", "3", "Bank", "Waiting", "", "Submitted"],
+    ["declined@example.com", "Declined Person", "4", "Bank", "Declined", "No", "Submitted"]
   ];
   const sheet = makeSheet("Refund list", values);
   const spreadsheet = makeSpreadsheet(sheet);
@@ -234,6 +262,8 @@ test("live batch marks every eligible row refunded and tailors the certificate s
 
   assert.equal(values[1][5], "Yes");
   assert.equal(values[2][5], "Yes");
+  assert.equal(values[3][5], "");
+  assert.equal(values[4][5], "No");
   assert.equal(values[1][7], "Sent");
   assert.equal(values[2][7], "Sent");
   assert.ok(Number.isFinite(new Date(values[1][9]).getTime()));
@@ -246,7 +276,7 @@ test("live batch marks every eligible row refunded and tailors the certificate s
 test("invalid email is recorded and Gmail is not called", () => {
   const values = [
     baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
-    ["not-an-email", "Invalid Person", "1", "Bank", "Invalid", "", "Submitted", "", "", ""]
+    ["not-an-email", "Invalid Person", "1", "Bank", "Invalid", "Yes", "Submitted", "", "", ""]
   ];
   const sheet = makeSheet("Refund list", values);
   const spreadsheet = makeSpreadsheet(sheet);
@@ -308,7 +338,7 @@ test("a tracking failure after Gmail sends cannot make the row retryable", () =>
 test("a row with account details but no email or name is marked as an error", () => {
   const values = [
     baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
-    ["", "", "1234", "Bank", "Account Holder", "", "", "", "", ""]
+    ["", "", "1234", "Bank", "Account Holder", "Yes", "", "", "", ""]
   ];
   const sheet = makeSheet("Refund list", values);
   const spreadsheet = makeSpreadsheet(sheet);
@@ -348,7 +378,7 @@ test("test email goes only to the saved address and changes no participant track
 test("count reports unsent participant rows without sending email", () => {
   const values = [
     baseHeaders.slice(),
-    ["one@example.com", "One Person", "1", "Bank", "One", "", ""],
+    ["one@example.com", "One Person", "1", "Bank", "One", "Yes", ""],
     ["two@example.com", "Two Person", "2", "Bank", "Two", "", "Submitted"]
   ];
   const sheet = makeSheet("Refund list", values);
@@ -358,9 +388,9 @@ test("count reports unsent participant rows without sending email", () => {
 
   const count = context.countAefRefundEmailsWaiting();
 
-  assert.equal(count, 2);
+  assert.equal(count, 1);
   assert.equal(runtime.sent.length, 0);
-  assert.equal(values[1][5], "");
+  assert.equal(values[1][5], "Yes");
   assert.equal(values[2][5], "");
 });
 
@@ -406,4 +436,58 @@ test("preview opens the submitted-portfolio email without sending", () => {
   assert.match(dialog.title, /refund email/i);
   assert.match(dialog.output.html, /certificate will be sent by the weekend/i);
   assert.equal(runtime.sent.length, 0);
+});
+
+test("setup installs exactly one automatic Refund edit trigger", () => {
+  const values = [baseHeaders.slice()];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const triggers = [];
+  const runtime = makeRuntime(spreadsheet, { triggers });
+  const context = loadProject(runtime.globals);
+
+  context.setupAefRefundEmailAutomation();
+  context.setupAefRefundEmailAutomation();
+
+  assert.equal(triggers.length, 1);
+  assert.equal(triggers[0].getHandlerFunction(), "handleAefRefundEdit");
+});
+
+test("changing Refund to Yes automatically emails only that row", () => {
+  const values = [
+    baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
+    ["approved@example.com", "Approved Person", "1", "Bank", "Approved", "Yes", "Submitted", "", "", ""],
+    ["waiting@example.com", "Waiting Person", "2", "Bank", "Waiting", "", "Submitted", "", "", ""]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet);
+  const context = loadProject(runtime.globals);
+
+  context.handleAefRefundEdit({
+    range: sheet.getRange(2, 6),
+    value: "Yes"
+  });
+
+  assert.equal(runtime.sent.length, 1);
+  assert.equal(runtime.sent[0].email, "approved@example.com");
+  assert.equal(values[1][7], "Sent");
+  assert.equal(values[2][7], "");
+});
+
+test("changing Refund to No or editing another column sends nothing", () => {
+  const values = [
+    baseHeaders.concat(["Refund Email Status", "Refund Email Error", "Refund Email Sent At"]),
+    ["person@example.com", "Person Name", "1", "Bank", "Person", "No", "Submitted", "", "", ""]
+  ];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const runtime = makeRuntime(spreadsheet);
+  const context = loadProject(runtime.globals);
+
+  context.handleAefRefundEdit({ range: sheet.getRange(2, 6), value: "No" });
+  context.handleAefRefundEdit({ range: sheet.getRange(2, 2), value: "Yes" });
+
+  assert.equal(runtime.sent.length, 0);
+  assert.equal(values[1][7], "");
 });

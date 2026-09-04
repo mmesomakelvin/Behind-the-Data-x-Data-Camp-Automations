@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Build a safe, button-controlled Apps Script automation for the AEF Cohort 1 refund sheet. Everyone currently listed has been refunded. The automation will mark them as refunded, email them once, and keep a clear record of what happened.
+Build a safe Apps Script automation for the AEF Cohort 1 refund sheet. A `Yes` value in the Refund column approves the email. Existing approved rows can be sent with a batch button, while future changes to `Yes` send that row automatically.
 
 ## Spreadsheet behaviour
 
@@ -35,9 +35,9 @@ The spreadsheet will have an `AEF Cohort 1 Refund` menu with these actions:
 3. `Preview Refund Email` displays the message without sending it.
 4. `Send Test Refund Email` sends only to the saved test address.
 5. `Count Refund Emails Waiting` reports how many participants have not been emailed.
-6. `LIVE: Mark All Refunded and Send Emails` asks for confirmation, marks all populated participant rows as `Refund = Yes`, and sends the live messages.
+6. `LIVE: Send Refund Emails Marked Yes` asks for confirmation and sends the live messages only to unsent rows whose Refund value is `Yes`.
 
-No automatic time-based or edit trigger will be installed. Live messages are sent only when the administrator chooses the live menu action and confirms the warning.
+Setup installs one authorised edit trigger. Changing a Refund cell to `Yes` sends that row automatically. Blank values, `No`, edits in other columns, and rows already marked `Sent` or `Sending` do nothing. No form-submit or time-based trigger is installed.
 
 ## Email content
 
@@ -51,7 +51,8 @@ The message will use the existing Behind the Data Academy sender identity and a 
 
 ## Sending safety
 
-- A live warning will show the number of emails about to be sent.
+- A live warning will show the number of `Yes` rows about to be emailed.
+- Blank and `No` refund rows will not be counted or emailed.
 - A participant already marked `Sent` or `Sending` will be skipped.
 - Each row will be marked `Sending` before Gmail is called, reducing the chance of duplicate emails if the button is clicked twice.
 - A script lock will prevent two live batches from running at the same time.
@@ -70,7 +71,9 @@ Automated tests will check:
 - Invalid email addresses are recorded without calling Gmail.
 - A successful send updates the correct status and date columns.
 - Cancelling the live warning sends nothing and changes no refund values.
-- Confirming the live warning marks populated rows as refunded and sends only eligible messages.
+- Confirming the live warning sends only eligible rows already marked `Yes`.
+- Changing one Refund cell to `Yes` sends only that row.
+- Changing Refund to `No` or editing another column sends nothing.
 - The test-email action never changes participant tracking information.
 
 ## Delivery

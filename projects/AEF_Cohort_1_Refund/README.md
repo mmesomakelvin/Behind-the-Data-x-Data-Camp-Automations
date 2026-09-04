@@ -2,7 +2,7 @@
 
 This Apps Script sends refund confirmation emails from the AEF Cohort 1 refund spreadsheet.
 
-Everyone included in a live run is marked `Refund = Yes`. People whose `Portfolio Status` says `Submitted` are also told that their certificate will be sent by the weekend.
+Only rows already marked `Refund = Yes` are included in a live run. People whose `Portfolio Status` says `Submitted` are also told that their certificate will be sent by the weekend.
 
 ## Safe first-time test
 
@@ -21,7 +21,7 @@ The test email uses a sample submitted participant so you can see the certificat
 ## Send the real emails
 
 1. Click `Count Refund Emails Waiting` and check the number.
-2. When ready, click `LIVE: Mark All Refunded and Send Emails`.
+2. When ready, click `LIVE: Send Refund Emails Marked Yes`.
 3. Read the warning and click Yes only when you want the real emails to go out.
 4. Review the three tracking columns after the run.
 
@@ -32,8 +32,9 @@ If a row remains on `Sending`, do not clear it or retry it automatically. Gmail 
 ## Important safety notes
 
 - Publishing or setting up the script does not send participant emails.
-- There are no automatic edit, form, or timed email triggers.
-- The live menu option is the only action that sends participant emails.
+- Setup installs one edit trigger. After setup, changing a Refund cell to `Yes` automatically sends that row's email.
+- Blank and `No` rows are not sent by the live action or the edit trigger.
+- There are no automatic form or timed email triggers.
 - Do not clear a Sent status unless you deliberately want that person to receive the email again.
 
 ## Local checks

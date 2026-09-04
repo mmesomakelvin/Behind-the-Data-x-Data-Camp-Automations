@@ -2,6 +2,7 @@ var AEF_REFUND_CONFIG = {
   senderName: "Behind the Data Academy",
   subject: "Your AEF Cohort 1 Refund Has Been Processed",
   testEmailProperty: "AEF_COHORT_1_REFUND_TEST_EMAIL",
+  editHandler: "handleAefRefundEdit",
   requiredHeaders: [
     "Email", "Name", "Account Number", "Bank", "Account Name", "Refund", "Portfolio Status"
   ],
@@ -24,7 +25,7 @@ function onOpen() {
     .addItem("Send Test Refund Email", "sendAefRefundTestEmail")
     .addSeparator()
     .addItem("Count Refund Emails Waiting", "countAefRefundEmailsWaiting")
-    .addItem("LIVE: Mark All Refunded and Send Emails", "sendAefRefundEmailsLive")
+    .addItem("LIVE: Send Refund Emails Marked Yes", "sendAefRefundEmailsLive")
     .addToUi();
 }
 
@@ -54,8 +55,41 @@ function setupAefRefundEmailAutomation() {
     .setFontColor("#ffffff")
     .setWrap(true);
   sheet.setFrozenRows(1);
+  installAefRefundEditTrigger_();
   toastAefRefund_("Refund email automation is ready. No email was sent.");
   return sheet;
+}
+
+function installAefRefundEditTrigger_() {
+  const hasTrigger = ScriptApp.getProjectTriggers().some(function (trigger) {
+    return trigger.getHandlerFunction() === AEF_REFUND_CONFIG.editHandler;
+  });
+  if (hasTrigger) return false;
+  ScriptApp.newTrigger(AEF_REFUND_CONFIG.editHandler)
+    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+    .onEdit()
+    .create();
+  return true;
+}
+
+function handleAefRefundEdit(e) {
+  if (!e || !e.range) return;
+  if (e.range.getRow() < 2 || e.range.getNumRows() !== 1 || e.range.getNumColumns() !== 1) return;
+  const sheet = e.range.getSheet();
+  const headers = getAefRefundHeaders_(sheet);
+  const isRefundSheet = AEF_REFUND_CONFIG.requiredHeaders.every(function (label) {
+    return findAefRefundHeaderIndex_(headers, label) !== -1;
+  });
+  if (!isRefundSheet) return;
+
+  const columns = getAefRefundColumns_(headers);
+  if (e.range.getColumn() !== columns.refundIndex + 1) return;
+  const newValue = e.value == null ? e.range.getValue() : e.value;
+  if (normalizeAefRefundValue_(newValue) !== "yes") return;
+
+  return withAefRefundLock_(function () {
+    return processAefRefundRow_(sheet, e.range.getRow());
+  });
 }
 
 function getAefRefundSheet_() {
@@ -119,6 +153,7 @@ function getPendingAefRefundRows_(sheet) {
       return String(row[columnIndex] == null ? "" : row[columnIndex]).trim() !== "";
     });
     if (!hasParticipantData) return;
+    if (normalizeAefRefundValue_(row[columns.refundIndex]) !== "yes") return;
     const status = normalizeAefRefundValue_(row[columns.emailStatusIndex]);
     if (status === "sent" || status === "sending") return;
     pending.push(offset + 2);
@@ -190,8 +225,8 @@ function sendAefRefundEmailsLive() {
   const ui = SpreadsheetApp.getUi();
   const answer = ui.alert(
     "Send refund emails?",
-    "This will mark " + pendingRows.length +
-      " participant(s) as refunded and send their refund emails. Continue?",
+    "This will send refund emails to " + pendingRows.length +
+      " participant(s) currently marked Yes. Continue?",
     ui.ButtonSet.YES_NO
   );
   if (answer !== ui.Button.YES) return toastAefRefund_("Live sending was cancelled.");
