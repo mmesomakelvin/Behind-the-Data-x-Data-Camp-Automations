@@ -80,6 +80,7 @@ function makeSheet(name, values) {
 
 function makeSpreadsheet(sheet) {
   return {
+    getId: () => "refund-spreadsheet-id",
     getSheets: () => [sheet],
     getActiveSheet: () => sheet,
     toast() {}
@@ -144,13 +145,21 @@ function makeRuntime(spreadsheet, options = {}) {
         getEffectiveUser: () => ({ getEmail: () => options.userEmail || "admin@example.com" })
       },
       ScriptApp: {
+        EventType: { ON_EDIT: "ON_EDIT", CLOCK: "CLOCK", ON_FORM_SUBMIT: "ON_FORM_SUBMIT" },
+        TriggerSource: { SPREADSHEETS: "SPREADSHEETS", CLOCK: "CLOCK", FORMS: "FORMS" },
         getProjectTriggers: () => triggers,
+        deleteTrigger(trigger) {
+          const index = triggers.indexOf(trigger);
+          if (index !== -1) triggers.splice(index, 1);
+        },
         newTrigger(handlerFunction) {
           return {
             forSpreadsheet() { return this; },
             onEdit() { return this; },
             create() {
-              const trigger = { getHandlerFunction: () => handlerFunction };
+              const trigger = makeTrigger(
+                handlerFunction, "ON_EDIT", "SPREADSHEETS", spreadsheet.getId()
+              );
               triggers.push(trigger);
               return trigger;
             }
@@ -158,6 +167,15 @@ function makeRuntime(spreadsheet, options = {}) {
         }
       }
     }
+  };
+}
+
+function makeTrigger(handlerFunction, eventType, triggerSource, sourceId = "refund-spreadsheet-id") {
+  return {
+    getHandlerFunction: () => handlerFunction,
+    getEventType: () => eventType,
+    getTriggerSource: () => triggerSource,
+    getTriggerSourceId: () => sourceId
   };
 }
 
@@ -451,6 +469,40 @@ test("setup installs exactly one automatic Refund edit trigger", () => {
 
   assert.equal(triggers.length, 1);
   assert.equal(triggers[0].getHandlerFunction(), "handleAefRefundEdit");
+});
+
+test("setup removes duplicate Refund edit triggers and retains one", () => {
+  const values = [baseHeaders.slice()];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const triggers = [
+    makeTrigger("handleAefRefundEdit", "ON_EDIT", "SPREADSHEETS"),
+    makeTrigger("handleAefRefundEdit", "ON_EDIT", "SPREADSHEETS")
+  ];
+  const runtime = makeRuntime(spreadsheet, { triggers });
+  const context = loadProject(runtime.globals);
+
+  context.setupAefRefundEmailAutomation();
+
+  assert.equal(triggers.length, 1);
+  assert.equal(triggers[0].getEventType(), "ON_EDIT");
+  assert.equal(triggers[0].getTriggerSource(), "SPREADSHEETS");
+});
+
+test("setup replaces a wrong trigger type that uses the Refund handler", () => {
+  const values = [baseHeaders.slice()];
+  const sheet = makeSheet("Refund list", values);
+  const spreadsheet = makeSpreadsheet(sheet);
+  const triggers = [makeTrigger("handleAefRefundEdit", "CLOCK", "CLOCK", null)];
+  const runtime = makeRuntime(spreadsheet, { triggers });
+  const context = loadProject(runtime.globals);
+
+  context.setupAefRefundEmailAutomation();
+
+  assert.equal(triggers.length, 1);
+  assert.equal(triggers[0].getEventType(), "ON_EDIT");
+  assert.equal(triggers[0].getTriggerSource(), "SPREADSHEETS");
+  assert.equal(triggers[0].getTriggerSourceId(), "refund-spreadsheet-id");
 });
 
 test("changing Refund to Yes automatically emails only that row", () => {

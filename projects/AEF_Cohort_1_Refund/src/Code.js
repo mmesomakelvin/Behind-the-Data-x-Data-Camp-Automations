@@ -61,12 +61,23 @@ function setupAefRefundEmailAutomation() {
 }
 
 function installAefRefundEditTrigger_() {
-  const hasTrigger = ScriptApp.getProjectTriggers().some(function (trigger) {
-    return trigger.getHandlerFunction() === AEF_REFUND_CONFIG.editHandler;
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  let validTrigger = null;
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() !== AEF_REFUND_CONFIG.editHandler) return;
+    const isCorrectTrigger =
+      trigger.getEventType() === ScriptApp.EventType.ON_EDIT &&
+      trigger.getTriggerSource() === ScriptApp.TriggerSource.SPREADSHEETS &&
+      trigger.getTriggerSourceId() === spreadsheet.getId();
+    if (isCorrectTrigger && !validTrigger) {
+      validTrigger = trigger;
+      return;
+    }
+    ScriptApp.deleteTrigger(trigger);
   });
-  if (hasTrigger) return false;
+  if (validTrigger) return false;
   ScriptApp.newTrigger(AEF_REFUND_CONFIG.editHandler)
-    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+    .forSpreadsheet(spreadsheet)
     .onEdit()
     .create();
   return true;
