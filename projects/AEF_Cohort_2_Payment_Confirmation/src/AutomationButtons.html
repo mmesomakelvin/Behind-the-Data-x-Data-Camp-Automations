@@ -53,6 +53,15 @@
     </div>
 
     <div class="card">
+      <h3>Programme access email</h3>
+      <p>This tells confirmed participants that Cohort 2 has begun and asks them to accept their access invitation within 72 hours.</p>
+      <button class="btn warn" onclick="runAction('previewAefPaymentAccessGrantedEmail')">Preview Access Email</button>
+      <button class="btn warn" onclick="runAction('sendAefPaymentAccessGrantedTestEmail')">Send Access Email to Test Address</button>
+      <button class="btn neutral" onclick="runAction('previewPendingAefPaymentAccessGrantedRows')">Count Confirmed Participants Waiting</button>
+      <button class="btn live" onclick="runAction('sendAefPaymentAccessGrantedEmails')">LIVE: Send Access Emails</button>
+    </div>
+
+    <div class="card">
       <h3>Automatic triggers</h3>
       <button class="btn neutral" onclick="runAction('installAefPaymentReviewTriggers')">Install Automatic Triggers</button>
       <button class="btn danger" onclick="runAction('clearAefPaymentReviewTriggers')">Clear Automatic Triggers</button>

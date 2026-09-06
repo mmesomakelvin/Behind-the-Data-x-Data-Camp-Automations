@@ -9,6 +9,7 @@ var AEF_PAYMENT_CONFIG = {
   receivedSubject: "Payment Evidence Received - Analytics Engineering Fellowship Cohort 2",
   confirmationSubject: "Payment Confirmed - Analytics Engineering Fellowship Cohort 2",
   onboardingSubject: "Join the AEF Cohort 2 WhatsApp Group - Onboarding Details",
+  accessSubject: "Your AEF Cohort 2 Access Is Ready - Accept Within 72 Hours",
   testEmailProperty: "AEF_COHORT_2_PAYMENT_TEST_EMAIL",
   triggerOwnerProperty: "AEF_COHORT_2_PAYMENT_TRIGGER_OWNER",
   retryPropertyPrefix: "AEF_PAYMENT_EMAIL_RETRY_",
@@ -44,7 +45,10 @@ var AEF_PAYMENT_CONFIG = {
     "Source Response Key",
     "Onboarding Email Status",
     "Onboarding Email Error",
-    "Onboarding Email Sent At"
+    "Onboarding Email Sent At",
+    "Access Email Status",
+    "Access Email Error",
+    "Access Email Sent At"
   ],
   reviewStatusColumn: "Payment Review Status",
   receivedStatusColumn: "Received Email Status",
@@ -56,7 +60,10 @@ var AEF_PAYMENT_CONFIG = {
   sourceKeyColumn: "Source Response Key",
   onboardingStatusColumn: "Onboarding Email Status",
   onboardingErrorColumn: "Onboarding Email Error",
-  onboardingSentAtColumn: "Onboarding Email Sent At"
+  onboardingSentAtColumn: "Onboarding Email Sent At",
+  accessStatusColumn: "Access Email Status",
+  accessErrorColumn: "Access Email Error",
+  accessSentAtColumn: "Access Email Sent At"
 };
 
 function onOpen() {
@@ -82,6 +89,11 @@ function onOpen() {
     .addItem("Send Test Onboarding Email", "sendAefPaymentOnboardingTestEmail")
     .addItem("Count Confirmed Participants Waiting", "previewPendingAefPaymentOnboardingRows")
     .addItem("LIVE: Send Onboarding Details", "sendAefPaymentOnboardingDetails")
+    .addSeparator()
+    .addItem("Preview Access Granted Email", "previewAefPaymentAccessGrantedEmail")
+    .addItem("Send Test Access Granted Email", "sendAefPaymentAccessGrantedTestEmail")
+    .addItem("Count Confirmed Participants Waiting for Access Email", "previewPendingAefPaymentAccessGrantedRows")
+    .addItem("LIVE: Send Access Granted Emails", "sendAefPaymentAccessGrantedEmails")
     .addSeparator()
     .addItem("Install Automatic Triggers", "installAefPaymentReviewTriggers")
     .addItem("Clear Automatic Triggers", "clearAefPaymentReviewTriggers")
@@ -356,15 +368,22 @@ function processAefPaymentEmailRow_(sheet, rowNumber, type) {
   const row = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn()).getValues()[0];
   const isReceived = type === "received";
   const isOnboarding = type === "onboarding";
+  const isAccess = type === "access";
   const statusIndex = isReceived
     ? columns.receivedStatusIndex
-    : isOnboarding ? columns.onboardingStatusIndex : columns.confirmationStatusIndex;
+    : isOnboarding
+      ? columns.onboardingStatusIndex
+      : isAccess ? columns.accessStatusIndex : columns.confirmationStatusIndex;
   const errorIndex = isReceived
     ? columns.receivedErrorIndex
-    : isOnboarding ? columns.onboardingErrorIndex : columns.confirmationErrorIndex;
+    : isOnboarding
+      ? columns.onboardingErrorIndex
+      : isAccess ? columns.accessErrorIndex : columns.confirmationErrorIndex;
   const sentAtIndex = isReceived
     ? columns.receivedSentAtIndex
-    : isOnboarding ? columns.onboardingSentAtIndex : columns.confirmationSentAtIndex;
+    : isOnboarding
+      ? columns.onboardingSentAtIndex
+      : isAccess ? columns.accessSentAtIndex : columns.confirmationSentAtIndex;
   const email = normalizeAefPaymentEmail_(row[columns.emailIndex]);
   const fullName = String(row[columns.fullNameIndex] || "").trim();
   const emailStatus = normalizeAefPaymentValue_(row[statusIndex]);
@@ -410,18 +429,24 @@ function processAefPaymentEmailRow_(sheet, rowNumber, type) {
       email,
       isReceived
         ? AEF_PAYMENT_CONFIG.receivedSubject
-        : isOnboarding ? AEF_PAYMENT_CONFIG.onboardingSubject : AEF_PAYMENT_CONFIG.confirmationSubject,
+        : isOnboarding
+          ? AEF_PAYMENT_CONFIG.onboardingSubject
+          : isAccess ? AEF_PAYMENT_CONFIG.accessSubject : AEF_PAYMENT_CONFIG.confirmationSubject,
       isReceived
         ? getAefPaymentReceivedEmailPlainText(fullName)
         : isOnboarding
           ? getAefPaymentOnboardingEmailPlainText(fullName)
-          : getAefPaymentConfirmationEmailPlainText(fullName),
+          : isAccess
+            ? getAefPaymentAccessGrantedEmailPlainText(fullName)
+            : getAefPaymentConfirmationEmailPlainText(fullName),
       {
         htmlBody: isReceived
           ? getAefPaymentReceivedEmailHtml(fullName)
           : isOnboarding
             ? getAefPaymentOnboardingEmailHtml(fullName)
-            : getAefPaymentConfirmationEmailHtml(fullName),
+            : isAccess
+              ? getAefPaymentAccessGrantedEmailHtml(fullName)
+              : getAefPaymentConfirmationEmailHtml(fullName),
         name: AEF_PAYMENT_CONFIG.senderName
       }
     );
@@ -544,6 +569,33 @@ function sendAefPaymentOnboardingDetails() {
   return processAefPaymentTargetsWithLock_(targets.keys, "onboarding");
 }
 
+function previewPendingAefPaymentAccessGrantedRows() {
+  ensureAefPaymentReviewSheet_();
+  const targets = getPendingAefPaymentEmailTargets_("access");
+  return logAndToastAefPayment_(
+    "Confirmed participants waiting for the access email: " + targets.keys.length +
+    ". Valid email addresses: " + targets.valid +
+    ". Missing or invalid email addresses: " + targets.invalid + "."
+  );
+}
+
+function sendAefPaymentAccessGrantedEmails() {
+  ensureAefPaymentReviewSheet_();
+  const targets = getPendingAefPaymentEmailTargets_("access");
+  if (!targets.keys.length) {
+    return logAndToastAefPayment_("No access emails are waiting to be sent.");
+  }
+  const ui = SpreadsheetApp.getUi();
+  const answer = ui.alert(
+    "Send access granted emails?",
+    "This will send up to " + targets.valid + " live access email(s). " +
+      targets.invalid + " row(s) without a valid email will be marked and skipped. Continue?",
+    ui.ButtonSet.YES_NO
+  );
+  if (answer !== ui.Button.YES) return logAndToastAefPayment_("Live sending was cancelled.");
+  return processAefPaymentTargetsWithLock_(targets.keys, "access");
+}
+
 function processAefPaymentTargetsWithLock_(sourceKeys, type) {
   return withAefPaymentLock_(function () {
     const sheet = getAefPaymentReviewSheet_();
@@ -571,7 +623,9 @@ function getPendingAefPaymentEmailTargets_(type) {
   const columns = getAefPaymentReviewColumnIndexes_(getAefPaymentHeaders_(sheet));
   const statusIndex = type === "received"
     ? columns.receivedStatusIndex
-    : type === "onboarding" ? columns.onboardingStatusIndex : columns.confirmationStatusIndex;
+    : type === "onboarding"
+      ? columns.onboardingStatusIndex
+      : type === "access" ? columns.accessStatusIndex : columns.confirmationStatusIndex;
   const targets = { keys: [], valid: 0, invalid: 0 };
   getAefPaymentSheetRows_(sheet).forEach(function (row, index) {
     const emailStatus = normalizeAefPaymentValue_(row[statusIndex]);
@@ -650,6 +704,27 @@ function sendAefPaymentOnboardingTestEmail() {
     }
   );
   return logAndToastAefPayment_("Test onboarding email sent to: " + recipient);
+}
+
+function previewAefPaymentAccessGrantedEmail() {
+  const html = HtmlService.createHtmlOutput(getAefPaymentAccessGrantedEmailHtml("Accepted Fellow"))
+    .setWidth(720)
+    .setHeight(700);
+  SpreadsheetApp.getUi().showModalDialog(html, "AEF Cohort 2 Access Granted Email");
+}
+
+function sendAefPaymentAccessGrantedTestEmail() {
+  const recipient = getAefPaymentTestEmailRecipient_();
+  GmailApp.sendEmail(
+    recipient,
+    "[TEST] " + AEF_PAYMENT_CONFIG.accessSubject,
+    getAefPaymentAccessGrantedEmailPlainText("Accepted Fellow"),
+    {
+      htmlBody: getAefPaymentAccessGrantedEmailHtml("Accepted Fellow"),
+      name: AEF_PAYMENT_CONFIG.senderName
+    }
+  );
+  return logAndToastAefPayment_("Test access email sent to: " + recipient);
 }
 
 function setAefPaymentTestEmailRecipient() {
@@ -1023,7 +1098,10 @@ function getAefPaymentReviewColumnIndexes_(headers) {
     sourceKeyIndex: findAefPaymentHeaderIndex_(headers, AEF_PAYMENT_CONFIG.sourceKeyColumn),
     onboardingStatusIndex: findAefPaymentHeaderIndex_(headers, AEF_PAYMENT_CONFIG.onboardingStatusColumn),
     onboardingErrorIndex: findAefPaymentHeaderIndex_(headers, AEF_PAYMENT_CONFIG.onboardingErrorColumn),
-    onboardingSentAtIndex: findAefPaymentHeaderIndex_(headers, AEF_PAYMENT_CONFIG.onboardingSentAtColumn)
+    onboardingSentAtIndex: findAefPaymentHeaderIndex_(headers, AEF_PAYMENT_CONFIG.onboardingSentAtColumn),
+    accessStatusIndex: findAefPaymentHeaderIndex_(headers, AEF_PAYMENT_CONFIG.accessStatusColumn),
+    accessErrorIndex: findAefPaymentHeaderIndex_(headers, AEF_PAYMENT_CONFIG.accessErrorColumn),
+    accessSentAtIndex: findAefPaymentHeaderIndex_(headers, AEF_PAYMENT_CONFIG.accessSentAtColumn)
   };
   const required = [
     "timestampIndex", "emailIndex", "fullNameIndex", "linkedInIndex",

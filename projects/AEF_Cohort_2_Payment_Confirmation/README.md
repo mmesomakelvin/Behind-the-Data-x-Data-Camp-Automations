@@ -17,7 +17,8 @@ This Google Apps Script project manages the Cohort 2 acceptance-form payment wor
 - Lets you send the same acknowledgement to current applicants after you preview the count and approve the live send.
 - Sends the final payment-confirmation email when you change `Payment Review Status` to `Confirmed`.
 - Lets you send a separate onboarding email to confirmed participants. It includes the WhatsApp group, the Saturday webinar details, and the Google Meet link.
-- Records whether each received, confirmation, or onboarding email is `Sending`, `Sent`, `Failed`, or `Skipped - No Email`.
+- Lets you send a separate programme-access email to confirmed participants after access has been granted.
+- Records whether each received, confirmation, onboarding, or access email is `Sending`, `Sent`, `Failed`, or `Skipped - No Email`.
 - Uses a hidden source key to update the correct row and avoid duplicate review rows.
 
 ## Payment Review Status
@@ -44,8 +45,8 @@ The script saves that account as the trigger owner and blocks a second account f
 
 1. Open `AEF Cohort 2 Payment Review` -> `Open Automation Buttons`.
 2. Enter your own email address and click `Save Test Email Address`.
-3. Preview both email types.
-4. Send both email types to your test address and check your inbox.
+3. Preview the email type you want to use.
+4. Send that email type to your test address and check your inbox.
 5. Submit one test response through the acceptance form using an email address you control.
 6. Confirm that one row appears in `Payment Review` and its `Received Email Status` becomes `Sent`.
 7. On that test row only, change `Payment Review Status` to `Confirmed`.
@@ -71,6 +72,25 @@ The first count or live action safely creates these tracking columns if they do 
 - `Onboarding Email Sent At`
 
 Only rows with `Payment Review Status` set to `Confirmed` qualify. Rows already marked `Sent` or `Sending` are skipped.
+
+## Send the programme access email
+
+This is a separate manual batch for confirmed participants. It tells them that Cohort 2 has begun, asks them to find the access invitation in their inbox or spam folder, and gives them 72 hours to accept it.
+
+1. Refresh the spreadsheet after the new code is published.
+2. Open `AEF Cohort 2 Payment Review` -> `Preview Access Granted Email`.
+3. Use `Send Test Access Granted Email` and check your own inbox.
+4. Click `Count Confirmed Participants Waiting for Access Email` and check the number.
+5. Click `LIVE: Send Access Granted Emails` only when you are ready.
+6. Read the warning and choose `Yes` to send.
+
+The count or live action creates these tracking columns if they do not exist:
+
+- `Access Email Status`
+- `Access Email Error`
+- `Access Email Sent At`
+
+Only rows marked `Confirmed` qualify. Rows already marked `Sent` or `Sending` are skipped, so rerunning the live action does not intentionally send the same access email twice.
 
 ## Email current applicants
 

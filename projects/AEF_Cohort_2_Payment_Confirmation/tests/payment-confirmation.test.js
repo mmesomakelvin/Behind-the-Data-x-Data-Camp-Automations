@@ -18,7 +18,8 @@ const reviewHeaders = [
   "Payment Evidence", "Payment Review Status", "Received Email Status",
   "Received Email Error", "Received Email Sent At", "Confirmation Email Status",
   "Confirmation Email Error", "Confirmation Email Sent At", "Source Response Key",
-  "Onboarding Email Status", "Onboarding Email Error", "Onboarding Email Sent At"
+  "Onboarding Email Status", "Onboarding Email Error", "Onboarding Email Sent At",
+  "Access Email Status", "Access Email Error", "Access Email Sent At"
 ];
 
 function loadScripts(fileNames, globals = {}) {
@@ -33,9 +34,99 @@ function loadScripts(fileNames, globals = {}) {
 
 function loadProject(globals = {}) {
   return loadScripts([
-    "ReceivedEmailTemplate.js", "EmailTemplate.js", "OnboardingEmailTemplate.js", "Code.js"
+    "ReceivedEmailTemplate.js", "EmailTemplate.js", "OnboardingEmailTemplate.js",
+    "AccessGrantedEmailTemplate.js", "Code.js"
   ], globals);
 }
+
+test("access email says Cohort 2 has begun and requires acceptance within 72 hours", () => {
+  const context = loadProject();
+  assert.equal(typeof context.getAefPaymentAccessGrantedEmailHtml, "function");
+  assert.equal(typeof context.getAefPaymentAccessGrantedEmailPlainText, "function");
+
+  for (const body of [
+    context.getAefPaymentAccessGrantedEmailHtml("Ada Lovelace"),
+    context.getAefPaymentAccessGrantedEmailPlainText("Ada Lovelace")
+  ]) {
+    assert.match(body, /Hello Ada/i);
+    assert.match(body, /Cohort 2[^.]*officially begun/i);
+    assert.match(body, /access[^.]*granted/i);
+    assert.match(body, /check[^.]*inbox/i);
+    assert.match(body, /spam/i);
+    assert.match(body, /accept[^.]*within 72 hours/i);
+  }
+});
+
+test("access target list includes only confirmed participants not already sent", () => {
+  const reviewValues = [
+    reviewHeaders.slice(),
+    makeReviewRow({ email: "ready@example.com", status: "Confirmed", key: "ready-key" }),
+    makeReviewRow({ email: "pending@example.com", status: "Pending", key: "pending-key" }),
+    makeReviewRow({
+      email: "sent@example.com", status: "Confirmed", accessStatus: "Sent", key: "sent-key"
+    }),
+    makeReviewRow({
+      email: "sending@example.com", status: "Confirmed", accessStatus: "Sending", key: "sending-key"
+    }),
+    makeReviewRow({ email: "not-an-email", status: "Confirmed", key: "invalid-key" })
+  ];
+  const { spreadsheet } = makeSpreadsheet({ "Payment Review": reviewValues });
+  const context = loadProject(makeGlobals(spreadsheet));
+
+  const targets = context.getPendingAefPaymentEmailTargets_("access");
+
+  assert.deepEqual(Array.from(targets.keys), ["ready-key", "invalid-key"]);
+  assert.equal(targets.valid, 1);
+  assert.equal(targets.invalid, 1);
+});
+
+test("access send uses its own message and tracking columns", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({
+    email: "ready@example.com", name: "Ada Lovelace", status: "Confirmed",
+    onboardingStatus: "Sent", key: "ready-key"
+  })];
+  const { spreadsheet, sheets } = makeSpreadsheet({ "Payment Review": reviewValues });
+  const sent = [];
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: {
+      sendEmail(email, subject, plainText, options) {
+        sent.push({ email, subject, plainText, html: options.htmlBody });
+      }
+    }
+  }));
+
+  const result = context.processAefPaymentEmailRow_(sheets["Payment Review"], 2, "access");
+
+  assert.equal(result, "sent");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].email, "ready@example.com");
+  assert.match(sent[0].subject, /access/i);
+  assert.match(sent[0].plainText, /within 72 hours/i);
+  assert.match(sent[0].html, /officially begun/i);
+  assert.equal(reviewValues[1][16], "Sent");
+  assert.equal(reviewValues[1][17], "");
+  assert.ok(reviewValues[1][18]);
+  assert.equal(reviewValues[1][13], "Sent");
+});
+
+test("cancelling the live access email warning sends nothing", () => {
+  const reviewValues = [reviewHeaders.slice(), makeReviewRow({
+    email: "ready@example.com", status: "Confirmed", key: "ready-key"
+  })];
+  const { spreadsheet } = makeSpreadsheet({ "Payment Review": reviewValues });
+  let sends = 0;
+  const globals = makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  });
+  globals.SpreadsheetApp = makeSpreadsheetApp(spreadsheet, makeUi("NO"));
+  const context = loadProject(globals);
+  assert.equal(typeof context.sendAefPaymentAccessGrantedEmails, "function");
+
+  context.sendAefPaymentAccessGrantedEmails();
+
+  assert.equal(sends, 0);
+  assert.equal(reviewValues[1][16], "");
+});
 
 test("onboarding email gives confirmed fellows the WhatsApp and webinar details", () => {
   const context = loadProject();
@@ -199,6 +290,29 @@ test("setup appends onboarding columns after the existing source key", () => {
     "Onboarding Email Status", "Onboarding Email Error", "Onboarding Email Sent At"
   ]);
   assert.equal(reviewValues[1][12], "ready-key");
+});
+
+test("access count upgrades an existing sheet without changing participant data or sending email", () => {
+  const existingHeaders = reviewHeaders.slice(0, 16);
+  const existingRow = makeReviewRow({
+    email: "ready@example.com", name: "Ada Lovelace", status: "Confirmed",
+    confirmationStatus: "Sent", onboardingStatus: "Sent", key: "ready-key"
+  }).slice(0, 16);
+  const originalRow = existingRow.slice();
+  const reviewValues = [existingHeaders, existingRow];
+  const { spreadsheet } = makeSpreadsheet({ "Payment Review": reviewValues });
+  let sends = 0;
+  const context = loadProject(makeGlobals(spreadsheet, {
+    GmailApp: { sendEmail: () => { sends++; } }
+  }));
+
+  context.previewPendingAefPaymentAccessGrantedRows();
+
+  assert.deepEqual(reviewValues[0].slice(16, 19), [
+    "Access Email Status", "Access Email Error", "Access Email Sent At"
+  ]);
+  assert.deepEqual(reviewValues[1].slice(0, 16), originalRow);
+  assert.equal(sends, 0);
 });
 
 test("sync creates one review row and never sends email", () => {
@@ -765,7 +879,8 @@ function makeReviewRow(options) {
     "https://drive.google.com/payment", options.status || "Pending",
     options.receivedStatus || "", "", "", options.confirmationStatus || "",
     "", "", options.key || "2026-08-28t10:00:00|1234",
-    options.onboardingStatus || "", "", ""
+    options.onboardingStatus || "", "", "",
+    options.accessStatus || "", "", ""
   ];
 }
 
