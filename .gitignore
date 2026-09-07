@@ -1,1 +1,5 @@
 .worktrees/
+.superpowers/
+assets/signatures/
+artifacts/certificates/*.pdf
+artifacts/certificates/*-preview.png

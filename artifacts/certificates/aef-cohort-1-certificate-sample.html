@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEF Cohort 1 Certificate Sample</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&display=swap');
+  @page { size:A4 landscape; margin:0; }
+  * { box-sizing:border-box; }
+  html,body { width:100%; min-height:100%; margin:0; background:#fbf9f3; }
+  body { display:grid; place-items:center; font-family:'Poppins',Arial,sans-serif; }
+  h2,.subtitle,.preview-note { display:none !important; }
+  .preview-stage { width:100%; margin:0; }
+  .certificate-choice { width:100%; border:0; padding:0; }
+  .certificate-choice:hover { border-color:#1aa48e; }
+  .certificate-choice.selected { border-color:#2563eb; box-shadow:0 0 0 4px rgba(37,99,235,.12); }
+  .certificate { width:297mm; height:210mm; min-height:0; position:relative; overflow:hidden; box-sizing:border-box; padding:39px 54px 31px; background:#fbf9f3; color:#142b49; border:1px solid #b7aa90; box-shadow:none; font-family:'Poppins',Arial,sans-serif; }
+  .certificate:before { content:""; position:absolute; inset:11px; border:1px solid #d8cfbd; pointer-events:none; }
+  .certificate:after { content:""; position:absolute; inset:20px; border:1px solid rgba(20,43,73,.13); pointer-events:none; }
+  .corner { position:absolute; width:54px; height:54px; z-index:1; }
+  .corner:before,.corner:after { content:""; position:absolute; background:#159a86; }
+  .corner:before { width:54px; height:2px; }
+  .corner:after { width:2px; height:54px; }
+  .corner.tl { left:20px; top:20px; }
+  .corner.tr { right:20px; top:20px; transform:rotate(90deg); }
+  .corner.bl { left:20px; bottom:20px; transform:rotate(-90deg); }
+  .corner.br { right:20px; bottom:20px; transform:rotate(180deg); }
+  .inner { position:relative; z-index:2; height:100%; display:grid; grid-template-rows:auto 1fr auto auto; }
+  .masthead { display:grid; grid-template-columns:94px 1fr auto; align-items:center; gap:22px; padding:2px 12px 21px; border-bottom:1px solid #d9d0bf; }
+  .logo { width:88px; height:88px; object-fit:cover; display:block; }
+  .programme { padding-left:3px; }
+  .programme small { display:block; color:#159a86; font-size:8px; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; margin-bottom:5px; }
+  .programme strong { display:block; color:#142b49; font-size:22px; font-weight:500; line-height:1.2; letter-spacing:-.45px; }
+  .cohort { text-align:right; color:#142b49; }
+  .cohort span { display:block; color:#7a8492; font-size:7.5px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; }
+  .cohort strong { display:block; margin-top:5px; font-size:17px; font-weight:500; }
+  .award { align-self:center; text-align:center; padding:24px 42px 18px; }
+  .award .overline { margin:0 0 9px; color:#159a86; font-size:8.5px; font-weight:800; letter-spacing:3.4px; text-transform:uppercase; }
+  .award h1 { margin:0; color:#142b49; font-size:54px; font-weight:600; line-height:1; letter-spacing:-1.8px; }
+  .award .rule { width:72px; height:2px; margin:18px auto 20px; background:#cfa33a; }
+  .award .presented { margin:0 0 7px; color:#7b8491; font-size:10px; letter-spacing:.3px; }
+  .recipient { display:inline-block; min-width:72%; padding:0 28px 10px; border-bottom:1px solid #b9a874; color:#142b49; font-size:46px; font-style:italic; font-weight:600; line-height:1.12; letter-spacing:-1.3px; }
+  .award-copy { max-width:790px; margin:18px auto 0; color:#43536a; font-size:12.7px; line-height:1.7; }
+  .award-copy strong { color:#142b49; }
+  .distinction { margin:15px 0 0; color:#159a86; font-size:8px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+  .signing { display:grid; grid-template-columns:1fr 78px 1fr; gap:38px; align-items:end; padding:13px 66px 17px; }
+  .signature { text-align:center; }
+  .signature .signed { height:60px; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; color:#263e5d; font-size:14px; font-style:italic; font-weight:500; }
+  .signature .signed img { width:112px; max-height:60px; object-fit:contain; display:block; }
+  .signature .line { border-top:1px solid #7f8d9e; margin-bottom:5px; }
+  .signature strong { display:block; color:#142b49; font-size:9px; }
+  .signature span { display:block; margin-top:2px; color:#7b8491; font-size:7.5px; }
+  .seal { width:66px; height:66px; justify-self:center; display:grid; place-items:center; border:1px solid #cfa33a; border-radius:50%; color:#142b49; text-align:center; }
+  .seal div { width:52px; height:52px; display:grid; place-items:center; border:1px solid #cfa33a; border-radius:50%; font-size:6px; letter-spacing:.7px; }
+  .seal strong { display:block; color:#159a86; font-size:16px; font-weight:700; line-height:1; margin-bottom:2px; }
+  .metadata { display:flex; justify-content:space-between; align-items:center; margin:0 12px; padding-top:10px; border-top:1px solid #d9d0bf; color:#707b8a; font-size:7.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; }
+  .metadata b { color:#142b49; }
+  .preview-note { margin-top:16px; text-align:center; color:#64748b; font-size:12px; }
+  @media(max-width:1050px){ .certificate{min-height:540px;padding:31px 40px 25px}.masthead{grid-template-columns:72px 1fr auto}.logo{width:68px;height:68px}.award{padding:20px 34px 14px}.award h1{font-size:43px}.recipient{font-size:36px}.signing{padding:8px 44px 11px} }
+</style>
+</head>
+<body>
+
+<h2>Version nine - Poppins and transparent signature</h2>
+<p class="subtitle">The full certificate now uses Poppins. The central award area, recipient name and signing section are larger, and the paper background has been removed from Ayoade Adegbite's signature.</p>
+
+<div class="preview-stage">
+  <div class="certificate-choice" data-choice="approve-poppins-v9" onclick="toggleSelect(this)">
+    <div class="certificate">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="inner">
+        <header class="masthead">
+          <img class="logo" src="../../assets/branding/btd-logo-primary.jpeg" alt="Behind The Data Academy">
+          <div class="programme"><small>Behind The Data Academy</small><strong>Analytics Engineering Fellowship</strong></div>
+          <div class="cohort"><span>Programme year</span><strong>2026 · Cohort 1</strong></div>
+        </header>
+
+        <section class="award">
+          <p class="overline">Certificate of</p>
+          <h1>Participation</h1>
+          <div class="rule"></div>
+          <p class="presented">This certificate is proudly presented to</p>
+          <div class="recipient">Ada Lovelace</div>
+          <p class="award-copy">in recognition of participation in the <strong>Analytics Engineering Fellowship 2026, Cohort 1</strong>, and commitment to practical learning, project work and the development of analytics engineering skills.</p>
+          <p class="distinction">Learning · Practical Project Work · Community Participation</p>
+        </section>
+
+        <section class="signing">
+          <div class="signature"><div class="signed"><img src="../../assets/signatures/ayoade-adegbite-signature-transparent.png" alt="Ayoade Adegbite's signature"></div><div class="line"></div><strong>Ayoade Adegbite</strong><span>Programme Director</span></div>
+          <div class="seal"><div><span><strong>AEF</strong>VERIFIED<br>2026</span></div></div>
+          <div class="signature"><div class="signed">Lead Facilitator</div><div class="line"></div><strong>Facilitator Name</strong><span>Lead Facilitator</span></div>
+        </section>
+
+        <footer class="metadata"><span>Certificate ID: <b>AEF-2026-C1-0001</b></span><span>Issued September 2026</span></footer>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="preview-note">The downloadable PDF will use this same layout and typography.</p>
+</body>
+</html>
