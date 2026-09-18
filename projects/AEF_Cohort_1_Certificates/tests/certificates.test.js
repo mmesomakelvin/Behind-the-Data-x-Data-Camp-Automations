@@ -268,3 +268,58 @@ test("every tracker row shows its person's certificate ID", () => {
   );
   assert.deepEqual(ids, ["AEF-2026-C1-0001-K7QX", "", "AEF-2026-C1-0001-K7QX", ""]);
 });
+
+function fakeEdit({ sheetName = "Review Tracker", row = 5, column = 9, numRows = 1, numColumns = 1, statuses = [["Ok"]] }) {
+  const headers = ["Submitted at", "Name", "Email", "Cohort", "Engagement submitted",
+    "# Engagements", "GitHub link", "Google link", "Status", "Issues"];
+  const tracker = {
+    getName: () => sheetName,
+    getLastColumn: () => headers.length,
+    getParent: () => "SPREADSHEET",
+    getRange: (r) => ({ getValues: () => (r === 1 ? [headers] : statuses) })
+  };
+  return {
+    range: {
+      getSheet: () => tracker,
+      getRow: () => row,
+      getColumn: () => column,
+      getNumRows: () => numRows,
+      getNumColumns: () => numColumns
+    }
+  };
+}
+
+function loadWithFakeUpdate() {
+  const toasts = [];
+  const app = loadProject({
+    Logger: { log: () => {} },
+    LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
+    SpreadsheetApp: { getActiveSpreadsheet: () => ({ toast: (message) => toasts.push(message) }) }
+  });
+  const updates = [];
+  app.updateCertificateList_ = (ss) => { updates.push(ss); return { added: 1, rows: [] }; };
+  return { app, updates, toasts };
+}
+
+test("marking a Review Tracker row Ok updates the certificate list straight away", () => {
+  const { app, updates, toasts } = loadWithFakeUpdate();
+  app.onEdit(fakeEdit({}));
+  assert.deepEqual(updates, ["SPREADSHEET"]);
+  assert.match(toasts[0], /1 fellow\(s\) added/);
+});
+
+test("other edits do not touch the certificate list", () => {
+  const { app, updates } = loadWithFakeUpdate();
+  app.onEdit(fakeEdit({ statuses: [["Not ok"]] }));
+  app.onEdit(fakeEdit({ statuses: [[""]] }));
+  app.onEdit(fakeEdit({ column: 2 }));
+  app.onEdit(fakeEdit({ sheetName: "Certificates" }));
+  app.onEdit(fakeEdit({ row: 1 }));
+  assert.equal(updates.length, 0);
+});
+
+test("pasting Ok over several rows and columns is noticed", () => {
+  const { app, updates } = loadWithFakeUpdate();
+  app.onEdit(fakeEdit({ column: 8, numColumns: 3, numRows: 3, statuses: [[""], ["Ok"], [""]] }));
+  assert.equal(updates.length, 1);
+});

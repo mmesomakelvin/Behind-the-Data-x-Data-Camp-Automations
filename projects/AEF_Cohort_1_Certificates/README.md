@@ -22,6 +22,10 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
   numbers on the verification website. Refreshing the list never changes a number.
 - Writes each person's certificate number into a **Certificate ID** column at the end of the
   Review Tracker, on every one of their submission rows.
+- **Updates automatically:** as soon as someone sets a Review Tracker row's Status to **Ok**, that
+  person is added to the Certificates tab (or, if their email is already there, their project count
+  is updated) and a small message appears at the bottom right. Nobody is emailed. The
+  **Build / Refresh Certificate List** button does the same for all rows at once and is a safe backup.
 - Tidies names typed all in lower or upper case (`ada lovelace` becomes `Ada Lovelace`).
 - Emails nobody until the team ticks **Approved** on that fellow's row.
 - For each approved fellow: makes the PDF, saves it in the **AEF Cohort 1 Certificates**
@@ -103,7 +107,8 @@ Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
 
 ## Sending Certificates
 
-1. Click **2. Build / Refresh Certificate List**.
+1. Mark submissions **Ok** in the Review Tracker's Status column; each person is added to the
+   Certificates tab automatically. (Or click **2. Build / Refresh Certificate List** to update everyone at once.)
 2. Check each **Name on certificate** and tick **Approved** for rows that are ready.
 3. Save your email under **Test email address**, select a fellow's row, and click
    **Send Test Certificate to Me**. Check the PDF carefully.
