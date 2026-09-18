@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEF Certificate Preview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,600;0,700;1,600&display=swap');
+  :root { --ink:#142b49; --muted:#64748b; --teal:#159a86; --bg:#eef1f4; --panel:#fff; --line:#d7dde4; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px 16px 40px; background:var(--bg); color:var(--ink); font-family:'Poppins',Arial,sans-serif; }
+  header { max-width:1123px; margin:0 auto 16px; }
+  h1 { margin:0 0 4px; font-size:20px; font-weight:600; }
+  header p { margin:0; color:var(--muted); font-size:13px; }
+  .controls { max-width:1123px; margin:0 auto 16px; padding:14px 16px; display:flex; flex-wrap:wrap; gap:12px 20px; align-items:end; background:var(--panel); border:1px solid var(--line); border-radius:10px; }
+  label { display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:600; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); }
+  input { width:280px; max-width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; font:14px 'Poppins',Arial,sans-serif; color:var(--ink); }
+  .samples { display:flex; flex-wrap:wrap; gap:6px; }
+  .samples button { padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:#f8fafc; color:var(--ink); font:12px 'Poppins',Arial,sans-serif; cursor:pointer; }
+  .samples button:hover { border-color:var(--teal); }
+  .readout { font-size:12px; color:var(--muted); }
+  .readout b { color:var(--ink); }
+  .readout .warn { color:#b42318; font-weight:600; }
+  .stage { max-width:1123px; margin:0 auto; overflow-x:auto; }
+  .page { position:relative; background-size:100% 100%; box-shadow:0 12px 32px rgba(15,39,71,.16); }
+  .box { position:absolute; display:flex; align-items:center; justify-content:center; white-space:nowrap; overflow:visible; line-height:1; }
+  .box.left { justify-content:flex-start; }
+  .show-boxes .box { outline:1px dashed rgba(21,154,134,.7); }
+  .box.overflow { outline:2px solid #b42318; }
+  .missing { padding:40px; text-align:center; color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AEF Cohort 1 certificate preview</h1>
+  <p>Shows exactly where the automation places each fellow's name and certificate number. Positions and sizes come from <code>projects/AEF_Cohort_1_Certificates/src/CertificateLayout.js</code>.</p>
+</header>
+
+<div class="controls">
+  <label>Name on certificate <input id="name" value="Ada Lovelace"></label>
+  <label>Certificate ID <input id="cid" value="AEF-2026-C1-0001"></label>
+  <label style="flex-direction:row;align-items:center;gap:6px;text-transform:none;letter-spacing:0"><input type="checkbox" id="boxes" style="width:auto"> Show text boxes</label>
+  <div>
+    <div class="readout" style="margin-bottom:6px">Try a name:</div>
+    <div class="samples">
+      <button>Ada Lovelace</button>
+      <button>Chukwuemeka Oluwaseun Adebayo-Okonkwo</button>
+      <button>Oluwatobiloba Ifeoluwa Babatunde-Ogunleye</button>
+      <button>Li Wei</button>
+    </div>
+  </div>
+  <div class="readout" id="readout"></div>
+</div>
+
+<div class="stage"><div class="page" id="page">
+  <div class="box" id="nameBox"></div>
+  <div class="box left" id="idBox"></div>
+</div></div>
+
+<script src="../../projects/AEF_Cohort_1_Certificates/src/CertificateLayout.js"></script>
+<script>
+  var L = CERT_LAYOUT;
+  var page = document.getElementById('page');
+  var nameBox = document.getElementById('nameBox');
+  var idBox = document.getElementById('idBox');
+  var readout = document.getElementById('readout');
+
+  page.style.width = L.page.width + 'pt';
+  page.style.height = L.page.height + 'pt';
+  page.style.backgroundImage = 'url(../../assets/signatures/aef-cohort-1-certificate-background.png)';
+
+  var probe = new Image();
+  probe.onerror = function () {
+    page.innerHTML = '<div class="missing">Background image not found. Run <code>scripts/render-certificate-background.ps1</code> first.</div>';
+  };
+  probe.src = '../../assets/signatures/aef-cohort-1-certificate-background.png';
+
+  function place(el, spec, fontSize) {
+    el.style.left = spec.left + 'pt';
+    el.style.top = spec.top + 'pt';
+    el.style.width = spec.width + 'pt';
+    el.style.height = spec.height + 'pt';
+    el.style.padding = L.textBoxInset.y + 'pt ' + L.textBoxInset.x + 'pt';
+    el.style.fontFamily = "'" + spec.fontFamily + "', Arial, sans-serif";
+    el.style.fontWeight = spec.fontWeight;
+    el.style.fontStyle = spec.italic ? 'italic' : 'normal';
+    el.style.color = spec.color;
+    el.style.fontSize = fontSize + 'pt';
+  }
+
+  function render() {
+    var name = document.getElementById('name').value;
+    var cid = document.getElementById('cid').value;
+    var size = nameFontSize_(name);
+    nameBox.textContent = name;
+    idBox.textContent = cid;
+    place(nameBox, L.name, size);
+    place(idBox, L.certificateId, L.certificateId.fontSize);
+    var overflow = nameBox.scrollWidth > nameBox.clientWidth + 1;
+    nameBox.classList.toggle('overflow', overflow);
+    readout.innerHTML = 'Name size: <b>' + size + 'pt</b> (' + name.trim().length + ' characters)' +
+      (overflow ? ' <span class="warn">Too wide - would wrap in the PDF</span>' : '');
+  }
+
+  document.getElementById('name').addEventListener('input', render);
+  document.getElementById('cid').addEventListener('input', render);
+  document.getElementById('boxes').addEventListener('change', function (e) {
+    page.classList.toggle('show-boxes', e.target.checked);
+  });
+  document.querySelectorAll('.samples button').forEach(function (b) {
+    b.addEventListener('click', function () { document.getElementById('name').value = b.textContent; render(); });
+  });
+  var params = new URLSearchParams(location.search);
+  if (params.get('name')) document.getElementById('name').value = params.get('name');
+  if (params.get('id')) document.getElementById('cid').value = params.get('id');
+  document.fonts.ready.then(render);
+  render();
+</script>
+</body>
+</html>

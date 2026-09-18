@@ -99,5 +99,12 @@
 </div>
 
 <p class="preview-note">The downloadable PDF will use this same layout and typography.</p>
+<script>
+  // Open with #background to hide the per-fellow text; used to render the automation's background image.
+  if (location.hash === '#background') {
+    document.querySelector('.recipient').innerHTML = '&nbsp;';
+    document.querySelector('.metadata b').style.visibility = 'hidden';
+  }
+</script>
 </body>
 </html>
