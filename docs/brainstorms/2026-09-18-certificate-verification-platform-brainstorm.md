@@ -70,6 +70,9 @@ A lookup takes 1-2 seconds, which is fine for occasional verification.
 - *Remove a certificate?* If a row is deleted, or its Status changes from "Sent",
   its ID stops verifying. No separate "revoked" feature for now.
 
+- *Can someone list every fellow by counting through certificate numbers?* Not any more.
+  Decided during planning: IDs get a random 4-character code, for example `AEF-2026-C1-0001-K7QX`.
+
 ## Open Questions
 
 None. Everything else is implementation detail for the plan.
