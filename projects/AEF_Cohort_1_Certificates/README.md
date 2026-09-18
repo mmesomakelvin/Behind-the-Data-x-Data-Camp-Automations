@@ -13,10 +13,15 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
 ## What This Project Does
 
 - Adds an **AEF Cohort 1 Certificates** menu and a sidebar of buttons to the AEF Submissions spreadsheet.
-- Builds a **Certificates** tab listing every fellow with **at least one accepted project**
-  (Review Tracker `Status` = `OK`). A fellow who submitted several times appears once.
-- Gives each fellow a permanent certificate number: `AEF-2026-C1-0001`, `AEF-2026-C1-0002`, ...
-  in the order they first submitted. Refreshing the list never changes a number.
+- Builds a **Certificates** tab listing every fellow with **at least one accepted project**.
+  "Accepted" means the team marked the row **Ok** in the Review Tracker's **Status** dropdown
+  (column I). Blank or any other value is left out. The form's automatic "OK" in the
+  Issues column is ignored on purpose. A fellow who submitted several times appears once (matched by email).
+- Gives each fellow a permanent certificate number with a random code, such as `AEF-2026-C1-0001-K7QX`,
+  numbered in the order they first submitted. The code stops anyone guessing other fellows'
+  numbers on the verification website. Refreshing the list never changes a number.
+- Writes each person's certificate number into a **Certificate ID** column at the end of the
+  Review Tracker, on every one of their submission rows.
 - Tidies names typed all in lower or upper case (`ada lovelace` becomes `Ada Lovelace`).
 - Emails nobody until the team ticks **Approved** on that fellow's row.
 - For each approved fellow: makes the PDF, saves it in the **AEF Cohort 1 Certificates**
@@ -24,6 +29,8 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
 - Never sends the same fellow twice. If an email fails, the Error column says why and the
   next run reuses the PDF already made.
 - Refuses names too long to fit on one line and asks you to shorten them.
+- Shares each certificate PDF as "anyone with the link can view", so the verification website can offer downloads.
+- Answers the verification website's "is this certificate real?" question (see below).
 
 ## Certificates Tab Columns
 
@@ -77,6 +84,23 @@ Steps 1-3 are done (the script is attached and the code is pushed).
    Certificates tab and the **AEF Cohort 1 Certificates** Drive folder.
 6. Upload `assets/signatures/aef-cohort-1-certificate-background.png` into that Drive folder.
 
+## Verification Website Lookup
+
+`src/Lookup.js` lets the certificate verification website (planned at
+`https://btd-certificates.vercel.app`) check a certificate number. The website sends the number plus a
+secret key, and gets back only the public details: name, programme, cohort, award, issue date and
+PDF download link. It **never** gets emails, approvals or errors. Only certificates whose status is
+**Sent** verify.
+
+- Make the secret key with **Create Website Lookup Key** (sidebar or menu). It is shown once; paste it into Vercel.
+  Making a new key stops the old one working.
+- The lookup is published as an Apps Script web app (settings in `src/appsscript.json`).
+
+Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
+
+> **Do not send Cohort 1 certificates yet.** The QR code and website link still need to be
+> added to the certificate and the email once the website is live.
+
 ## Sending Certificates
 
 1. Click **2. Build / Refresh Certificate List**.
@@ -93,14 +117,15 @@ Fellows who submit later can be added at any time with **Build / Refresh Certifi
 - `src/Code.js` - certificate list, PDF creation, sending and menu
 - `src/CertificateLayout.js` - where the name and number go on the page
 - `src/CertificateEmailTemplate.js` - the certificate email
+- `src/Lookup.js` - the verification website's lookup (public details only)
 - `src/AutomationButtons.html` - sidebar buttons
 - `src/appsscript.json` - Apps Script settings (turns on the Google Slides service)
-- `tests/certificates.test.js` - automated checks
+- `tests/certificates.test.js`, `tests/lookup.test.js` - automated checks
 
 ## Tests
 
 ```powershell
-node --test projects/AEF_Cohort_1_Certificates/tests/certificates.test.js
+node --test projects/AEF_Cohort_1_Certificates/tests/certificates.test.js projects/AEF_Cohort_1_Certificates/tests/lookup.test.js
 ```
 
 ## Push
