@@ -47,9 +47,18 @@ var CERT_LAYOUT = {
 /** Shrinks long names so they always stay on one line. */
 function nameFontSize_(name) {
   var layout = CERT_LAYOUT.name;
+  var size = Math.min(layout.maxFontSize, Math.max(layout.minFontSize, fittedNameFontSize_(name)));
+  return Math.floor(size * 2) / 2;
+}
+
+/** False when a name is so long that even the smallest allowed size would wrap. */
+function nameFitsOnOneLine_(name) {
+  return fittedNameFontSize_(name) >= CERT_LAYOUT.name.minFontSize;
+}
+
+function fittedNameFontSize_(name) {
+  var layout = CERT_LAYOUT.name;
   var usableWidth = layout.width - CERT_LAYOUT.textBoxInset.x * 2;
   var length = Math.max(String(name || '').trim().length, 1);
-  var fitted = usableWidth / (length * layout.averageCharWidth);
-  var size = Math.min(layout.maxFontSize, Math.max(layout.minFontSize, fitted));
-  return Math.floor(size * 2) / 2;
+  return usableWidth / (length * layout.averageCharWidth);
 }

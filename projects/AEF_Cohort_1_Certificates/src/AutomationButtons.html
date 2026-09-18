@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { margin:0; padding:16px; font-family:Segoe UI,Arial,sans-serif; background:#f6f8fc; color:#0f172a; }
+      .card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:12px; }
+      h2 { margin:0 0 8px; font-size:17px; }
+      h3 { margin:0 0 8px; font-size:14px; }
+      p { margin:0 0 12px; font-size:13px; color:#475569; line-height:1.5; }
+      .btn { width:100%; border:0; border-radius:8px; padding:10px 12px; margin:0 0 8px; font-size:13px; font-weight:600; cursor:pointer; }
+      .btn:disabled { opacity:.6; cursor:wait; }
+      .primary { background:#1d4ed8; color:#fff; }
+      .neutral { background:#0f766e; color:#fff; }
+      .warn { background:#475569; color:#fff; }
+      .live { background:#b45309; color:#fff; }
+      .input { width:100%; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin:0 0 8px; font-size:13px; }
+      .status { margin-top:10px; min-height:18px; font-size:12px; color:#334155; white-space:pre-wrap; }
+      .error { color:#b91c1c; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>AEF Cohort 1 Certificates</h2>
+      <p>Fellows with at least one accepted project get a certificate. Nobody is emailed until you tick "Approved" on their row.</p>
+      <button class="btn primary" onclick="runAction('setupAefCertificates')">1. Setup Certificates</button>
+      <button class="btn neutral" onclick="runAction('refreshAefCertificateList')">2. Build / Refresh Certificate List</button>
+    </div>
+
+    <div class="card">
+      <h3>Test first</h3>
+      <p>Select a row on the Certificates tab to test with that fellow's name. Test emails only go to the address below.</p>
+      <input id="testEmail" class="input" type="email" placeholder="your-test@email.com" />
+      <button class="btn primary" onclick="saveTestEmail()">Save Test Email Address</button>
+      <button class="btn warn" onclick="runAction('previewAefCertificateEmail')">Preview Email</button>
+      <button class="btn warn" onclick="runAction('sendAefCertificateTestEmail')">Send Test Certificate to Me</button>
+    </div>
+
+    <div class="card">
+      <h3>Send to fellows</h3>
+      <p>Sends each approved fellow their PDF once. Running it again never sends a duplicate.</p>
+      <button class="btn neutral" onclick="runAction('countPendingAefCertificates')">Count Approved Waiting</button>
+      <button class="btn live" onclick="confirmLive()">LIVE: Send Approved Certificates</button>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <script>
+      function setBusy(busy) {
+        document.querySelectorAll('button').forEach(function (b) { b.disabled = busy; });
+      }
+
+      function show(message, isError) {
+        var el = document.getElementById('status');
+        el.textContent = message || 'Done.';
+        el.className = isError ? 'status error' : 'status';
+      }
+
+      function runAction(name, arg) {
+        setBusy(true);
+        show('Working...');
+        google.script.run
+          .withSuccessHandler(function (message) { setBusy(false); show(message); })
+          .withFailureHandler(function (err) { setBusy(false); show(err.message || String(err), true); })
+          [name](arg);
+      }
+
+      function saveTestEmail() {
+        runAction('saveAefCertificateTestEmail', document.getElementById('testEmail').value);
+      }
+
+      function confirmLive() {
+        if (confirm('Send certificates to every approved fellow who has not received one yet?')) {
+          runAction('sendApprovedAefCertificates');
+        }
+      }
+    </script>
+  </body>
+</html>
