@@ -44,6 +44,12 @@
       <button class="btn live" onclick="confirmLive()">LIVE: Send Approved Certificates</button>
     </div>
 
+    <div class="card">
+      <h3>Verification website</h3>
+      <p>Makes the secret key the website uses to check certificates. Only needed once; paste it into Vercel.</p>
+      <button class="btn warn" onclick="confirmNewKey()">Create Website Lookup Key</button>
+    </div>
+
     <div id="status" class="status"></div>
 
     <script>
@@ -68,6 +74,12 @@
 
       function saveTestEmail() {
         runAction('saveAefCertificateTestEmail', document.getElementById('testEmail').value);
+      }
+
+      function confirmNewKey() {
+        if (confirm('Create a new website key? Any older key stops working straight away.')) {
+          runAction('createAefCertificateLookupKey');
+        }
       }
 
       function confirmLive() {

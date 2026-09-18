@@ -6,9 +6,17 @@ const vm = require("node:vm");
 
 const projectRoot = path.resolve(__dirname, "..");
 
+let uuidCounter = 0;
+const fakeUtilities = {
+  getUuid: () => {
+    uuidCounter++;
+    return (uuidCounter.toString(16).padStart(8, "0") + "-1234-4abc-8def-0123456789ab");
+  }
+};
+
 function loadProject(globals = {}) {
-  const context = vm.createContext({ console, ...globals });
-  ["CertificateLayout.js", "CertificateEmailTemplate.js", "Code.js"].forEach((fileName) => {
+  const context = vm.createContext({ console, Utilities: fakeUtilities, ...globals });
+  ["CertificateLayout.js", "CertificateEmailTemplate.js", "Code.js", "Lookup.js"].forEach((fileName) => {
     const filePath = path.join(projectRoot, "src", fileName);
     vm.runInContext(fs.readFileSync(filePath, "utf8"), context, { filename: fileName });
   });
@@ -90,10 +98,9 @@ test("IDs follow first-submission order and never change on refresh", () => {
     trackerRow({ email: "late@example.com", name: "Late", submittedAt: new Date("2026-08-05") }),
     trackerRow({ email: "early@example.com", name: "Early", submittedAt: new Date("2026-08-01") })
   ]);
-  assert.deepEqual(first.rows.map((r) => [r.email, r.certificateId]), [
-    ["early@example.com", "AEF-2026-C1-0001"],
-    ["late@example.com", "AEF-2026-C1-0002"]
-  ]);
+  assert.deepEqual(first.rows.map((r) => r.email), ["early@example.com", "late@example.com"]);
+  assert.match(first.rows[0].certificateId, /^AEF-2026-C1-0001-[A-HJKMNP-Z2-9]{4}$/);
+  assert.match(first.rows[1].certificateId, /^AEF-2026-C1-0002-[A-HJKMNP-Z2-9]{4}$/);
 
   const edited = first.rows.map((r) => ({ ...r }));
   edited[0].nameOnCertificate = "Early Corrected";
@@ -108,13 +115,14 @@ test("IDs follow first-submission order and never change on refresh", () => {
   ]);
 
   assert.equal(second.added, 1);
-  assert.equal(second.rows[0].certificateId, "AEF-2026-C1-0001");
+  assert.equal(second.rows[0].certificateId, first.rows[0].certificateId);
+  assert.equal(second.rows[1].certificateId, first.rows[1].certificateId);
   assert.equal(second.rows[0].nameOnCertificate, "Early Corrected");
   assert.equal(second.rows[0].approved, true);
   assert.equal(second.rows[0].status, "Sent");
   assert.equal(second.rows[0].projectCount, 2);
   assert.equal(second.rows[2].email, "new@example.com");
-  assert.equal(second.rows[2].certificateId, "AEF-2026-C1-0003");
+  assert.match(second.rows[2].certificateId, /^AEF-2026-C1-0003-[A-HJKMNP-Z2-9]{4}$/);
   assert.equal(second.rows[2].approved, false);
 });
 
@@ -211,4 +219,49 @@ test("certificate email greets by first name, shows the ID and escapes HTML", ()
 
   const text = app.getAefCertificateEmailPlainText("Ada Lovelace", "AEF-2026-C1-0007");
   assert.match(text, /Certificate ID: AEF-2026-C1-0007/);
+});
+
+test("old IDs without a random code get one, unless already sent", () => {
+  const app = loadProject();
+  const result = app.mergeCertificateRows_([
+    certRow({ certificateId: "AEF-2026-C1-0001", email: "a@example.com", status: "" }),
+    certRow({ certificateId: "AEF-2026-C1-0002", email: "b@example.com", status: "Sent" }),
+    certRow({ certificateId: "AEF-2026-C1-0003-K7QX", email: "c@example.com", status: "" })
+  ], []);
+
+  assert.match(result.rows[0].certificateId, /^AEF-2026-C1-0001-[A-HJKMNP-Z2-9]{4}$/);
+  assert.equal(result.rows[1].certificateId, "AEF-2026-C1-0002");
+  assert.equal(result.rows[2].certificateId, "AEF-2026-C1-0003-K7QX");
+});
+
+test("random codes never use look-alike characters", () => {
+  const app = loadProject();
+  for (let i = 0; i < 200; i++) {
+    assert.match(app.randomCertificateCode_(), /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/);
+  }
+});
+
+test("reads the status even when the tracker headings are shifted one column", () => {
+  const app = loadProject();
+  const headers = ["Submitted at", "Name", "Email", "Cohort", "Engagement submitted",
+    "# Engagements", "GitHub link", "Google link", "Status", "Issues"];
+  const sheet = {
+    getDataRange: () => ({
+      getValues: () => [
+        headers,
+        // Older row: status under "Status".
+        ["2026-08-01", "Old Row", "old@example.com", "AEF Cohort 1", "01 — A", 1, "x", "Nil", "OK", ""],
+        // Newer rows: presentation answer under "Status", real status under "Issues".
+        ["2026-08-31", "New Blank", "blank@example.com", "AEF Cohort 1", "02 — B", 1, "x", "Nil", "", "OK"],
+        ["2026-08-31", "New Yes", "yes@example.com", "AEF Cohort 1", "03 — C", 1, "x", "Nil", "Yes", "OK"],
+        ["2026-08-31", "New Fix", "fix@example.com", "AEF Cohort 1", "04 — D", 1, "x", "x", "No", "NEEDS FIX"]
+      ]
+    })
+  };
+  const rows = app.readTrackerRows_(sheet);
+  assert.deepEqual(rows.map((r) => r.status), ["OK", "OK", "OK", "NEEDS FIX"]);
+
+  const merged = app.mergeCertificateRows_([], rows);
+  assert.deepEqual(merged.rows.map((r) => r.email).sort(),
+    ["blank@example.com", "old@example.com", "yes@example.com"]);
 });
