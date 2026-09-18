@@ -155,22 +155,60 @@ function getBackgroundBlob_() {
 
 function refreshAefCertificateList() {
   return withAefCertLock_(function () {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var tracker = ss.getSheetByName(AEF_CERT_CONFIG.trackerSheetName);
-    if (!tracker) throw new Error('The "' + AEF_CERT_CONFIG.trackerSheetName + '" tab was not found.');
-
-    var sheet = getOrCreateCertificateSheet_(ss);
-    rememberSpreadsheetId_(ss);
-    var existing = readCertificateRows_(sheet);
-    var merged = mergeCertificateRows_(existing, readTrackerRows_(tracker));
-    writeCertificateRows_(sheet, merged.rows);
-    writeTrackerCertificateIds_(tracker, merged.rows);
-
+    var merged = updateCertificateList_(SpreadsheetApp.getActiveSpreadsheet());
     return notifyAefCert_(
       merged.added + " new fellow(s) added. " + merged.rows.length + " fellow(s) on the list.\n\n" +
       'Check each "Name on certificate", then tick "Approved" for the ones ready to send.'
     );
   });
+}
+
+function updateCertificateList_(ss) {
+  var tracker = ss.getSheetByName(AEF_CERT_CONFIG.trackerSheetName);
+  if (!tracker) throw new Error('The "' + AEF_CERT_CONFIG.trackerSheetName + '" tab was not found.');
+
+  var sheet = getOrCreateCertificateSheet_(ss);
+  rememberSpreadsheetId_(ss);
+  var merged = mergeCertificateRows_(readCertificateRows_(sheet), readTrackerRows_(tracker));
+  writeCertificateRows_(sheet, merged.rows);
+  writeTrackerCertificateIds_(tracker, merged.rows);
+  return merged;
+}
+
+/**
+ * Runs by itself whenever someone edits the spreadsheet. When a Review Tracker row's
+ * Status is set to "Ok", that person is added to the Certificates tab straight away
+ * (or, if their email is already there, their project count is updated). Nobody is emailed.
+ */
+function onEdit(e) {
+  if (!e || !e.range) return;
+  var tracker = e.range.getSheet();
+  if (tracker.getName() !== AEF_CERT_CONFIG.trackerSheetName || e.range.getRow() < 2) return;
+
+  var headers = tracker.getRange(1, 1, 1, tracker.getLastColumn()).getValues()[0]
+    .map(function (h) { return String(h).trim(); });
+  var statusColumn = headers.indexOf("Status") + 1;
+  if (!editTouchesColumn_(e.range.getColumn(), e.range.getNumColumns(), statusColumn)) return;
+
+  var statuses = tracker.getRange(e.range.getRow(), statusColumn, e.range.getNumRows(), 1).getValues();
+  var markedOk = statuses.some(function (row) {
+    return trackerRowStatus_(row, 0) === AEF_CERT_CONFIG.acceptedStatus;
+  });
+  if (!markedOk) return;
+
+  try {
+    var merged = withAefCertLock_(function () { return updateCertificateList_(tracker.getParent()); });
+    notifyAefCert_(merged.added
+      ? merged.added + " fellow(s) added to the Certificates tab."
+      : "Already on the Certificates tab - project count updated.");
+  } catch (err) {
+    notifyAefCert_("Could not update the Certificates tab: " + err.message +
+      " Use Build / Refresh Certificate List instead.");
+  }
+}
+
+function editTouchesColumn_(firstColumn, columnCount, column) {
+  return column > 0 && column >= firstColumn && column < firstColumn + columnCount;
 }
 
 /** Reads Review Tracker rows by header name, so column moves do not break it. */
@@ -401,6 +439,7 @@ function writeCertificateRows_(sheet, rows) {
   sheet.getRange(2, 1, rows.length, AEF_CERT_FIELDS.length).setValues(rows.map(certificateToRow_));
   var approvedColumn = AEF_CERT_FIELDS.indexOf("approved") + 1;
   sheet.getRange(2, approvedColumn, rows.length, 1).insertCheckboxes();
+  sheet.setColumnWidth(1, 190); // room for the full certificate ID
 }
 
 function writeCertificateRow_(sheet, index, row) {
