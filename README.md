@@ -15,6 +15,7 @@ projects/
   AEF_Submission_Form/
   AEF_Cohort_2_Registration/
   AEF_Cohort_2_Payment_Confirmation/
+  AEF_Cohort_1_Certificates/
 artifacts/
   certificates/
 assets/
@@ -34,10 +35,11 @@ scripts/
 - `AEF_Submission_Form` (Analytics Engineering Fellowship project-submission form workflow)
 - `AEF_Cohort_2_Registration` (Cohort 2 application acknowledgement workflow)
 - `AEF_Cohort_2_Payment_Confirmation` (Cohort 2 payment-review, receipt, and confirmation workflow)
+- `AEF_Cohort_1_Certificates` (Cohort 1 certificate list, PDF creation, and certificate emails; attached to the AEF Submissions spreadsheet)
 
 Project-specific details are documented in each project folder `README.md`.
 
-## AEF Cohort 1 Certificates (in progress)
+## AEF Cohort 1 Certificates
 
 Certificates for Analytics Engineering Fellowship Cohort 1 fellows who submitted at least one project.
 
@@ -45,7 +47,9 @@ Certificates for Analytics Engineering Fellowship Cohort 1 fellows who submitted
 - **Signatory:** Ayoade Adegbite, Founder, Behind The Data Academy (single signatory).
 - **Certificate number format:** `AEF-2026-C1-0001`, counting up once per fellow.
 - **Who qualifies:** anyone with at least one accepted submission (Status `OK`) in the AEF Submissions "Review Tracker" sheet.
-- **How they will be sent (planned):** a new Apps Script project, `AEF_Cohort_1_Certificates`, lists eligible fellows in a "Certificates" tab. The team fixes names and ticks "Approved", then the automation creates each PDF, saves it to Google Drive and emails it to the fellow.
+- **How they are sent:** the `AEF_Cohort_1_Certificates` project lists eligible fellows in a "Certificates" tab. The team fixes names and ticks "Approved", then the automation creates each PDF, saves it to Google Drive and emails it to the fellow. Full steps: `projects/AEF_Cohort_1_Certificates/README.md`.
+- **Live preview:** `artifacts/certificates/aef-cohort-1-certificate-preview.html` shows how any name will look (serve the repo with `python -m http.server 8765`).
+- **Background image:** `scripts/render-certificate-background.ps1` renders the design without the name and number for the automation.
 - **Private files:** signature images live in `assets/signatures/`, which is not stored in git. Use `scripts/remove-signature-background.ps1` to make a signature background transparent.
 
 ## Common Commands
@@ -60,6 +64,7 @@ Push a specific project:
 .\scripts\clasp-project.ps1 -Project AEF_Submission_Form -Action push
 .\scripts\clasp-project.ps1 -Project AEF_Cohort_2_Registration -Action push
 .\scripts\clasp-project.ps1 -Project AEF_Cohort_2_Payment_Confirmation -Action push
+.\scripts\clasp-project.ps1 -Project AEF_Cohort_1_Certificates -Action push
 ```
 
 Create a new project:
