@@ -17,6 +17,16 @@ var AEF_CERT_CONFIG = {
   acceptedStatus: "OK",
   idPrefix: "AEF-2026-C1-",
   idDigits: 4,
+  // Random code after the number (AEF-2026-C1-0001-K7QX) so IDs cannot be guessed.
+  // No look-alike characters (0/O, 1/I/L).
+  idCodeAlphabet: "ABCDEFGHJKMNPQRSTUVWXYZ23456789",
+  idCodeLength: 4,
+  // Public details shown by the verification website; they match the printed certificate.
+  programme: "Analytics Engineering Fellowship",
+  cohortLabel: "2026 · Cohort 1",
+  award: "Certificate of Participation",
+  issuedLabel: "September 2026",
+  siteUrl: "https://btd-certificates.vercel.app",
   folderName: "AEF Cohort 1 Certificates",
   backgroundFileName: "aef-cohort-1-certificate-background.png",
   senderName: "Behind the Data Academy",
@@ -54,6 +64,8 @@ function onOpen() {
     .addSeparator()
     .addItem("Count Approved Certificates Waiting", "countPendingAefCertificates")
     .addItem("LIVE: Send Approved Certificates", "sendApprovedAefCertificates")
+    .addSeparator()
+    .addItem("Create Website Lookup Key", "createAefCertificateLookupKey")
     .addToUi();
 }
 
@@ -76,6 +88,7 @@ function setupAefCertificates() {
     }
 
     getOrCreateCertificateSheet_(ss);
+    rememberSpreadsheetId_(ss);
     var folder = getOrCreateCertificateFolder_();
     var background = findBackgroundFile_(folder);
 
@@ -147,6 +160,7 @@ function refreshAefCertificateList() {
     if (!tracker) throw new Error('The "' + AEF_CERT_CONFIG.trackerSheetName + '" tab was not found.');
 
     var sheet = getOrCreateCertificateSheet_(ss);
+    rememberSpreadsheetId_(ss);
     var existing = readCertificateRows_(sheet);
     var merged = mergeCertificateRows_(existing, readTrackerRows_(tracker));
     writeCertificateRows_(sheet, merged.rows);
@@ -181,9 +195,23 @@ function readTrackerRows_(sheet) {
       name: row[name],
       email: row[email],
       engagement: row[engagement],
-      status: row[status]
+      status: trackerRowStatus_(row, status)
     };
   });
+}
+
+/**
+ * The live Review Tracker's headings are one column behind its newer rows: those rows
+ * hold the "present at final session" answer under "Status" and the real status under
+ * "Issues". Use whichever of the two cells holds a real status.
+ */
+function trackerRowStatus_(row, statusIndex) {
+  var candidates = [row[statusIndex], row[statusIndex + 1]];
+  for (var i = 0; i < candidates.length; i++) {
+    var value = String(candidates[i] == null ? "" : candidates[i]).trim().toUpperCase();
+    if (value === AEF_CERT_CONFIG.acceptedStatus || value === "NEEDS FIX") return value;
+  }
+  return "";
 }
 
 /**
@@ -219,7 +247,15 @@ function mergeCertificateRows_(existingRows, trackerRows) {
     });
   });
 
-  var rows = existingRows.map(function (row) { return Object.assign({}, row); });
+  var rows = existingRows.map(function (row) {
+    var copy = Object.assign({}, row);
+    // Older IDs without a random code get one, unless that certificate was already sent.
+    if (copy.status !== AEF_CERT_STATUS.sent && certificateNumber_(copy.certificateId) &&
+        !hasCertificateCode_(copy.certificateId)) {
+      copy.certificateId = formatCertificateId_(certificateNumber_(copy.certificateId), randomCertificateCode_());
+    }
+    return copy;
+  });
   var byEmail = {};
   rows.forEach(function (row) { byEmail[normaliseEmail_(row.email)] = row; });
 
@@ -243,7 +279,7 @@ function mergeCertificateRows_(existingRows, trackerRows) {
   newFellows.sort(function (a, b) { return a.firstAt - b.firstAt; });
   newFellows.forEach(function (fellow) {
     rows.push({
-      certificateId: formatCertificateId_(nextNumber++),
+      certificateId: formatCertificateId_(nextNumber++, randomCertificateCode_()),
       nameOnCertificate: tidyName_(fellow.name),
       email: fellow.email,
       submittedName: fellow.name,
@@ -259,10 +295,29 @@ function mergeCertificateRows_(existingRows, trackerRows) {
   return { rows: rows, added: newFellows.length };
 }
 
-function formatCertificateId_(number) {
+function formatCertificateId_(number, code) {
   var digits = String(number);
   while (digits.length < AEF_CERT_CONFIG.idDigits) digits = "0" + digits;
-  return AEF_CERT_CONFIG.idPrefix + digits;
+  return AEF_CERT_CONFIG.idPrefix + digits + "-" + code;
+}
+
+function randomCertificateCode_() {
+  var alphabet = AEF_CERT_CONFIG.idCodeAlphabet;
+  var hex = Utilities.getUuid().replace(/-/g, "");
+  var code = "";
+  for (var i = 0; i < AEF_CERT_CONFIG.idCodeLength; i++) {
+    code += alphabet.charAt(parseInt(hex.substr(i * 2, 2), 16) % alphabet.length);
+  }
+  return code;
+}
+
+function hasCertificateCode_(certificateId) {
+  var pattern = new RegExp(
+    "^" + AEF_CERT_CONFIG.idPrefix.replace(/[-]/g, "\\-") +
+    "\\d{" + AEF_CERT_CONFIG.idDigits + "}-[" + AEF_CERT_CONFIG.idCodeAlphabet + "]{" +
+    AEF_CERT_CONFIG.idCodeLength + "}$"
+  );
+  return pattern.test(String(certificateId || ""));
 }
 
 function certificateNumber_(certificateId) {
@@ -356,9 +411,13 @@ function sendApprovedAefCertificates() {
       now: function () { return new Date(); },
       getOrCreatePdf: function (row) {
         var existing = getPdfFromLink_(row.pdfLink);
-        if (existing) return { blob: existing.getBlob(), url: existing.getUrl() };
+        if (existing) {
+          shareCertificateFile_(existing);
+          return { blob: existing.getBlob(), url: existing.getUrl() };
+        }
         background = background || getBackgroundBlob_();
         var file = folder.createFile(createCertificatePdf_(row.nameOnCertificate, row.certificateId, background));
+        shareCertificateFile_(file);
         return { blob: file.getBlob(), url: file.getUrl() };
       },
       sendEmail: sendCertificateEmail_,
@@ -521,7 +580,7 @@ function sendAefCertificateTestEmail() {
   if (!recipient) throw new Error("Set a test email recipient first.");
 
   var row = getSelectedCertificateRow_() || {
-    certificateId: formatCertificateId_(1),
+    certificateId: formatCertificateId_(1, "K7QX"),
     nameOnCertificate: "Ada Lovelace",
     email: recipient
   };
@@ -543,7 +602,7 @@ function getSelectedCertificateRow_() {
 }
 
 function previewAefCertificateEmail() {
-  var html = HtmlService.createHtmlOutput(getAefCertificateEmailHtml("Ada Lovelace", formatCertificateId_(1)))
+  var html = HtmlService.createHtmlOutput(getAefCertificateEmailHtml("Ada Lovelace", formatCertificateId_(1, "K7QX")))
     .setWidth(720)
     .setHeight(640);
   SpreadsheetApp.getUi().showModalDialog(html, "Certificate email preview");
