@@ -15,6 +15,11 @@ projects/
   AEF_Submission_Form/
   AEF_Cohort_2_Registration/
   AEF_Cohort_2_Payment_Confirmation/
+artifacts/
+  certificates/
+assets/
+  branding/
+  signatures/        (private - not stored in git)
 scripts/
   clasp-project.ps1
   new-project.ps1
@@ -31,6 +36,17 @@ scripts/
 - `AEF_Cohort_2_Payment_Confirmation` (Cohort 2 payment-review, receipt, and confirmation workflow)
 
 Project-specific details are documented in each project folder `README.md`.
+
+## AEF Cohort 1 Certificates (in progress)
+
+Certificates for Analytics Engineering Fellowship Cohort 1 fellows who submitted at least one project.
+
+- **Design sample:** `artifacts/certificates/aef-cohort-1-certificate-sample.html` (open in a browser; A4 landscape, Poppins font).
+- **Signatory:** Ayoade Adegbite, Founder, Behind The Data Academy (single signatory).
+- **Certificate number format:** `AEF-2026-C1-0001`, counting up once per fellow.
+- **Who qualifies:** anyone with at least one accepted submission (Status `OK`) in the AEF Submissions "Review Tracker" sheet.
+- **How they will be sent (planned):** a new Apps Script project, `AEF_Cohort_1_Certificates`, lists eligible fellows in a "Certificates" tab. The team fixes names and ticks "Approved", then the automation creates each PDF, saves it to Google Drive and emails it to the fellow.
+- **Private files:** signature images live in `assets/signatures/`, which is not stored in git. Use `scripts/remove-signature-background.ps1` to make a signature background transparent.
 
 ## Common Commands
 
