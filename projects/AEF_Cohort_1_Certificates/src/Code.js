@@ -164,6 +164,7 @@ function refreshAefCertificateList() {
     var existing = readCertificateRows_(sheet);
     var merged = mergeCertificateRows_(existing, readTrackerRows_(tracker));
     writeCertificateRows_(sheet, merged.rows);
+    writeTrackerCertificateIds_(tracker, merged.rows);
 
     return notifyAefCert_(
       merged.added + " new fellow(s) added. " + merged.rows.length + " fellow(s) on the list.\n\n" +
@@ -201,17 +202,45 @@ function readTrackerRows_(sheet) {
 }
 
 /**
- * The live Review Tracker's headings are one column behind its newer rows: those rows
- * hold the "present at final session" answer under "Status" and the real status under
- * "Issues". Use whichever of the two cells holds a real status.
+ * The team's own "Status" dropdown decides: only rows marked "Ok" (any capitalisation)
+ * count. The form's automatic "OK" in the next column is ignored on purpose.
  */
 function trackerRowStatus_(row, statusIndex) {
-  var candidates = [row[statusIndex], row[statusIndex + 1]];
-  for (var i = 0; i < candidates.length; i++) {
-    var value = String(candidates[i] == null ? "" : candidates[i]).trim().toUpperCase();
-    if (value === AEF_CERT_CONFIG.acceptedStatus || value === "NEEDS FIX") return value;
+  return String(row[statusIndex] == null ? "" : row[statusIndex]).trim().toUpperCase();
+}
+
+/** Each tracker row's certificate ID (matched by email), blank for people without one. */
+function certificateIdsForTracker_(trackerEmails, certificateRows) {
+  var idByEmail = {};
+  certificateRows.forEach(function (row) {
+    idByEmail[normaliseEmail_(row.email)] = row.certificateId;
+  });
+  return trackerEmails.map(function (email) {
+    return idByEmail[normaliseEmail_(email)] || "";
+  });
+}
+
+/** Shows each person's certificate ID in a "Certificate ID" column at the end of the Review Tracker. */
+function writeTrackerCertificateIds_(tracker, certificateRows) {
+  var values = tracker.getDataRange().getValues();
+  if (values.length < 2) return;
+
+  var headers = values[0].map(function (h) { return String(h).trim(); });
+  var emailIndex = headers.indexOf("Email");
+  var column = headers.indexOf("Certificate ID") + 1;
+  if (!column) {
+    // Past every column the submission form writes to (it fills up to 12).
+    column = Math.max(tracker.getLastColumn(), 12) + 1;
+    tracker.getRange(1, column)
+      .setValue("Certificate ID")
+      .setFontWeight("bold")
+      .setBackground("#0f2747")
+      .setFontColor("#ffffff");
+    tracker.setColumnWidth(column, 200);
   }
-  return "";
+
+  var ids = certificateIdsForTracker_(values.slice(1).map(function (row) { return row[emailIndex]; }), certificateRows);
+  tracker.getRange(2, column, ids.length, 1).setValues(ids.map(function (id) { return [id]; }));
 }
 
 /**

@@ -241,7 +241,7 @@ test("random codes never use look-alike characters", () => {
   }
 });
 
-test("reads the status even when the tracker headings are shifted one column", () => {
+test("only rows the team marked Ok in the Status column count", () => {
   const app = loadProject();
   const headers = ["Submitted at", "Name", "Email", "Cohort", "Engagement submitted",
     "# Engagements", "GitHub link", "Google link", "Status", "Issues"];
@@ -249,19 +249,22 @@ test("reads the status even when the tracker headings are shifted one column", (
     getDataRange: () => ({
       getValues: () => [
         headers,
-        // Older row: status under "Status".
-        ["2026-08-01", "Old Row", "old@example.com", "AEF Cohort 1", "01 — A", 1, "x", "Nil", "OK", ""],
-        // Newer rows: presentation answer under "Status", real status under "Issues".
-        ["2026-08-31", "New Blank", "blank@example.com", "AEF Cohort 1", "02 — B", 1, "x", "Nil", "", "OK"],
-        ["2026-08-31", "New Yes", "yes@example.com", "AEF Cohort 1", "03 — C", 1, "x", "Nil", "Yes", "OK"],
-        ["2026-08-31", "New Fix", "fix@example.com", "AEF Cohort 1", "04 — D", 1, "x", "x", "No", "NEEDS FIX"]
+        ["2026-08-01", "Marked Ok", "ok@example.com", "AEF Cohort 1", "01 — A", 1, "x", "Nil", "Ok", "OK"],
+        ["2026-08-02", "Marked OK", "caps@example.com", "AEF Cohort 1", "02 — B", 1, "x", "Nil", " OK ", ""],
+        ["2026-08-03", "Not Marked", "blank@example.com", "AEF Cohort 1", "03 — C", 1, "x", "Nil", "", "OK"],
+        ["2026-08-04", "Rejected", "no@example.com", "AEF Cohort 1", "04 — D", 1, "x", "Nil", "Not ok", "OK"]
       ]
     })
   };
-  const rows = app.readTrackerRows_(sheet);
-  assert.deepEqual(rows.map((r) => r.status), ["OK", "OK", "OK", "NEEDS FIX"]);
+  const merged = app.mergeCertificateRows_([], app.readTrackerRows_(sheet));
+  assert.deepEqual(merged.rows.map((r) => r.email), ["ok@example.com", "caps@example.com"]);
+});
 
-  const merged = app.mergeCertificateRows_([], rows);
-  assert.deepEqual(merged.rows.map((r) => r.email).sort(),
-    ["blank@example.com", "old@example.com", "yes@example.com"]);
+test("every tracker row shows its person's certificate ID", () => {
+  const app = loadProject();
+  const ids = app.certificateIdsForTracker_(
+    ["Ada@Example.com", "bob@example.com", "ada@example.com ", ""],
+    [certRow({ email: "ada@example.com", certificateId: "AEF-2026-C1-0001-K7QX" })]
+  );
+  assert.deepEqual(ids, ["AEF-2026-C1-0001-K7QX", "", "AEF-2026-C1-0001-K7QX", ""]);
 });
