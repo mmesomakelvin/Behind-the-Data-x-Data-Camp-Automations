@@ -55,6 +55,7 @@
 <div class="stage"><div class="page" id="page">
   <div class="box" id="nameBox"></div>
   <div class="box left" id="idBox"></div>
+  <img id="qrBox" alt="QR code" style="position:absolute;display:block">
 </div></div>
 
 <script src="../../projects/AEF_Cohort_1_Certificates/src/CertificateLayout.js"></script>
@@ -96,6 +97,12 @@
     idBox.textContent = cid;
     place(nameBox, L.name, size);
     place(idBox, L.certificateId, L.certificateId.fontSize);
+    var qrBox = document.getElementById('qrBox');
+    qrBox.style.left = L.qr.left + 'pt';
+    qrBox.style.top = L.qr.top + 'pt';
+    qrBox.style.width = qrBox.style.height = L.qr.size + 'pt';
+    var qrSrc = 'https://btd-certificates.vercel.app/api/qr/' + encodeURIComponent(cid.trim().toUpperCase());
+    if (qrBox.getAttribute('src') !== qrSrc) qrBox.src = qrSrc;
     var overflow = nameBox.scrollWidth > nameBox.clientWidth + 1;
     nameBox.classList.toggle('overflow', overflow);
     readout.innerHTML = 'Name size: <b>' + size + 'pt</b> (' + name.trim().length + ' characters)' +

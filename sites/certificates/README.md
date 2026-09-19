@@ -23,6 +23,7 @@ folder with `vercel deploy --prod`.
 - **QR code (`/api/qr/<ID>`):** a PNG of the certificate's check-page link, used on the PDFs.
 - Certificate pages are hidden from search engines, so fellows' names don't appear in Google.
 - The picture of the certificate prints the signatory's name. The handwritten signature is only on the PDF.
+- The picture also shows the fellow's QR code and the printed short link `bit.ly/4xwnpM4` (`SHORT_VERIFY_LINK` in `lib/links.ts`), matching the PDF.
 
 ## Where the data comes from
 

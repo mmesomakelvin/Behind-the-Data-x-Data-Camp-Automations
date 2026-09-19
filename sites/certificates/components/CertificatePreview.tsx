@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { Certificate } from "@/lib/lookup";
+import { SHORT_VERIFY_LINK } from "@/lib/links";
 import styles from "./CertificatePreview.module.css";
 
 // The printed name shrinks for long names, the same rule the PDF uses.
@@ -63,14 +64,22 @@ export default function CertificatePreview({ certificate }: { certificate: Certi
               <strong>Ayoade Adegbite</strong>
               <span>Founder, Behind The Data Academy</span>
             </div>
-            <div className={styles.seal}>
-              <div><strong>AEF</strong>Verified<br />{year}</div>
+            <div className={styles.verifyGroup}>
+              <div className={styles.qr}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- small generated PNG from our own route */}
+                <img src={`/api/qr/${encodeURIComponent(certificate.id)}`} alt="" className={styles.qrCode} />
+                <span>Scan to verify</span>
+              </div>
+              <div className={styles.seal}>
+                <div><strong>AEF</strong>Verified<br />{year}</div>
+              </div>
             </div>
           </section>
 
           <footer className={styles.metadata}>
             <span>Certificate ID: <b>{certificate.id}</b></span>
-            <span>Issued {certificate.issued}</span>
+            <span className={styles.verifyLink}>Verify at <b>{SHORT_VERIFY_LINK}</b></span>
+            <span className={styles.issued}>Issued {certificate.issued}</span>
           </footer>
         </div>
       </div>

@@ -60,7 +60,14 @@ The design lives in `artifacts/certificates/aef-cohort-1-certificate-sample.html
    the signature, so it is private and not stored in git.
 2. The automation copies the **AEF Certificate Template** (an A4 landscape Google Slides file), puts that image on it, adds the fellow's
    name and certificate number in Poppins, and saves it as a PDF. The temporary Slides file is deleted.
-3. Text positions and sizes are in `src/CertificateLayout.js`. Long names get a smaller size automatically.
+3. Each fellow's **QR code** is fetched from the verification website (`https://btd-certificates.vercel.app/api/qr/<ID>`)
+   and placed above the printed "Scan to verify". Scanning it opens that fellow's own check page. The footer
+   also prints **Verify at bit.ly/4xwnpM4** (part of the design image; the Bitly link points to the website's
+   home page and is case-sensitive).
+4. Text and QR positions are in `src/CertificateLayout.js`. Long names get a smaller size automatically.
+
+The certificate email includes a **View or verify your certificate online** button linking to the fellow's
+own check page.
 
 To see how any name will look, run a local server from the repository folder and open the preview page:
 

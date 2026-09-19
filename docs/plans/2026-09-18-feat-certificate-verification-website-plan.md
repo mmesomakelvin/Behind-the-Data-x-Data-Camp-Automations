@@ -190,16 +190,16 @@ and a made-up ID shows the not-found page.
 
 #### Phase 3: Connect the certificate and email to the site
 
-- [ ] **Certificate design:**
+- [x] **Certificate design:**
   - Add a QR code (about 60pt, with "Scan to verify" underneath) and a centre-footer line
     "Verify at btd-certificates.vercel.app".
   - Update `artifacts/certificates/aef-cohort-1-certificate-sample.html`, the preview page and
     `CertificateLayout.js`.
   - You approve it in the local preview.
   - Re-render the background (`scripts/render-certificate-background.ps1`) and re-upload it to Drive.
-- [ ] **PDF builder:** `createCertificatePdf_` fetches `${siteUrl}/api/qr/<id>` with `UrlFetchApp`
+- [x] **PDF builder:** `createCertificatePdf_` fetches `${siteUrl}/api/qr/<id>` with `UrlFetchApp`
       and places the image. If the site is down, that row goes to `Error` and is retried next run.
-- [ ] **Email:** add "View or verify your certificate online: <link>" to
+- [x] **Email:** add "View or verify your certificate online: <link>" to
       `CertificateEmailTemplate.js` (both the HTML and plain-text versions). Update the tests.
 - [ ] clasp push and update the web app deployment (same address).
 

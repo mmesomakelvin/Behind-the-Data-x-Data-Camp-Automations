@@ -47,6 +47,11 @@
   /* Right padding centres the seal over the "Issued" date in the footer. */
   .signing { display:flex; justify-content:space-between; align-items:end; padding:13px 26px 17px 66px; }
   .signing .signature { width:320px; }
+  /* QR code (added per fellow by the automation) sits left of the seal; the seal does not move. */
+  .verify-group { display:flex; align-items:flex-end; gap:30px; }
+  .qr { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .qr-code { width:72px; height:72px; display:block; }
+  .qr span { color:#707b8a; font-size:6.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; }
   .signature { text-align:center; }
   .signature .signed { height:60px; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; color:#263e5d; font-size:14px; font-style:italic; font-weight:500; }
   .signature .signed img { width:112px; max-height:60px; object-fit:contain; display:block; }
@@ -56,8 +61,12 @@
   .seal { width:92px; height:92px; justify-self:center; display:grid; place-items:center; border:1px solid #cfa33a; border-radius:50%; color:#142b49; text-align:center; }
   .seal div { width:74px; height:74px; display:grid; place-items:center; border:1px solid #cfa33a; border-radius:50%; font-size:8px; letter-spacing:.9px; line-height:1.4; }
   .seal strong { display:block; color:#159a86; font-size:23px; font-weight:700; line-height:1; margin-bottom:2px; }
-  .metadata { display:flex; justify-content:space-between; align-items:center; margin:0 12px; padding-top:10px; border-top:1px solid #d9d0bf; color:#707b8a; font-size:7.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; }
+  .metadata { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; margin:0 12px; padding-top:10px; border-top:1px solid #d9d0bf; color:#707b8a; font-size:7.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; }
   .metadata b { color:#142b49; }
+  .metadata .verify-link { text-align:center; }
+  /* Bitly links are case-sensitive: never capitalise the link itself. */
+  .metadata .verify-link b { text-transform:none; letter-spacing:.5px; font-size:8.5px; }
+  .metadata span:last-child { text-align:right; }
   .preview-note { margin-top:16px; text-align:center; color:#64748b; font-size:12px; }
   @media(max-width:1050px){ .certificate{min-height:540px;padding:31px 40px 25px}.masthead{grid-template-columns:72px 1fr auto}.logo{width:68px;height:68px}.award{padding:20px 34px 14px}.award h1{font-size:43px}.recipient{font-size:36px}.signing{padding:8px 44px 11px} }
 </style>
@@ -90,10 +99,13 @@
 
         <section class="signing">
           <div class="signature"><div class="signed"><img src="../../assets/signatures/ayoade-adegbite-signature-transparent.png" alt="Ayoade Adegbite's signature"></div><div class="line"></div><strong>Ayoade Adegbite</strong><span>Founder, Behind The Data Academy</span></div>
-          <div class="seal"><div><span><strong>AEF</strong>VERIFIED<br>2026</span></div></div>
+          <div class="verify-group">
+            <div class="qr"><img class="qr-code" src="https://btd-certificates.vercel.app/api/qr/AEF-2026-C1-0001-K7QX" alt="QR code linking to this certificate's check page"><span>Scan to verify</span></div>
+            <div class="seal"><div><span><strong>AEF</strong>VERIFIED<br>2026</span></div></div>
+          </div>
         </section>
 
-        <footer class="metadata"><span>Certificate ID: <b>AEF-2026-C1-0001</b></span><span>Issued September 2026</span></footer>
+        <footer class="metadata"><span>Certificate ID: <b>AEF-2026-C1-0001-K7QX</b></span><span class="verify-link">Verify at <b>bit.ly/4xwnpM4</b></span><span>Issued September 2026</span></footer>
       </div>
     </div>
   </div>
@@ -105,6 +117,7 @@
   if (location.hash === '#background') {
     document.querySelector('.recipient').innerHTML = '&nbsp;';
     document.querySelector('.metadata b').style.visibility = 'hidden';
+    document.querySelector('.qr-code').style.visibility = 'hidden';
   }
 </script>
 </body>
