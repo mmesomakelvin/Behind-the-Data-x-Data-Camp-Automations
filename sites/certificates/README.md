@@ -6,7 +6,10 @@ and see whether it is a genuine Behind the Data Academy certificate.
 **Live at https://btd-certificates.vercel.app**, hosted on Vercel (project `btd-certificates`,
 team **Mmes V1**, `mmes-v1`). `vercel.json` tells Vercel this is a Next.js site.
 
-To publish changes (from this folder): `vercel deploy --prod`
+**Publishing is automatic:** the project is connected to this GitHub repository (root directory
+`sites/certificates`), so every push to `main` that changes this folder updates the live site.
+Pushes that only change other folders are skipped. A manual publish is still possible from this
+folder with `vercel deploy --prod`.
 
 ## What it does
 
