@@ -49,9 +49,9 @@ Certificates for Analytics Engineering Fellowship Cohort 1 fellows who submitted
 - **Signatory:** Ayoade Adegbite, Founder, Behind The Data Academy (single signatory).
 - **Certificate number format:** `AEF-2026-C1-0001-K7QX`: a running number plus a random code, so numbers can't be guessed.
 - **Who qualifies:** anyone with at least one submission the team marked **Ok** in the Review Tracker's Status dropdown.
-- **Verification website (built, not yet live):** `sites/certificates/`, a public site where anyone can check a
+- **Verification website (live at https://btd-certificates.vercel.app):** `sites/certificates/`, a public site where anyone can check a
   certificate number. Run it locally with `cd sites/certificates; npm install; npm run dev` (it uses practice data
-  until it is connected). Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
+  when run locally). Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
   Hold sending certificates until it is live.
 - **How they are sent:** the `AEF_Cohort_1_Certificates` project lists eligible fellows in a "Certificates" tab. The team fixes names and ticks "Approved", then the automation creates each PDF, saves it to Google Drive and emails it to the fellow. Full steps: `projects/AEF_Cohort_1_Certificates/README.md`.
 - **Live preview:** `artifacts/certificates/aef-cohort-1-certificate-preview.html` shows how any name will look (serve the repo with `python -m http.server 8765`).

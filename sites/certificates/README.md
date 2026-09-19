@@ -3,7 +3,10 @@
 Public website where anyone can type a certificate ID (for example `AEF-2026-C1-0001-K7QX`)
 and see whether it is a genuine Behind the Data Academy certificate.
 
-Planned address: `https://btd-certificates.vercel.app` (hosted on Vercel).
+**Live at https://btd-certificates.vercel.app**, hosted on Vercel (project `btd-certificates`,
+team `edu-bridge-academy-s-projects`). `vercel.json` tells Vercel this is a Next.js site.
+
+To publish changes (from this folder): `vercel deploy --prod`
 
 ## What it does
 
