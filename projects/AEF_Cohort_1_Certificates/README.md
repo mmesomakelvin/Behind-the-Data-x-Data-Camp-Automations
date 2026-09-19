@@ -116,15 +116,25 @@ Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
 
 ## Sending Certificates
 
-1. Mark submissions **Ok** in the Review Tracker's Status column; each person is added to the
-   Certificates tab automatically. (Or click **2. Build / Refresh Certificate List** to update everyone at once.)
-2. Check each **Name on certificate** and tick **Approved** for rows that are ready.
-3. Save your email under **Test email address**, select a fellow's row, and click
-   **Send Test Certificate to Me**. Check the PDF carefully.
-4. Click **Count Approved Waiting**, then **LIVE: Send Approved Certificates**.
-5. If it says some are still waiting (large batches), click the LIVE button again.
+1. Mark submissions **Ok** in the Review Tracker's Status column. Each person is added to the
+   Certificates tab automatically (or click **2. Build / Refresh Certificate List** to update everyone at once).
+2. Check each **Name on certificate** and tick **Approved** for rows that are ready. Ticking sends nothing.
+3. Click **Create PDFs for Approved (no email)**. Each approved person's PDF is made and saved in the Drive
+   folder, **PDF Link** is filled in and **Certificate Status** becomes `PDF ready`. Open and check each one.
+   Nobody is emailed. Running it again rebuilds the PDFs (for example after a name correction or a design change).
+4. Optional: select a row, save your email under **Test email address**, and click **Send Test Certificate to Me**.
+5. Click **Count Approved Waiting**, then **LIVE: Send Approved Certificates**. The PDFs already made are reused.
+   If a name was changed after its PDF was made, a fresh PDF is made automatically before sending.
+6. If it says some are still waiting (large batches), click the LIVE button again.
 
-Fellows who submit later can be added at any time with **Build / Refresh Certificate List**.
+**Certificate Status** is filled in by the automation:
+
+| Status | Meaning |
+| --- | --- |
+| *(blank)* | Nothing done yet |
+| `PDF ready` | PDF made and saved; not emailed yet |
+| `Sent` | Emailed. From now on the certificate shows as genuine on the verification website |
+| `Error` | Something went wrong; the **Error** column says what. Fix it and run again |
 
 ## Key Files
 

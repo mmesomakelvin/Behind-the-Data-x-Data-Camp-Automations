@@ -323,3 +323,74 @@ test("pasting Ok over several rows and columns is noticed", () => {
   app.onEdit(fakeEdit({ column: 8, numColumns: 3, numRows: 3, statuses: [[""], ["Ok"], [""]] }));
   assert.equal(updates.length, 1);
 });
+
+test("creating PDFs only makes PDFs for approved, unsent rows and emails nobody", () => {
+  const app = loadProject();
+  const rows = [
+    certRow({ certificateId: "A", approved: true }),
+    certRow({ certificateId: "B", approved: false }),
+    certRow({ certificateId: "C", approved: true, status: "Sent" }),
+    certRow({ certificateId: "D", approved: true, nameOnCertificate: "" })
+  ];
+  const made = [];
+  const saves = [];
+  const result = app.processPdfsOnly_(rows, {
+    hasTime: () => true,
+    createPdf: (row) => { made.push(row.certificateId); return { url: "https://drive.google.com/file/d/" + row.certificateId }; },
+    saveRow: (index, row) => saves.push([index, row.status])
+  });
+
+  assert.deepEqual(made, ["A"]);
+  assert.deepEqual({ ...result }, { made: 1, failed: 1, remaining: 0 });
+  assert.equal(rows[0].status, "PDF ready");
+  assert.match(rows[0].pdfLink, /\/A$/);
+  assert.equal(rows[2].status, "Sent");
+  assert.equal(rows[3].status, "Error");
+  assert.deepEqual(saves.map((s) => s[0]), [0, 3]);
+});
+
+function fakeDrive(existingName) {
+  const trashed = [];
+  const created = [];
+  const existing = existingName && {
+    getName: () => existingName,
+    getBlob: () => "OLD-BLOB",
+    getUrl: () => "https://drive.google.com/file/d/OLDFILE1234567890123456789/view",
+    isTrashed: () => false,
+    setTrashed: () => trashed.push(existingName),
+    setSharing: () => {}
+  };
+  const app = loadProject({
+    DriveApp: {
+      Access: { ANYONE_WITH_LINK: "anyone" },
+      Permission: { VIEW: "view" },
+      getFileById: () => existing
+    }
+  });
+  app.createCertificatePdf_ = (name, id) => "BLOB " + id + " " + name;
+  const folder = {
+    createFile: (blob) => {
+      created.push(blob);
+      return { getBlob: () => blob, getUrl: () => "https://drive.google.com/file/d/NEWFILE1234567890123456789/view", setSharing: () => {} };
+    }
+  };
+  return { app, folder, trashed, created };
+}
+
+test("a PDF that still matches the name is reused when sending", () => {
+  const { app, folder, trashed, created } = fakeDrive("AEF-2026-C1-0001 - Ada Lovelace.pdf");
+  const row = certRow({ pdfLink: "https://drive.google.com/file/d/OLDFILE1234567890123456789/view" });
+  const pdf = app.certificatePdfForRow_(row, folder, () => "BG", false);
+  assert.equal(pdf.blob, "OLD-BLOB");
+  assert.deepEqual(created, []);
+  assert.deepEqual(trashed, []);
+});
+
+test("a PDF with an old name is replaced, so a corrected name is never sent wrong", () => {
+  const { app, folder, trashed, created } = fakeDrive("AEF-2026-C1-0001 - ada lovelace.pdf");
+  const row = certRow({ pdfLink: "https://drive.google.com/file/d/OLDFILE1234567890123456789/view" });
+  const pdf = app.certificatePdfForRow_(row, folder, () => "BG", false);
+  assert.equal(pdf.blob, "BLOB AEF-2026-C1-0001 Ada Lovelace");
+  assert.deepEqual(trashed, ["AEF-2026-C1-0001 - ada lovelace.pdf"]);
+  assert.equal(created.length, 1);
+});

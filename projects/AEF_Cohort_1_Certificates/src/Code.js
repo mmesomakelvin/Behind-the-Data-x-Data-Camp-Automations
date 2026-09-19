@@ -62,6 +62,7 @@ function onOpen() {
     .addItem("Preview Certificate Email", "previewAefCertificateEmail")
     .addItem("Send Test Certificate (selected row)", "sendAefCertificateTestEmail")
     .addSeparator()
+    .addItem("Create PDFs for Approved (no email)", "createApprovedAefCertificatePdfs")
     .addItem("Count Approved Certificates Waiting", "countPendingAefCertificates")
     .addItem("LIVE: Send Approved Certificates", "sendApprovedAefCertificates")
     .addSeparator()
@@ -478,15 +479,10 @@ function sendApprovedAefCertificates() {
       hasTime: function () { return Date.now() - started < AEF_CERT_CONFIG.timeBudgetMs; },
       now: function () { return new Date(); },
       getOrCreatePdf: function (row) {
-        var existing = getPdfFromLink_(row.pdfLink);
-        if (existing) {
-          shareCertificateFile_(existing);
-          return { blob: existing.getBlob(), url: existing.getUrl() };
-        }
-        background = background || getBackgroundBlob_();
-        var file = folder.createFile(createCertificatePdf_(row.nameOnCertificate, row.certificateId, background));
-        shareCertificateFile_(file);
-        return { blob: file.getBlob(), url: file.getUrl() };
+        return certificatePdfForRow_(row, folder, function () {
+          background = background || getBackgroundBlob_();
+          return background;
+        }, false);
       },
       sendEmail: sendCertificateEmail_,
       saveRow: function (index, row) { writeCertificateRow_(sheet, index, row); }
@@ -549,6 +545,88 @@ function certificateRowProblem_(row) {
   return "";
 }
 
+/**
+ * Makes each approved (not yet sent) fellow's PDF WITHOUT emailing anyone, so the team
+ * can open and check every certificate first. Running it again rebuilds the PDFs,
+ * for example after a name correction or a design change.
+ */
+function createApprovedAefCertificatePdfs() {
+  return withAefCertLock_(function () {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(AEF_CERT_CONFIG.certificateSheetName);
+    if (!sheet) throw new Error("Run Setup and build the certificate list first.");
+
+    var started = Date.now();
+    var background = null;
+    var folder = getOrCreateCertificateFolder_();
+
+    var result = processPdfsOnly_(readCertificateRows_(sheet), {
+      hasTime: function () { return Date.now() - started < AEF_CERT_CONFIG.timeBudgetMs; },
+      createPdf: function (row) {
+        return certificatePdfForRow_(row, folder, function () {
+          background = background || getBackgroundBlob_();
+          return background;
+        }, true);
+      },
+      saveRow: function (index, row) { writeCertificateRow_(sheet, index, row); }
+    });
+
+    var message = result.made + " PDF(s) created - open them from the PDF Link column. Nobody was emailed.";
+    if (result.failed) message += "\n" + result.failed + " could not be created - see the Error column.";
+    if (result.remaining) message += "\n" + result.remaining + " still waiting. Run this again to continue.";
+    return notifyAefCert_(message);
+  });
+}
+
+function processPdfsOnly_(rows, deps) {
+  var result = { made: 0, failed: 0, remaining: 0 };
+
+  rows.forEach(function (row, index) {
+    if (!isPendingCertificate_(row)) return;
+    if (!deps.hasTime()) {
+      result.remaining++;
+      return;
+    }
+
+    try {
+      var problem = certificateRowProblem_(row);
+      if (problem) throw new Error(problem);
+      row.pdfLink = deps.createPdf(row).url;
+      row.status = AEF_CERT_STATUS.pdfReady;
+      row.error = "";
+      result.made++;
+    } catch (err) {
+      row.status = AEF_CERT_STATUS.error;
+      row.error = err && err.message ? err.message : String(err);
+      result.failed++;
+    }
+    deps.saveRow(index, row);
+  });
+
+  return result;
+}
+
+function certificatePdfName_(certificateId, name) {
+  return String(certificateId).trim() + " - " + String(name).trim() + ".pdf";
+}
+
+/**
+ * Reuses the row's PDF when it still matches the name on the certificate; otherwise
+ * (or when forced) bins the old file and makes a fresh one.
+ */
+function certificatePdfForRow_(row, folder, getBackground, forceNew) {
+  var expectedName = certificatePdfName_(row.certificateId, row.nameOnCertificate);
+  var existing = getPdfFromLink_(row.pdfLink);
+  if (existing && !forceNew && existing.getName() === expectedName) {
+    shareCertificateFile_(existing);
+    return { blob: existing.getBlob(), url: existing.getUrl() };
+  }
+  if (existing) existing.setTrashed(true);
+
+  var file = folder.createFile(createCertificatePdf_(row.nameOnCertificate, row.certificateId, getBackground()));
+  shareCertificateFile_(file);
+  return { blob: file.getBlob(), url: file.getUrl() };
+}
+
 function getPdfFromLink_(link) {
   var match = String(link || "").match(/[-\w]{25,}/);
   if (!match) return null;
@@ -600,7 +678,7 @@ function createCertificatePdf_(name, certificateId, backgroundBlob) {
 
     return DriveApp.getFileById(presentationId)
       .getAs(MimeType.PDF)
-      .setName(certificateId + " - " + name + ".pdf");
+      .setName(certificatePdfName_(certificateId, name));
   } finally {
     DriveApp.getFileById(presentationId).setTrashed(true);
   }
