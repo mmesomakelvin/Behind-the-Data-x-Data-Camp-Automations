@@ -96,7 +96,7 @@ secret key, and gets back only the public details: name, programme, cohort, awar
 PDF download link. It **never** gets emails, approvals or errors. Only certificates whose status is
 **Sent** verify.
 
-- Make the secret key with **Create Website Lookup Key** (sidebar or menu). It is shown once; paste it into Vercel.
+- Make the secret key with **Create Website Lookup Key** (sidebar or menu). It pops up in a box once; copy it and paste it into Vercel.
   Making a new key stops the old one working.
 - The lookup is published as an Apps Script web app (settings in `src/appsscript.json`):
   - Deployment ID: `AKfycbzXbA6zB7uo6B8Wk-2KpqURbr3KKpRe_ZGtE2zuSQdkXBxg5Sn67AwnN52LpqfeYnKg`
