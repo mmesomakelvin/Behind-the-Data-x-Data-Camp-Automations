@@ -180,7 +180,7 @@ public details and nothing else.
   - Choosing a lookup source by prefix.
   - Lookup client: found, not found and timeout (fetch mocked).
   - LinkedIn link builder.
-- [ ] Deploy:
+- [x] Deploy: *(Live at https://btd-certificates.vercel.app, deployed with the Vercel CLI. Connecting GitHub for automatic deploys is still to do.)*
   - Connect the GitHub repo to a Vercel project named `btd-certificates` (root `sites/certificates`),
     so every push to `main` redeploys.
   - Add `CERT_LOOKUP_SOURCES` and `NEXT_PUBLIC_SITE_URL` in Vercel.
