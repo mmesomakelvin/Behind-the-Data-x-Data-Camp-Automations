@@ -2,6 +2,9 @@ import type { Certificate } from "./lookup";
 
 export const ACADEMY_NAME = "Behind the Data Academy";
 
+/** Printed on every certificate; points to this site's home page. */
+export const SHORT_VERIFY_LINK = "bit.ly/4xwnpM4";
+
 export function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || "https://btd-certificates.vercel.app").replace(/\/+$/, "");
 }

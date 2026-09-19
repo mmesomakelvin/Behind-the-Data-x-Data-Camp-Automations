@@ -677,6 +677,8 @@ function createCertificatePdf_(name, certificateId, backgroundBlob) {
     slide.getPageElements().forEach(function (element) { element.remove(); });
 
     slide.insertImage(backgroundBlob, 0, 0, pageWidth, pageHeight);
+    var qr = CERT_LAYOUT.qr;
+    slide.insertImage(fetchCertificateQr_(certificateId), qr.left * scale, qr.top * scale, qr.size * scale, qr.size * scale);
     addCertificateText_(slide, name, CERT_LAYOUT.name, nameFontSize_(name), SlidesApp.ParagraphAlignment.CENTER, scale);
     addCertificateText_(slide, certificateId, CERT_LAYOUT.certificateId,
       CERT_LAYOUT.certificateId.fontSize, SlidesApp.ParagraphAlignment.START, scale);
@@ -686,6 +688,19 @@ function createCertificatePdf_(name, certificateId, backgroundBlob) {
   } finally {
     copy.setTrashed(true);
   }
+}
+
+/** The fellow's QR code, made by the verification website; it opens their own check page. */
+function fetchCertificateQr_(certificateId) {
+  var response = UrlFetchApp.fetch(
+    AEF_CERT_CONFIG.siteUrl + "/api/qr/" + encodeURIComponent(certificateId),
+    { muteHttpExceptions: true }
+  );
+  if (response.getResponseCode() !== 200) {
+    throw new Error("Could not get the QR code from " + AEF_CERT_CONFIG.siteUrl +
+      " (status " + response.getResponseCode() + "). Check the website is up, then try again.");
+  }
+  return response.getBlob().setName("qr-" + certificateId + ".png");
 }
 
 /** The A4 landscape Google Slides file the team makes once in the certificates folder. */

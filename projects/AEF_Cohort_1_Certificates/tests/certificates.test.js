@@ -401,3 +401,12 @@ test("only an A4 landscape template is accepted", () => {
   assert.equal(app.isA4Landscape_(720, 405), false); // Google's default widescreen page
   assert.equal(app.isA4Landscape_(595.28, 841.89), false); // A4 portrait
 });
+
+test("the certificate email links to the fellow's own verification page", () => {
+  const app = loadProject();
+  const html = app.getAefCertificateEmailHtml("Ada Lovelace", "AEF-2026-C1-0001-K7QX");
+  assert.match(html, /href="https:\/\/btd-certificates\.vercel\.app\/verify\/AEF-2026-C1-0001-K7QX"/);
+  assert.match(html, /View or verify your certificate online/);
+  const text = app.getAefCertificateEmailPlainText("Ada Lovelace", "AEF-2026-C1-0001-K7QX");
+  assert.match(text, /https:\/\/btd-certificates\.vercel\.app\/verify\/AEF-2026-C1-0001-K7QX/);
+});

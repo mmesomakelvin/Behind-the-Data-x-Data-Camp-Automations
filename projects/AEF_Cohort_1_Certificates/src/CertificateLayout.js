@@ -18,7 +18,7 @@ var CERT_LAYOUT = {
 
   name: {
     left: 71.25,
-    top: 275.06,
+    top: 274.69,
     width: 699,
     height: 60,
     fontFamily: 'Poppins',
@@ -33,7 +33,7 @@ var CERT_LAYOUT = {
 
   certificateId: {
     left: 105.1,
-    top: 558.4,
+    top: 558.03,
     width: 150,
     height: 16,
     fontFamily: 'Poppins',
@@ -41,6 +41,14 @@ var CERT_LAYOUT = {
     italic: false,
     color: '#142b49',
     fontSize: 5.625
+  },
+
+  // Each fellow's QR code (links to their check page), just left of the seal,
+  // above the printed "Scan to verify".
+  qr: {
+    left: 635.64,
+    top: 474.52,
+    size: 54
   }
 };
 

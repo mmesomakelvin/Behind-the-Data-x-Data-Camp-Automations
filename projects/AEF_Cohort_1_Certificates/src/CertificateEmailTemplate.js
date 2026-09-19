@@ -4,9 +4,16 @@ var AEF_CERT_LOGO_URL =
 var AEF_CERT_EMAIL_SUBJECT =
   "Your Analytics Engineering Fellowship Certificate - Cohort 1";
 
+var AEF_CERT_VERIFY_BASE_URL = "https://btd-certificates.vercel.app/verify/";
+
+function getAefCertificateVerifyUrl(certificateId) {
+  return AEF_CERT_VERIFY_BASE_URL + encodeURIComponent(String(certificateId || "").trim());
+}
+
 function getAefCertificateEmailHtml(fullName, certificateId) {
   const firstName = escapeAefCertHtml_(getAefCertFirstName_(fullName));
   const safeId = escapeAefCertHtml_(certificateId);
+  const verifyUrl = escapeAefCertHtml_(getAefCertificateVerifyUrl(certificateId));
 
   return `<!DOCTYPE html>
 <html>
@@ -40,7 +47,8 @@ function getAefCertificateEmailHtml(fullName, certificateId) {
                 </tr>
               </table>
 
-              <p style="margin:0 0 12px;font-size:15px;line-height:1.75;color:#374151;">We would love to see you share it. If you post it on LinkedIn, please tag <strong>Behind the Data Academy</strong>.</p>
+              <p style="margin:0 0 18px;"><a href="${verifyUrl}" style="display:inline-block;padding:12px 20px;background:#0f2747;color:#ffffff;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none;">View or verify your certificate online</a></p>
+              <p style="margin:0 0 12px;font-size:15px;line-height:1.75;color:#374151;">Anyone can confirm your certificate is genuine using that page, or by scanning the QR code on the certificate. We would love to see you share it. If you post it on LinkedIn, please tag <strong>Behind the Data Academy</strong>. The verification page has an <strong>Add to LinkedIn</strong> button that fills in the details for you.</p>
               <p style="margin:0;font-size:15px;line-height:1.75;color:#374151;">Congratulations, and thank you for learning with us.</p>
             </td>
           </tr>
@@ -67,7 +75,10 @@ function getAefCertificateEmailPlainText(fullName, certificateId) {
     "and the analytics engineering skills you built during the fellowship.\n\n" +
     "Certificate ID: " + certificateId + "\n" +
     "Please keep this ID for your records.\n\n" +
-    "We would love to see you share it. If you post it on LinkedIn, please tag Behind the Data Academy.\n\n" +
+    "View or verify your certificate online: " + getAefCertificateVerifyUrl(certificateId) + "\n\n" +
+    "Anyone can confirm your certificate is genuine using that page, or by scanning the QR code on the certificate. " +
+    "We would love to see you share it. If you post it on LinkedIn, please tag Behind the Data Academy. " +
+    "The verification page has an Add to LinkedIn button that fills in the details for you.\n\n" +
     "Congratulations, and thank you for learning with us.\n\n" +
     "Warm regards,\n" +
     "Ayoade Adegbite\n" +
