@@ -1,0 +1,20 @@
+.page { max-width: 760px; padding-top: 88px; padding-bottom: 96px; }
+
+.title { margin: 0 0 12px; font-size: clamp(28px, 4vw, 40px); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+
+.text { margin: 0 0 28px; font-size: 17px; color: var(--ink-soft); }
+
+.searched {
+  display: inline-block;
+  margin: 0 0 24px;
+  padding: 8px 14px;
+  border: 1px dashed #c9bfa9;
+  border-radius: 8px;
+  background: var(--white);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  word-break: break-all;
+}
+
+.tips { margin: 0 0 36px; padding-left: 20px; color: var(--ink-soft); max-width: 62ch; }
+.tips li + li { margin-top: 8px; }
