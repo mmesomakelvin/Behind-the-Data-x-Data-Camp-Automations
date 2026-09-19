@@ -39,7 +39,8 @@
 
     <div class="card">
       <h3>Send to fellows</h3>
-      <p>Sends each approved fellow their PDF once. Running it again never sends a duplicate.</p>
+      <p>First make the PDFs and check them (no emails). Then send: each approved fellow gets their PDF once, never twice.</p>
+      <button class="btn neutral" onclick="runAction('createApprovedAefCertificatePdfs')">Create PDFs for Approved (no email)</button>
       <button class="btn neutral" onclick="runAction('countPendingAefCertificates')">Count Approved Waiting</button>
       <button class="btn live" onclick="confirmLive()">LIVE: Send Approved Certificates</button>
     </div>
