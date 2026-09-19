@@ -111,7 +111,25 @@ function createAefCertificateLookupKey() {
     rememberSpreadsheetId_(SpreadsheetApp.getActiveSpreadsheet());
     var key = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
     PropertiesService.getScriptProperties().setProperty(AEF_CERT_LOOKUP_KEY_PROPERTY, key);
-    return "New website lookup key (copy it now - it is only shown once):\n\n" + key +
+    var message = "New website lookup key (copy it now - it is only shown once):\n\n" + key +
       "\n\nPaste it into Vercel. The old key, if any, no longer works.";
+    showAefCertKeyDialog_(key);
+    return message;
   });
+}
+
+/** Shows the key in a box it can be copied from, whether run from the menu or the sidebar. */
+function showAefCertKeyDialog_(key) {
+  try {
+    var html = HtmlService.createHtmlOutput(
+      '<div style="font-family:Segoe UI,Arial,sans-serif;font-size:13px;color:#0f172a">' +
+      "<p>Copy this key now. It is only shown once. Making a new key stops the old one working.</p>" +
+      '<textarea readonly onclick="this.select()" style="width:100%;height:70px;font:13px monospace;padding:8px;box-sizing:border-box">' +
+      key + "</textarea></div>"
+    ).setWidth(460).setHeight(190);
+    SpreadsheetApp.getUi().showModalDialog(html, "Website lookup key");
+  } catch (err) {
+    // No spreadsheet on screen (for example, run from the script editor): the key is in the log.
+    Logger.log("Website lookup key: " + key);
+  }
 }
