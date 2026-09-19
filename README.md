@@ -41,22 +41,61 @@ scripts/
 
 Project-specific details are documented in each project folder `README.md`.
 
-## AEF Cohort 1 Certificates
+## AEF Cohort 1 Certificates and the Certificate Check Website
 
-Certificates for Analytics Engineering Fellowship Cohort 1 fellows who submitted at least one project.
+Certificates for Analytics Engineering Fellowship Cohort 1, plus a public website where anyone
+can confirm a certificate is genuine. Both are working; the certificates have not been emailed yet.
 
-- **Design sample:** `artifacts/certificates/aef-cohort-1-certificate-sample.html` (open in a browser; A4 landscape, Poppins font).
-- **Signatory:** Ayoade Adegbite, Founder, Behind The Data Academy (single signatory).
-- **Certificate number format:** `AEF-2026-C1-0001-K7QX`: a running number plus a random code, so numbers can't be guessed.
-- **Who qualifies:** anyone with at least one submission the team marked **Ok** in the Review Tracker's Status dropdown.
-- **Verification website (live at https://btd-certificates.vercel.app):** `sites/certificates/`, a public site where anyone can check a
-  certificate number. Run it locally with `cd sites/certificates; npm install; npm run dev` (it uses practice data
-  when run locally). Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
-  Hold sending certificates until it is live.
-- **How they are sent:** the `AEF_Cohort_1_Certificates` project lists eligible fellows in a "Certificates" tab. The team fixes names and ticks "Approved", then the automation creates each PDF, saves it to Google Drive and emails it to the fellow. Full steps: `projects/AEF_Cohort_1_Certificates/README.md`.
-- **Live preview:** `artifacts/certificates/aef-cohort-1-certificate-preview.html` shows how any name will look (serve the repo with `python -m http.server 8765`).
-- **Background image:** `scripts/render-certificate-background.ps1` renders the design without the name and number for the automation.
-- **Private files:** signature images live in `assets/signatures/`, which is not stored in git. Use `scripts/remove-signature-background.ps1` to make a signature background transparent.
+### How the pieces fit together
+
+1. **Review Tracker (AEF Submissions spreadsheet).** The team marks a submission **Ok** in the
+   Status dropdown. That person is added straight away to a **Certificates** tab and given a
+   permanent certificate number such as `AEF-2026-C1-0004-3APP` (running number plus a random
+   code, so numbers cannot be guessed). The same number is written back into a **Certificate ID**
+   column on the tracker. A fellow who submitted several times gets one row and one number.
+2. **Check and approve.** The team corrects the spelling in **Name on certificate** and ticks
+   **Approved**. Nothing is emailed by ticking.
+3. **Make the PDFs (no email).** One button creates each approved fellow's certificate, saves it in
+   the **AEF Cohort 1 Certificates** Google Drive folder and fills in the **PDF Link** column, so
+   every certificate can be checked before anyone receives it.
+4. **Send.** The LIVE button emails each approved fellow their PDF once, and records `Sent`, the
+   time and the link. Nobody is ever emailed twice.
+5. **Verify.** From the moment a certificate is `Sent`, its number and QR code work on the website.
+
+### The certificate
+
+- **Design:** `artifacts/certificates/aef-cohort-1-certificate-sample.html`, A4 landscape
+  (29.7 x 21 cm), Poppins font, ivory paper with navy, teal and gold.
+- **Signatory:** Ayoade Adegbite, Founder, Behind The Data Academy.
+- **On every certificate:** the fellow's name, their certificate number, an **AEF Verified** seal,
+  a **QR code** that opens that fellow's own check page, and the printed line
+  **Verify at bit.ly/4xwnpM4** (the short link to the website's search page).
+- **Preview any name:** `artifacts/certificates/aef-cohort-1-certificate-preview.html`
+  (serve the repo with `python -m http.server 8765`).
+- **Design image:** `scripts/render-certificate-background.ps1` renders the design without the name,
+  number and QR code. The result is uploaded to the Drive folder and used for every certificate.
+- **Private files:** signature images and the rendered design live in `assets/signatures/`, which is
+  **not stored in git**, because they contain the signature.
+
+### The certificate check website
+
+- **Live:** https://btd-certificates.vercel.app (short link **bit.ly/4xwnpM4**).
+- **Code:** `sites/certificates/` (Next.js, hosted on Vercel in the **Mmes V1** account). Every push
+  to `main` that changes that folder updates the live site automatically.
+- Anyone enters a certificate number and sees either "This certificate is genuine", with the details,
+  a picture of the certificate and a PDF download, or "No certificate matches this ID". If the records
+  cannot be reached it says so plainly, and never calls a real certificate fake.
+- **Where its data comes from:** it asks the certificate automation about one number at a time, using
+  a secret key, and only ever receives public details (name, programme, cohort, award, issue date and
+  PDF link). Emails are never sent to the website. Only certificates marked `Sent` verify.
+- Certificate pages are hidden from search engines, so fellows' names do not appear in Google.
+
+### Full instructions
+
+- Certificate automation and its buttons: `projects/AEF_Cohort_1_Certificates/README.md`
+- Website: `sites/certificates/README.md`
+- Background and decisions: `docs/brainstorms/2026-09-18-certificate-verification-platform-brainstorm.md`
+  and `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`
 
 ## Common Commands
 
