@@ -98,7 +98,16 @@ PDF download link. It **never** gets emails, approvals or errors. Only certifica
 
 - Make the secret key with **Create Website Lookup Key** (sidebar or menu). It is shown once; paste it into Vercel.
   Making a new key stops the old one working.
-- The lookup is published as an Apps Script web app (settings in `src/appsscript.json`).
+- The lookup is published as an Apps Script web app (settings in `src/appsscript.json`):
+  - Deployment ID: `AKfycbzXbA6zB7uo6B8Wk-2KpqURbr3KKpRe_ZGtE2zuSQdkXBxg5Sn67AwnN52LpqfeYnKg`
+  - Address: `https://script.google.com/macros/s/AKfycbzXbA6zB7uo6B8Wk-2KpqURbr3KKpRe_ZGtE2zuSQdkXBxg5Sn67AwnN52LpqfeYnKg/exec`
+  - Without the right key it only ever answers `{"ok":false,"error":"unauthorized"}`.
+  - **After changing the code**, push it and then update this same deployment so the address stays the same:
+
+    ```powershell
+    .\scripts\clasp-project.ps1 -Project AEF_Cohort_1_Certificates -Action push
+    .\scripts\clasp-project.ps1 -Project AEF_Cohort_1_Certificates -Action update-deployment -ExtraArgs AKfycbzXbA6zB7uo6B8Wk-2KpqURbr3KKpRe_ZGtE2zuSQdkXBxg5Sn67AwnN52LpqfeYnKg
+    ```
 
 Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
 

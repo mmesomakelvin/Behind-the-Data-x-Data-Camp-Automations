@@ -128,7 +128,7 @@ Files: `projects/AEF_Cohort_1_Certificates/src/Code.js`, `src/Lookup.js` (new),
       (`file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW)`).
 - [x] **Web app settings** in `appsscript.json`:
       `"webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }`.
-- [ ] Deploy with clasp and record the deployment ID in the project README, so later updates keep
+- [x] Deploy with clasp and record the deployment ID in the project README, so later updates keep
       the same web address. The first deployment may need one "Authorise" click from you in Apps Script.
 - [x] Tests:
   - IDs have the code format.
