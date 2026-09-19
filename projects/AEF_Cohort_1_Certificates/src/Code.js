@@ -29,6 +29,8 @@ var AEF_CERT_CONFIG = {
   siteUrl: "https://btd-certificates.vercel.app",
   folderName: "AEF Cohort 1 Certificates",
   backgroundFileName: "aef-cohort-1-certificate-background.png",
+  // A blank Google Slides file set to A4 landscape (29.7 x 21 cm), kept in the certificates folder.
+  templateName: "AEF Certificate Template",
   senderName: "Behind the Data Academy",
   // Apps Script stops a run after 6 minutes; stop early and ask the user to run again.
   timeBudgetMs: 4.5 * 60 * 1000,
@@ -654,44 +656,68 @@ function sendCertificateEmail_(row, pdfBlob, recipientOverride) {
 // ---------------------------------------------------------------------------
 
 /** Builds one certificate in a temporary Google Slides file and returns it as a PDF. */
+/**
+ * Builds one certificate from a copy of the A4 template presentation and returns it as a PDF.
+ * (Google ignores page sizes when creating presentations, so the size comes from the template.)
+ */
 function createCertificatePdf_(name, certificateId, backgroundBlob) {
-  var page = CERT_LAYOUT.page;
-  var created = Slides.Presentations.create({
-    title: "Certificate " + certificateId,
-    pageSize: {
-      width: { magnitude: page.width, unit: "PT" },
-      height: { magnitude: page.height, unit: "PT" }
-    }
-  });
-  var presentationId = created.presentationId;
+  var template = getCertificateTemplate_();
+  var copy = template.makeCopy("Certificate " + certificateId);
 
   try {
-    var presentation = SlidesApp.openById(presentationId);
-    var slide = presentation.getSlides()[0];
+    var presentation = SlidesApp.openById(copy.getId());
+    var pageWidth = presentation.getPageWidth();
+    var pageHeight = presentation.getPageHeight();
+    // Layout numbers are for an A4 page in points; scale in case the template differs slightly.
+    var scale = pageWidth / CERT_LAYOUT.page.width;
+
+    var slides = presentation.getSlides();
+    var slide = slides.length ? slides[0] : presentation.appendSlide(SlidesApp.PredefinedLayout.BLANK);
+    for (var i = slides.length - 1; i > 0; i--) slides[i].remove();
     slide.getPageElements().forEach(function (element) { element.remove(); });
 
-    slide.insertImage(backgroundBlob, 0, 0, page.width, page.height);
-    addCertificateText_(slide, name, CERT_LAYOUT.name, nameFontSize_(name), SlidesApp.ParagraphAlignment.CENTER);
+    slide.insertImage(backgroundBlob, 0, 0, pageWidth, pageHeight);
+    addCertificateText_(slide, name, CERT_LAYOUT.name, nameFontSize_(name), SlidesApp.ParagraphAlignment.CENTER, scale);
     addCertificateText_(slide, certificateId, CERT_LAYOUT.certificateId,
-      CERT_LAYOUT.certificateId.fontSize, SlidesApp.ParagraphAlignment.START);
+      CERT_LAYOUT.certificateId.fontSize, SlidesApp.ParagraphAlignment.START, scale);
     presentation.saveAndClose();
 
-    return DriveApp.getFileById(presentationId)
-      .getAs(MimeType.PDF)
-      .setName(certificatePdfName_(certificateId, name));
+    return copy.getAs(MimeType.PDF).setName(certificatePdfName_(certificateId, name));
   } finally {
-    DriveApp.getFileById(presentationId).setTrashed(true);
+    copy.setTrashed(true);
   }
 }
 
-function addCertificateText_(slide, text, spec, fontSize, alignment) {
-  var box = slide.insertTextBox(text, spec.left, spec.top, spec.width, spec.height);
+/** The A4 landscape Google Slides file the team makes once in the certificates folder. */
+function getCertificateTemplate_() {
+  var files = getOrCreateCertificateFolder_().getFilesByName(AEF_CERT_CONFIG.templateName);
+  while (files.hasNext()) {
+    var file = files.next();
+    if (file.getMimeType() !== MimeType.GOOGLE_SLIDES || file.isTrashed()) continue;
+    var presentation = SlidesApp.openById(file.getId());
+    if (!isA4Landscape_(presentation.getPageWidth(), presentation.getPageHeight())) {
+      throw new Error('"' + AEF_CERT_CONFIG.templateName + '" is not A4 landscape. In it, choose File > Page setup > ' +
+        'Custom, enter 29.7 x 21 centimetres, then Apply.');
+    }
+    return file;
+  }
+  throw new Error('Make the certificate template first: in the "' + AEF_CERT_CONFIG.folderName +
+    '" Drive folder, create a blank Google Slides file named "' + AEF_CERT_CONFIG.templateName +
+    '" and set File > Page setup > Custom to 29.7 x 21 centimetres.');
+}
+
+function isA4Landscape_(width, height) {
+  return height > 0 && Math.abs(width / height - CERT_LAYOUT.page.width / CERT_LAYOUT.page.height) < 0.02;
+}
+
+function addCertificateText_(slide, text, spec, fontSize, alignment, scale) {
+  var box = slide.insertTextBox(text, spec.left * scale, spec.top * scale, spec.width * scale, spec.height * scale);
   box.setContentAlignment(SlidesApp.ContentAlignment.MIDDLE);
   var range = box.getText();
   range.getTextStyle()
     .setFontFamilyAndWeight(spec.fontFamily, spec.fontWeight)
     .setItalic(spec.italic)
-    .setFontSize(fontSize)
+    .setFontSize(fontSize * scale)
     .setForegroundColor(spec.color);
   range.getParagraphStyle().setParagraphAlignment(alignment);
   return box;
