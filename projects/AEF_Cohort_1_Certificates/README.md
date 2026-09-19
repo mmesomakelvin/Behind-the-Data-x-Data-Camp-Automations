@@ -58,7 +58,7 @@ The design lives in `artifacts/certificates/aef-cohort-1-certificate-sample.html
 1. `scripts/render-certificate-background.ps1` saves the design **without** the name and
    number as `assets/signatures/aef-cohort-1-certificate-background.png`. This image contains
    the signature, so it is private and not stored in git.
-2. The automation puts that image on an A4 landscape Google Slides page, adds the fellow's
+2. The automation copies the **AEF Certificate Template** (an A4 landscape Google Slides file), puts that image on it, adds the fellow's
    name and certificate number in Poppins, and saves it as a PDF. The temporary Slides file is deleted.
 3. Text positions and sizes are in `src/CertificateLayout.js`. Long names get a smaller size automatically.
 
@@ -87,6 +87,12 @@ Steps 1-3 are done (the script is attached and the code is pushed).
 5. Click **1. Setup Certificates** and approve the Google permissions. This creates the
    Certificates tab and the **AEF Cohort 1 Certificates** Drive folder.
 6. Upload `assets/signatures/aef-cohort-1-certificate-background.png` into that Drive folder.
+7. In that same Drive folder, make the **certificate template**. This is needed because Google ignores
+   page sizes when a script creates a presentation, so the A4 size has to come from a file a person set up:
+   - **New > Google Slides > Blank presentation**
+   - Rename it exactly **AEF Certificate Template**
+   - **File > Page setup > Custom**, enter **29.7 x 21 centimetres**, then **Apply**
+   - Leave the slide empty. Each certificate is built on a temporary copy of it.
 
 ## Verification Website Lookup
 

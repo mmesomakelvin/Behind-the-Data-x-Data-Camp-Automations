@@ -394,3 +394,10 @@ test("a PDF with an old name is replaced, so a corrected name is never sent wron
   assert.deepEqual(trashed, ["AEF-2026-C1-0001 - ada lovelace.pdf"]);
   assert.equal(created.length, 1);
 });
+
+test("only an A4 landscape template is accepted", () => {
+  const app = loadProject();
+  assert.equal(app.isA4Landscape_(841.89, 595.28), true);
+  assert.equal(app.isA4Landscape_(720, 405), false); // Google's default widescreen page
+  assert.equal(app.isA4Landscape_(595.28, 841.89), false); // A4 portrait
+});
