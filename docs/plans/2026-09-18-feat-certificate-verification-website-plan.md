@@ -108,47 +108,47 @@ Email, approval state, errors and send times are **never** included.
 Files: `projects/AEF_Cohort_1_Certificates/src/Code.js`, `src/Lookup.js` (new),
 `src/appsscript.json`, `tests/certificates.test.js`, `tests/lookup.test.js` (new), `README.md`.
 
-- [ ] **Random code in IDs.** `formatCertificateId_` appends `-XXXX` from an alphabet without
+- [x] **Random code in IDs.** `formatCertificateId_` appends `-XXXX` from an alphabet without
       look-alike characters (`ABCDEFGHJKMNPQRSTUVWXYZ23456789`), generated from `Utilities.getUuid()`.
       `certificateNumber_` still reads the running number, so numbering stays in order.
-- [ ] **Backfill.** "Build / Refresh Certificate List" adds a code to any existing row whose ID has
+- [x] **Backfill.** "Build / Refresh Certificate List" adds a code to any existing row whose ID has
       none **and** is not yet Sent. Sent IDs are never changed.
-- [ ] **Programme labels in config.** Add `programme`, `cohortLabel`, `award` and `issuedLabel`
+- [x] **Programme labels in config.** Add `programme`, `cohortLabel`, `award` and `issuedLabel`
       to `AEF_CERT_CONFIG` (these match the printed certificate), plus `siteUrl`.
-- [ ] **Lookup endpoint.** `doGet(e)` in `Lookup.js`:
+- [x] **Lookup endpoint.** `doGet(e)` in `Lookup.js`:
   - Rejects a missing or wrong `key` (compared with the Script Property `AEF_CERT_LOOKUP_KEY`).
   - Normalises the ID: trims it, makes it upper case and removes spaces.
   - Reads the Certificates tab through a stored `AEF_CERT_SPREADSHEET_ID` (saved by Setup), so it
     works outside the open spreadsheet.
   - Returns only the public fields above, and only for `Sent` rows with a PDF link.
   - The pure function `buildLookupReply_(rows, id)` is unit-tested.
-- [ ] **Sidebar button "Create Website Lookup Key".** It makes a random key, saves it in Script
+- [x] **Sidebar button "Create Website Lookup Key".** It makes a random key, saves it in Script
       Properties and shows it once so it can be pasted into Vercel.
-- [ ] **PDF sharing.** When a PDF is created (or reused), set it to "anyone with the link can view"
+- [x] **PDF sharing.** When a PDF is created (or reused), set it to "anyone with the link can view"
       (`file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW)`).
-- [ ] **Web app settings** in `appsscript.json`:
+- [x] **Web app settings** in `appsscript.json`:
       `"webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }`.
 - [ ] Deploy with clasp and record the deployment ID in the project README, so later updates keep
       the same web address. The first deployment may need one "Authorise" click from you in Apps Script.
-- [ ] Tests:
+- [x] Tests:
   - IDs have the code format.
   - Backfill skips Sent rows.
   - Lookup: wrong key is refused, unknown ID is not found, a non-Sent row is not found, a Sent row
     returns public fields only (the test asserts the email is absent), and lowercase or spaced
     input still matches.
-- [ ] Update `preview.html` and tests that assume the old ID format.
+- [x] Update `preview.html` and tests that assume the old ID format.
 
 **Done when:** a browser call to the lookup address with the key returns a sample Sent row's
 public details and nothing else.
 
 #### Phase 2: Design and build the website (Vercel)
 
-- [ ] **Design first.** Draw the screens on the design canvas
+- [x] **Design first.** *(Done by building the site directly and reviewing it locally, at the user's request.)* Draw the screens on the design canvas
       (https://claude.ai/artifact/2j25eHxgFwrPfNSmbVZQxr): Search, Verified result, Not found,
       "Can't check right now", and the phone view. You approve them before any site code is written.
-- [ ] Create `sites/certificates/` (Next.js 16, App Router, TypeScript). The Vercel project's
+- [x] Create `sites/certificates/` (Next.js 16, App Router, TypeScript). The Vercel project's
       root directory is that folder, so the Apps Script projects are unaffected.
-- [ ] Pages and routes:
+- [x] Pages and routes:
   - `app/page.tsx`: brand header and one certificate-ID box. Submitting goes to `/verify/<id>`
     (a plain form, so it works without JavaScript).
   - `app/verify/[id]/page.tsx`:
@@ -161,21 +161,21 @@ public details and nothing else.
   - `app/api/qr/[id]/route.ts`: a PNG QR code of the verification address (the `qrcode` package).
   - `app/verify/[id]/opengraph-image.tsx` *(nice-to-have)*: the preview card shown when the link
     is shared on LinkedIn or WhatsApp.
-- [ ] `lib/lookup.ts`:
+- [x] `lib/lookup.ts`:
   - Picks the lookup source by ID prefix from the environment variable `CERT_LOOKUP_SOURCES`
     (a list of `{prefix, url, key}` entries), so future cohorts just add an entry.
-  - Caches found results for 5 minutes and "not found" for 1 minute (`next: { revalidate }`).
-- [ ] `components/CertificatePreview.tsx`: the certificate drawn in HTML/CSS from the same design
+  - *Changed while building:* every check asks the records afresh (no caching), so a certificate that was just sent or withdrawn shows correctly straight away. Low traffic makes this fine.
+- [x] `components/CertificatePreview.tsx`: the certificate drawn in HTML/CSS from the same design
       (Poppins, ivory, navy, teal, gold), with the signature as printed text. It scales to phone width.
-- [ ] LinkedIn button link: `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=…&organizationName=Behind%20the%20Data%20Academy&issueYear=2026&issueMonth=9&certUrl=…&certId=…`
+- [x] LinkedIn button link: `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=…&organizationName=Behind%20the%20Data%20Academy&issueYear=2026&issueMonth=9&certUrl=…&certId=…`
       (use `organizationId` instead once we have the academy's LinkedIn page ID).
-- [ ] The copy button uses the clipboard, with a fallback that selects the link text.
-- [ ] Privacy and safety:
+- [x] The copy button uses the clipboard, with a fallback that selects the link text.
+- [x] Privacy and safety:
   - Verification pages send `noindex` (`robots` metadata), so fellows' names don't show up in Google.
   - The lookup key is only used server-side.
   - Input is limited to 40 characters and the pattern `^[A-Z]{2,10}-\d{4}-[A-Z0-9]{1,6}-\d{4}-[A-Z0-9]{4}$`
     before any lookup.
-- [ ] Tests (vitest):
+- [x] Tests (vitest):
   - ID normalisation and pattern.
   - Choosing a lookup source by prefix.
   - Lookup client: found, not found and timeout (fetch mocked).

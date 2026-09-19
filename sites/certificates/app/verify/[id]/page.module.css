@@ -1,0 +1,75 @@
+.verified { padding-top: 48px; padding-bottom: 88px; }
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 22px 26px;
+  margin-bottom: 36px;
+  background: #eef7f4;
+  border: 1px solid #bfe0d7;
+  border-radius: 14px;
+}
+
+/* The one moment of motion: the seal stamps in once when a certificate checks out. */
+.seal {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--teal-text);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--gold), inset 0 0 0 5px var(--paper), inset 0 0 0 6px var(--gold);
+  animation: stamp 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.25) 0.15s both;
+}
+
+@keyframes stamp {
+  from { transform: scale(1.8) rotate(-14deg); opacity: 0; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+.bannerTitle { margin: 0; font-size: clamp(22px, 3vw, 28px); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.bannerText { margin: 4px 0 0; color: var(--ink-soft); }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+.previewColumn { min-width: 0; }
+
+.details { display: flex; flex-direction: column; gap: 28px; }
+
+.facts { margin: 0; display: flex; flex-direction: column; }
+.facts > div { padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+.facts > div:first-child { padding-top: 0; }
+.facts dt { font-size: 13px; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-weight: 500; }
+.facts .name { font-size: 22px; font-weight: 600; font-style: italic; letter-spacing: -0.01em; }
+.facts .id { letter-spacing: 0.06em; }
+
+.again {
+  margin-top: 72px;
+  padding-top: 40px;
+  border-top: 1px solid var(--line-soft);
+}
+.againTitle { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
+
+.message { max-width: 720px; padding-top: 88px; padding-bottom: 96px; }
+.messageTitle { margin: 0 0 14px; font-size: clamp(28px, 4vw, 40px); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.messageText { margin: 0 0 28px; font-size: 17px; color: var(--ink-soft); max-width: 56ch; }
+.messageActions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .verified { padding-top: 28px; }
+  .banner { padding: 18px; gap: 14px; align-items: flex-start; }
+  .seal { width: 52px; height: 52px; }
+}

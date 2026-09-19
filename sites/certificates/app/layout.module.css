@@ -1,0 +1,40 @@
+.header {
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--paper);
+}
+
+.headerInner {
+  display: flex;
+  align-items: center;
+  min-height: 76px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.brand:hover { color: var(--ink); }
+
+.logo { border-radius: 6px; display: block; }
+
+.brandText { display: flex; flex-direction: column; line-height: 1.25; }
+.academy { font-size: 13px; color: var(--teal-text); font-weight: 600; }
+.product { font-size: 17px; font-weight: 500; }
+
+.footer {
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding-top: 22px;
+  padding-bottom: 22px;
+}
