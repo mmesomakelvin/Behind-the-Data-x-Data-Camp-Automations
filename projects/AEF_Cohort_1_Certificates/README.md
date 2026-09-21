@@ -103,7 +103,7 @@ Steps 1-3 are done (the script is attached and the code is pushed).
 
 ## Verification Website Lookup
 
-`src/Lookup.js` lets the certificate verification website (planned at
+`src/Lookup.js` lets the certificate verification website (live at
 `https://btd-certificates.vercel.app`) check a certificate number. The website sends the number plus a
 secret key, and gets back only the public details: name, programme, cohort, award, issue date and
 PDF download link. It **never** gets emails, approvals or errors. Only certificates whose status is
@@ -124,8 +124,9 @@ PDF download link. It **never** gets emails, approvals or errors. Only certifica
 
 Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
 
-> **Do not send Cohort 1 certificates yet.** The QR code and website link still need to be
-> added to the certificate and the email once the website is live.
+> **Ready to send.** The website is live at https://btd-certificates.vercel.app, and every
+> certificate carries its QR code and the printed link bit.ly/4xwnpM4. A certificate shows as
+> genuine on the website once its status is `Sent`.
 
 ## Sending Certificates
 
