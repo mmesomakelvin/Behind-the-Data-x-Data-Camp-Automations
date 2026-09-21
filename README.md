@@ -118,6 +118,17 @@ Create a new project:
 .\scripts\new-project.ps1 -Project New_Project_Name -ScriptId <NEW_SCRIPT_ID>
 ```
 
+## Contributors
+
+| Name | GitHub | Role |
+| --- | --- | --- |
+| Mmesoma Okoronkwo | [@mmesomakelvin](https://github.com/mmesomakelvin) | Repository owner and maintainer |
+| Adegbite Ayoade Abel | [@tripleaceme](https://github.com/tripleaceme) | Founder, Behind The Data Academy |
+| Behind The Data Academy | [@BehindTheDataAcademy](https://github.com/BehindTheDataAcademy) | Academy account |
+
+New collaborators are invited from the repository's **Settings > Collaborators** page. They appear
+in GitHub's Contributors list once they push their first commit.
+
 ## Working Rule
 
 Always confirm the project folder name before editing or pushing.
