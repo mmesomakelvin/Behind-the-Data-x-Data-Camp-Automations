@@ -48,14 +48,15 @@ can confirm a certificate is genuine. Both are working; the certificates have no
 
 ### How the pieces fit together
 
-1. **Review Tracker (AEF Submissions spreadsheet).** The team marks a submission **Ok** in the
-   Status dropdown. That person is added straight away to a **Certificates** tab and given a
+1. **Roster and Review Tracker.** The separate Cohort 1 roster supplies every recipient's
+   email and name. The team marks accepted submissions **Ok** in the AEF Submissions Review
+   Tracker. A roster fellow with an accepted project gets Completion; all other roster fellows
+   get Participation. Refresh adds them to the **Certificates** tab in AEF Submissions with a
    permanent certificate number such as `AEF-2026-C1-0004-3APP` (running number plus a random
    code, so numbers cannot be guessed). The same number is written back into a **Certificate ID**
    column on the tracker. A fellow who submitted several times gets one row and one number.
 2. **Check and approve.** The team corrects the spelling in **Name on certificate** and ticks
-   **Approved**. Fellows with accepted projects receive Completion. Confirmed fellows with no
-   accepted project can be entered manually with project count `0` for Participation. Nothing is emailed by ticking.
+   **Approved**. Nothing is emailed by ticking.
 3. **Make the PDFs (no email).** One button creates each approved fellow's certificate, saves it in
    the **AEF Cohort 1 Certificates** Google Drive folder and fills in the **PDF Link** column, so
    every certificate can be checked before anyone receives it.

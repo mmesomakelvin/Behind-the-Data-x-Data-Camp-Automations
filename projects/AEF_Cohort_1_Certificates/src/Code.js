@@ -14,6 +14,8 @@
 var AEF_CERT_CONFIG = {
   trackerSheetName: "Review Tracker",
   certificateSheetName: "Certificates",
+  rosterSpreadsheetId: "1vPAOd2B_YAVcEnO8hXN7Az7o6bcz4J_UqjUHEfAcSQY",
+  rosterSheetName: "AEF Cohort 1 - Refund list.csv",
   acceptedStatus: "OK",
   idPrefix: "AEF-2026-C1-",
   idDigits: 4,
@@ -60,7 +62,7 @@ function onOpen() {
     .addItem("Open Automation Buttons", "openAefCertificateButtons")
     .addSeparator()
     .addItem("1. Setup Certificates", "setupAefCertificates")
-    .addItem("2. Build / Refresh Certificate List", "refreshAefCertificateList")
+    .addItem("2. Build / Refresh Certificate List from Roster", "refreshAefCertificateList")
     .addSeparator()
     .addItem("Set Test Email Recipient", "setAefCertificateTestEmailRecipient")
     .addItem("Preview Certificate Email", "previewAefCertificateEmail")
@@ -186,8 +188,12 @@ function getBackgroundBlob_(row) {
 function refreshAefCertificateList() {
   return withAefCertLock_(function () {
     var merged = updateCertificateList_(SpreadsheetApp.getActiveSpreadsheet());
+    var completion = merged.rows.filter(function (row) {
+      return certificateAward_(row) === AEF_CERT_CONFIG.completionAward;
+    }).length;
     return notifyAefCert_(
       merged.added + " new fellow(s) added. " + merged.rows.length + " fellow(s) on the list.\n\n" +
+      completion + " Completion; " + (merged.rows.length - completion) + " Participation.\n\n" +
       'Check each "Name on certificate", then tick "Approved" for the ones ready to send.'
     );
   });
@@ -199,10 +205,36 @@ function updateCertificateList_(ss) {
 
   var sheet = getOrCreateCertificateSheet_(ss);
   rememberSpreadsheetId_(ss);
-  var merged = mergeCertificateRows_(readCertificateRows_(sheet), readTrackerRows_(tracker));
+  var rosterRows = readRosterRows_();
+  var merged = mergeCertificateRows_(readCertificateRows_(sheet), readTrackerRows_(tracker), rosterRows);
   writeCertificateRows_(sheet, merged.rows);
   writeTrackerCertificateIds_(tracker, merged.rows);
   return merged;
+}
+
+/** Reads only email and name from the separate roster; bank and refund columns stay untouched. */
+function readRosterRows_() {
+  var spreadsheet = SpreadsheetApp.openById(AEF_CERT_CONFIG.rosterSpreadsheetId);
+  var sheet = spreadsheet.getSheetByName(AEF_CERT_CONFIG.rosterSheetName);
+  if (!sheet) throw new Error('Roster tab "' + AEF_CERT_CONFIG.rosterSheetName + '" was not found.');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error("The certificate roster has no fellows.");
+  var values = sheet.getRange(1, 1, lastRow, 2).getValues();
+  if (String(values[0][0]).trim() !== "Email" || String(values[0][1]).trim() !== "Name") {
+    throw new Error('The roster must have "Email" in A1 and "Name" in B1.');
+  }
+  var rows = [];
+  values.slice(1).forEach(function (pair, index) {
+    var email = normaliseEmail_(pair[0]);
+    var name = String(pair[1] || "").replace(/\s+/g, " ").trim();
+    if (!email && !name) return;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !name) {
+      throw new Error("Check Email and Name on roster row " + (index + 2) + ".");
+    }
+    rows.push({ email: email, name: name });
+  });
+  if (!rows.length) throw new Error("The certificate roster has no fellows.");
+  return rows;
 }
 
 /**
@@ -318,14 +350,19 @@ function writeTrackerCertificateIds_(tracker, certificateRows) {
  * "Name as submitted" and "Projects submitted" are refreshed. New fellows are
  * numbered in the order they first submitted.
  */
-function mergeCertificateRows_(existingRows, trackerRows) {
+function mergeCertificateRows_(existingRows, trackerRows, rosterRows) {
   var fellows = {};
   var order = [];
+  var rosterEmails = null;
+  if (rosterRows) {
+    rosterEmails = {};
+    rosterRows.forEach(function (row) { rosterEmails[normaliseEmail_(row.email)] = true; });
+  }
 
   trackerRows.forEach(function (row) {
     var email = normaliseEmail_(row.email);
     var accepted = String(row.status || "").trim().toUpperCase() === AEF_CERT_CONFIG.acceptedStatus;
-    if (!email || !accepted) return;
+    if (!email || !accepted || (rosterEmails && !rosterEmails[email])) return;
 
     var time = toTime_(row.submittedAt);
     var fellow = fellows[email];
@@ -396,6 +433,32 @@ function mergeCertificateRows_(existingRows, trackerRows) {
       error: ""
     });
   });
+
+  // Every person in the roster gets a row, even without an accepted project.
+  // Existing completion rows keep their corrected names, approvals and PDFs.
+  if (rosterRows) {
+    var listed = {};
+    rows.forEach(function (row) { listed[normaliseEmail_(row.email)] = true; });
+    rosterRows.forEach(function (fellow) {
+      var email = normaliseEmail_(fellow.email);
+      if (!email || listed[email]) return;
+      rows.push({
+        certificateId: formatCertificateId_(nextNumber++, randomCertificateCode_()),
+        nameOnCertificate: tidyName_(fellow.name),
+        email: email,
+        submittedName: String(fellow.name || "").replace(/\s+/g, " ").trim(),
+        projectCount: 0,
+        approved: false,
+        status: "",
+        pdfLink: "",
+        sentAt: "",
+        error: "",
+        award: ""
+      });
+      listed[email] = true;
+      newFellows.push(fellow);
+    });
+  }
 
   return { rows: rows, added: newFellows.length };
 }

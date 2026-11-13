@@ -13,24 +13,22 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
 ## What This Project Does
 
 - Adds an **AEF Cohort 1 Certificates** menu and a sidebar of buttons to the AEF Submissions spreadsheet.
-- Builds a **Certificates** tab listing every fellow with **at least one accepted project**.
-  "Accepted" means the team marked the row **Ok** in the Review Tracker's **Status** dropdown
-  (column I). Blank or any other value is left out. The form's automatic "OK" in the
-  Issues column is ignored on purpose. A fellow who submitted several times appears once (matched by email).
-- Gives fellows with one or more accepted projects a **Certificate of Completion**. For a
-  confirmed fellow with no accepted project, add their name and email to the **Certificates**
-  tab, enter `0` under **Projects submitted**, then run **Build / Refresh Certificate List**.
-  That assigns an ID and gives them a **Certificate of Participation**. The submissions sheet
-  alone cannot confirm who attended without submitting a project.
+- Builds the **Certificates** tab from the separate [Cohort 1 roster](https://docs.google.com/spreadsheets/d/1vPAOd2B_YAVcEnO8hXN7Az7o6bcz4J_UqjUHEfAcSQY/edit?gid=823742110).
+  It reads only column A (**Email**) and column B (**Name**), never the bank or refund columns.
+  Everyone on that roster gets one row, matched by email. Existing certificate IDs, corrected
+  names, approvals and PDF links are kept.
+- Gives a roster fellow a **Certificate of Completion** when they have at least one accepted
+  project in the AEF Submissions **Review Tracker**. "Accepted" means the team marked the
+  project's **Status** dropdown **Ok**. The form's automatic "OK" in **Issues** is ignored.
+  Roster fellows without an accepted project receive a **Certificate of Participation**.
 - Gives each fellow a permanent certificate number with a random code, such as `AEF-2026-C1-0001-K7QX`,
-  numbered in the order they first submitted. The code stops anyone guessing other fellows'
+  numbered in the order they first submitted or were added from the roster. The code stops anyone guessing other fellows'
   numbers on the verification website. Refreshing the list never changes a number.
 - Writes each person's certificate number into a **Certificate ID** column at the end of the
   Review Tracker, on every one of their submission rows.
-- **Updates automatically:** as soon as someone sets a Review Tracker row's Status to **Ok**, that
-  person is added to the Certificates tab (or, if their email is already there, their project count
-  is updated) and a small message appears at the bottom right. Nobody is emailed. The
-  **Build / Refresh Certificate List** button does the same for all rows at once and is a safe backup.
+- **Updates automatically:** when a roster fellow's Review Tracker Status becomes **Ok**,
+  their project count is refreshed. Nobody is emailed. **Import Roster / Refresh Certificate
+  List** brings in the full roster and refreshes all accepted-project counts.
 - Tidies names typed all in lower or upper case (`ada lovelace` becomes `Ada Lovelace`).
 - Emails nobody until the team ticks **Approved** on that fellow's row.
 - For each approved fellow: makes the PDF, saves it in the **AEF Cohort 1 Certificates**
@@ -48,8 +46,8 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
 | Certificate ID | Automation | Permanent number printed on the certificate |
 | Name on certificate | Automation, then **you** | Exactly what is printed. Fix spelling here |
 | Email | Automation | Where the certificate is sent |
-| Name as submitted | Automation | The name the fellow typed on the form (for comparison) |
-| Projects submitted | Automation or `0` for manual participants | Number of different accepted projects; one or more means Completion, zero means Participation |
+| Name as submitted | Automation | The name from the form for project recipients, or from the roster for participants |
+| Projects submitted | Automation | Number of different accepted projects; one or more means Completion, zero means Participation |
 | Approved | **You** | Tick when the row is ready to send |
 | Certificate Status | Automation | blank, `PDF ready`, `Sent` or `Error` |
 | PDF Link | Automation | The saved certificate in Google Drive |
@@ -153,10 +151,10 @@ Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
 
 ## Sending Certificates
 
-1. Mark submissions **Ok** in the Review Tracker's Status column. Each person is added to the
-   Certificates tab automatically (or click **2. Build / Refresh Certificate List** to update everyone at once).
-   For confirmed participants without accepted projects, enter their name, email and project
-   count `0` in a new Certificates row, then refresh the list.
+1. Mark accepted submissions **Ok** in the Review Tracker's Status column. Click
+   **2. Import Roster / Refresh Certificate List** in the AEF Submissions sidebar. This adds
+   everyone from the separate roster to the **Certificates** tab in AEF Submissions. Accepted
+   project recipients get Completion; the remaining roster fellows get Participation.
 2. Check each **Name on certificate** and tick **Approved** for rows that are ready. Ticking sends nothing.
 3. Click **Create PDFs for Approved (no email)**. Each approved person's PDF is made and saved in the Drive
    folder, **PDF Link** is filled in and **Certificate Status** becomes `PDF ready`. Open and check each one.

@@ -79,6 +79,52 @@ test("only fellows with at least one accepted submission are listed", () => {
   assert.equal(result.rows[0].email, "ok@example.com");
 });
 
+test("the roster adds participants while preserving existing completion approvals and IDs", () => {
+  const app = loadProject();
+  const existing = certRow({ certificateId: "AEF-2026-C1-0001-K7QX", email: "ada@example.com", projectCount: 2,
+    nameOnCertificate: "Ada Corrected", approved: true, status: "PDF ready", pdfLink: "https://drive.google.com/old" });
+  const roster = [
+    { email: "ADA@example.com", name: "Ada Roster" },
+    { email: "new@example.com", name: "new learner" },
+    { email: "NEW@example.com", name: "Duplicate Learner" }
+  ];
+  const first = app.mergeCertificateRows_([existing], [trackerRow({ email: "ada@example.com" })], roster);
+  assert.equal(first.rows.length, 2);
+  assert.equal(first.rows[0].certificateId, existing.certificateId);
+  assert.equal(first.rows[0].nameOnCertificate, "Ada Corrected");
+  assert.equal(first.rows[0].approved, true);
+  assert.equal(first.rows[0].pdfLink, existing.pdfLink);
+  assert.equal(first.rows[1].email, "new@example.com");
+  assert.equal(first.rows[1].projectCount, 0);
+  assert.equal(first.rows[1].approved, false);
+  assert.match(first.rows[1].certificateId, /^AEF-2026-C1-0002-[A-HJKMNP-Z2-9]{4}$/);
+  const second = app.mergeCertificateRows_(first.rows, [trackerRow({ email: "ada@example.com" })], roster);
+  assert.equal(second.rows.length, 2);
+  assert.equal(second.rows[1].certificateId, first.rows[1].certificateId);
+});
+
+test("an accepted project from outside the certificate roster is not added", () => {
+  const app = loadProject();
+  const result = app.mergeCertificateRows_([], [trackerRow({ email: "outside@example.com" })], [
+    { email: "inside@example.com", name: "Inside Learner" }
+  ]);
+  assert.deepEqual(result.rows.map((row) => row.email), ["inside@example.com"]);
+});
+
+test("roster reading only uses the email and name columns", () => {
+  const app = loadProject({ SpreadsheetApp: { openById: (id) => {
+    assert.equal(id, app.AEF_CERT_CONFIG.rosterSpreadsheetId);
+    return { getSheetByName: (name) => {
+      assert.equal(name, app.AEF_CERT_CONFIG.rosterSheetName);
+      return { getLastRow: () => 3, getRange: (row, column, count, width) => {
+        assert.deepEqual([row, column, count, width], [1, 1, 3, 2]);
+        return { getValues: () => [["Email", "Name"], ["Ada@Example.com", "Ada"], ["", ""]] };
+      } };
+    } };
+  } } });
+  assert.deepEqual(Array.from(app.readRosterRows_(), (row) => row.email), ["ada@example.com"]);
+});
+
 test("the award follows accepted project count and manual participants get stable IDs", () => {
   const app = loadProject();
   const participant = certRow({ certificateId: "", email: "learner@example.com", nameOnCertificate: "Learner One", projectCount: 0 });
