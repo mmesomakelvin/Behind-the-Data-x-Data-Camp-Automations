@@ -21,10 +21,12 @@ export function nameSizePx(name: string): number {
 export default function CertificatePreview({ certificate }: { certificate: Certificate }) {
   const year = (certificate.cohort.match(/\d{4}/) || certificate.issued.match(/\d{4}/) || [""])[0];
   const awardWord = certificate.award.replace(/^Certificate of\s+/i, "");
+  const isCompletion = awardWord.toLowerCase() === "completion";
+  const programmeLabel = `${certificate.programme} ${certificate.cohort.replace(/\s*·\s*/, ", ")}`;
 
   return (
     <figure className={styles.frame} aria-label={`Certificate awarded to ${certificate.name}`}>
-      <div className={styles.page}>
+      <div className={`${styles.page} ${isCompletion ? styles.completion : styles.participation}`}>
         <i className={`${styles.corner} ${styles.tl}`} />
         <i className={`${styles.corner} ${styles.tr}`} />
         <i className={`${styles.corner} ${styles.bl}`} />
@@ -51,10 +53,14 @@ export default function CertificatePreview({ certificate }: { certificate: Certi
             <p className={styles.recipient} style={{ ["--name-size" as string]: nameSizePx(certificate.name) }}>
               {certificate.name}
             </p>
-            <p className={styles.copy}>
-              in recognition of participation in the <strong>{certificate.programme} {certificate.cohort.replace(/\s*·\s*/, ", ")}</strong>,
-              and commitment to practical learning, project work and the development of analytics engineering skills.
-            </p>
+            <p className={styles.copy}>{isCompletion ? <>
+              for completing the <strong>{programmeLabel}</strong> and demonstrating applied skills through accepted project work in data and analytics engineering.
+            </> : <>
+              in recognition of participation in the <strong>{programmeLabel}</strong> and engagement with its learning programme in data and analytics engineering.
+            </>}</p>
+            <p className={styles.distinction}>{isCompletion
+              ? "Data Literacy · SQL · Python · Cloud Data Tools · Version Control"
+              : "Data Literacy · SQL · Python · Cloud Data Tools"}</p>
           </section>
 
           <section className={styles.signing}>

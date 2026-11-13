@@ -59,11 +59,13 @@ can confirm a certificate is genuine. Both are working; the certificates have no
    **Approved**. Nothing is emailed by ticking.
 3. **Make the PDFs (no email).** One button creates each approved fellow's certificate, saves it in
    the **AEF Cohort 1 Certificates** Google Drive folder and fills in the **PDF Link** column, so
-   every certificate can be checked before anyone receives it.
+   every certificate can be checked before anyone receives it. Running it again replaces older
+   `PDF ready` files with the current design, including the printed verification address and QR code.
 4. **Send.** The LIVE button emails each approved fellow their PDF once, and records `Sent`, the
    time and the link. Nobody is ever emailed twice.
 5. **Verify.** From the moment a certificate is `Sent`, its number and QR code work on the website.
    The award is saved with the PDF, so later project-count changes do not change what the website shows.
+   The website reads the sent sheet row and PDF link directly; no second upload is needed.
 
 ### The certificate
 
@@ -73,7 +75,7 @@ can confirm a certificate is genuine. Both are working; the certificates have no
 - **Signatory:** Ayoade Adegbite, Founder, Behind The Data Academy.
 - **On every certificate:** the fellow's name, their certificate number, an **AEF Verified** seal,
   a **QR code** that opens that fellow's own check page, and the printed line
-  **Verify at bit.ly/4xwnpM4** (the short link to the website's search page).
+  **Verify at certificate.behindthedata.tech**.
 - **Preview any name:** `artifacts/certificates/aef-cohort-1-certificate-preview.html`
   (serve the repo with `python -m http.server 8765`).
 - **Design images:** `scripts/render-certificate-background.ps1 -Award completion` and
@@ -84,7 +86,7 @@ can confirm a certificate is genuine. Both are working; the certificates have no
 
 ### The certificate check website
 
-- **Live:** https://btd-certificates.vercel.app (short link **bit.ly/4xwnpM4**).
+- **Live:** https://certificate.behindthedata.tech.
 - **Code:** `sites/certificates/` (Next.js, hosted on Vercel in the **Mmes V1** account). Every push
   to `main` that changes that folder updates the live site automatically.
 - Anyone enters a certificate number and sees either "This certificate is genuine", with the details,

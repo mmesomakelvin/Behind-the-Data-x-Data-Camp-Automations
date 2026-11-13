@@ -29,7 +29,10 @@ var AEF_CERT_CONFIG = {
   completionAward: "Certificate of Completion",
   participationAward: "Certificate of Participation",
   issuedLabel: "September 2026",
-  siteUrl: "https://btd-certificates.vercel.app",
+  siteUrl: "https://certificate.behindthedata.tech",
+  // Change this when the printed design or QR destination changes. It forces
+  // old PDF-ready files to be rebuilt before the LIVE send button reuses them.
+  pdfVersion: "v2",
   folderName: "AEF Cohort 1 Certificates",
   completionBackgroundFileName: "aef-cohort-1-completion-background.png",
   participationBackgroundFileName: "aef-cohort-1-participation-background.png",
@@ -724,7 +727,8 @@ function processPdfsOnly_(rows, deps) {
 
 function certificatePdfName_(row) {
   return String(row.certificateId).trim() + " - " + String(row.nameOnCertificate).trim() +
-    " - " + certificateAward_(row).replace("Certificate of ", "") + ".pdf";
+    " - " + certificateAward_(row).replace("Certificate of ", "") +
+    " - " + AEF_CERT_CONFIG.pdfVersion + ".pdf";
 }
 
 /**

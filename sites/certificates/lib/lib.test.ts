@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { isCertificateId, normaliseCertificateId } from "./certificate-id";
 import { findSource, lookupCertificate, parseLookupSources, type LookupSource } from "./lookup";
-import { linkedInAddUrl, parseIssued } from "./links";
+import { linkedInAddUrl, parseIssued, siteUrl, verifyUrl } from "./links";
 
 const SOURCES: LookupSource[] = [
   { prefix: "AEF-2026-C1-", url: "https://script.google.com/macros/s/abc/exec", key: "secret" },
@@ -81,6 +81,10 @@ describe("lookupCertificate", () => {
 });
 
 describe("links", () => {
+  it("uses the academy certificate address for verification links and QR codes", () => {
+    expect(siteUrl()).toBe("https://certificate.behindthedata.tech");
+    expect(verifyUrl(CERTIFICATE.id)).toBe(`https://certificate.behindthedata.tech/verify/${CERTIFICATE.id}`);
+  });
   it("reads the issue month and year", () => {
     expect(parseIssued("September 2026")).toEqual({ month: 9, year: 2026 });
     expect(parseIssued("sometime")).toEqual({ month: undefined, year: undefined });

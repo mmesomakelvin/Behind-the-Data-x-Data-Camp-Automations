@@ -4,7 +4,7 @@ var AEF_CERT_LOGO_URL =
 var AEF_CERT_EMAIL_SUBJECT =
   "Your Analytics Engineering Fellowship Certificate - Cohort 1";
 
-var AEF_CERT_VERIFY_BASE_URL = "https://btd-certificates.vercel.app/verify/";
+var AEF_CERT_VERIFY_BASE_URL = "https://certificate.behindthedata.tech/verify/";
 
 function getAefCertificateVerifyUrl(certificateId) {
   return AEF_CERT_VERIFY_BASE_URL + encodeURIComponent(String(certificateId || "").trim());

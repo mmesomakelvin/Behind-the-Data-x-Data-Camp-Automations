@@ -108,7 +108,7 @@
     qrBox.style.left = L.qr.left + 'pt';
     qrBox.style.top = L.qr.top + 'pt';
     qrBox.style.width = qrBox.style.height = L.qr.size + 'pt';
-    var qrSrc = 'https://btd-certificates.vercel.app/api/qr/' + encodeURIComponent(cid.trim().toUpperCase());
+    var qrSrc = 'https://certificate.behindthedata.tech/api/qr/' + encodeURIComponent(cid.trim().toUpperCase());
     if (qrBox.getAttribute('src') !== qrSrc) qrBox.src = qrSrc;
     var overflow = nameBox.scrollWidth > nameBox.clientWidth + 1;
     nameBox.classList.toggle('overflow', overflow);

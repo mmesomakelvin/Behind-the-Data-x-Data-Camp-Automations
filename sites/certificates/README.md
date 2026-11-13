@@ -3,7 +3,7 @@
 Public website where anyone can type a certificate ID (for example `AEF-2026-C1-0001-K7QX`)
 and see whether it is a genuine Behind the Data Academy certificate.
 
-**Live at https://btd-certificates.vercel.app**, hosted on Vercel (project `btd-certificates`,
+**Live at https://certificate.behindthedata.tech**, hosted on Vercel (project `btd-certificates`,
 team **Mmes V1**, `mmes-v1`). `vercel.json` tells Vercel this is a Next.js site.
 
 **Publishing is automatic:** the project is connected to this GitHub repository (root directory
@@ -23,20 +23,24 @@ folder with `vercel deploy --prod`.
 - **QR code (`/api/qr/<ID>`):** a PNG of the certificate's check-page link, used on the PDFs.
 - Certificate pages are hidden from search engines, so fellows' names don't appear in Google.
 - The picture of the certificate prints the signatory's name. The handwritten signature is only on the PDF.
-- The picture also shows the fellow's QR code and the printed short link `bit.ly/4xwnpM4` (`SHORT_VERIFY_LINK` in `lib/links.ts`), matching the PDF.
+- The picture also shows the fellow's QR code and the printed address `certificate.behindthedata.tech` (`SHORT_VERIFY_LINK` in `lib/links.ts`), matching the PDF.
 
 ## Where the data comes from
 
 The site asks the `AEF_Cohort_1_Certificates` Apps Script (its web app, `src/Lookup.js`) about one ID at a
 time, using a secret key. It only ever receives public details (name, programme, cohort, award, issue
-date, PDF link), and only for certificates whose status is **Sent**.
+date, PDF link), and only for certificates whose status is **Sent**. The LIVE send button marks a
+successful email `Sent` in the Certificates tab. This makes the existing sheet row and PDF link
+available for verification; there is no second database to update.
 
 Settings (Vercel environment variables; never commit them):
 
 | Name | What it is |
 | --- | --- |
 | `CERT_LOOKUP_SOURCES` | JSON list of lookups by ID prefix: `[{"prefix":"AEF-2026-C1-","url":"<Apps Script web app URL>","key":"<lookup key>"}]`. Add an entry for each future cohort. |
-| `NEXT_PUBLIC_SITE_URL` | The site's address, used in QR codes and share links. Default `https://btd-certificates.vercel.app`. |
+
+The public address in QR codes and share links is `https://certificate.behindthedata.tech`.
+It is set in `lib/links.ts`; `NEXT_PUBLIC_SITE_URL` is no longer used.
 
 ## Running it on your computer
 

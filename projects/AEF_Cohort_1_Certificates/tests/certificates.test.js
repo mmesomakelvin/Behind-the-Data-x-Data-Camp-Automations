@@ -140,8 +140,8 @@ test("the award follows accepted project count and manual participants get stabl
 
 test("certificate file name changes with the award so an old PDF cannot be sent", () => {
   const app = loadProject();
-  assert.match(app.certificatePdfName_(certRow({ projectCount: 0 })), /Participation\.pdf$/);
-  assert.match(app.certificatePdfName_(certRow({ projectCount: 2 })), /Completion\.pdf$/);
+  assert.match(app.certificatePdfName_(certRow({ projectCount: 0 })), /Participation - v2\.pdf$/);
+  assert.match(app.certificatePdfName_(certRow({ projectCount: 2 })), /Completion - v2\.pdf$/);
 });
 
 test("each award uses its own current design image", () => {
@@ -459,7 +459,7 @@ function fakeDrive(existingName) {
 }
 
 test("a PDF that still matches the name is reused when sending", () => {
-  const { app, folder, trashed, created } = fakeDrive("AEF-2026-C1-0001 - Ada Lovelace - Completion.pdf");
+  const { app, folder, trashed, created } = fakeDrive("AEF-2026-C1-0001 - Ada Lovelace - Completion - v2.pdf");
   const row = certRow({ pdfLink: "https://drive.google.com/file/d/OLDFILE1234567890123456789/view" });
   const pdf = app.certificatePdfForRow_(row, folder, () => "BG", false);
   assert.equal(pdf.blob, "OLD-BLOB");
@@ -493,8 +493,9 @@ test("only an A4 landscape template is accepted", () => {
 test("the certificate email links to the fellow's own verification page", () => {
   const app = loadProject();
   const html = app.getAefCertificateEmailHtml("Ada Lovelace", "AEF-2026-C1-0001-K7QX");
-  assert.match(html, /href="https:\/\/btd-certificates\.vercel\.app\/verify\/AEF-2026-C1-0001-K7QX"/);
+  assert.match(html, /href="https:\/\/certificate\.behindthedata\.tech\/verify\/AEF-2026-C1-0001-K7QX"/);
   assert.match(html, /View or verify your certificate online/);
   const text = app.getAefCertificateEmailPlainText("Ada Lovelace", "AEF-2026-C1-0001-K7QX");
-  assert.match(text, /https:\/\/btd-certificates\.vercel\.app\/verify\/AEF-2026-C1-0001-K7QX/);
+  assert.match(text, /https:\/\/certificate\.behindthedata\.tech\/verify\/AEF-2026-C1-0001-K7QX/);
+  assert.equal(app.AEF_CERT_CONFIG.siteUrl, "https://certificate.behindthedata.tech");
 });

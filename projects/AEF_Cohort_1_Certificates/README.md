@@ -79,10 +79,9 @@ not claim project work.
    ```
 2. The automation copies the **AEF Certificate Template** (an A4 landscape Google Slides file), puts that image on it, adds the fellow's
    name and certificate number in Poppins, and saves it as a PDF. The temporary Slides file is deleted.
-3. Each fellow's **QR code** is fetched from the verification website (`https://btd-certificates.vercel.app/api/qr/<ID>`)
+3. Each fellow's **QR code** is fetched from the verification website (`https://certificate.behindthedata.tech/api/qr/<ID>`)
    and placed above the printed "Scan to verify". Scanning it opens that fellow's own check page. The footer
-   also prints **Verify at bit.ly/4xwnpM4** (part of the design image; the Bitly link points to the website's
-   home page and is case-sensitive).
+   also prints **Verify at certificate.behindthedata.tech** for anyone checking manually.
 4. Text and QR positions are in `src/CertificateLayout.js`. Long names get a smaller size automatically.
 
 The certificate email includes a **View or verify your certificate online** button linking to the fellow's
@@ -96,7 +95,9 @@ python -m http.server 8765 --bind 127.0.0.1
 ```
 
 If a design changes, render it again, upload the new image to the Drive folder, then use
-**Create PDFs for Approved (no email)** to rebuild and inspect the unsent PDFs.
+**Create PDFs for Approved (no email)** to rebuild and inspect the unsent PDFs. This also replaces
+PDFs already marked `PDF ready`; it does not email anyone. The current `v2` PDF filename makes
+the LIVE send button rebuild an older PDF if one was missed during the preview step.
 
 ## One-time Setup
 
@@ -133,7 +134,7 @@ Steps 1-3 are done (the script is attached and the code is pushed).
 ## Verification Website Lookup
 
 `src/Lookup.js` lets the certificate verification website (live at
-`https://btd-certificates.vercel.app`) check a certificate number. The website sends the number plus a
+`https://certificate.behindthedata.tech`) check a certificate number. The website sends the number plus a
 secret key, and gets back only the public details: name, programme, cohort, award, issue date and
 PDF download link. It **never** gets emails, approvals or errors. Only certificates whose status is
 **Sent** verify.
@@ -154,8 +155,8 @@ PDF download link. It **never** gets emails, approvals or errors. Only certifica
 
 Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
 
-> **Ready to send.** The website is live at https://btd-certificates.vercel.app, and every
-> certificate carries its QR code and the printed link bit.ly/4xwnpM4. A certificate shows as
+> **Ready to send.** The website is live at https://certificate.behindthedata.tech, and every
+> newly made certificate carries its QR code and the printed website address. A certificate shows as
 > genuine on the website once its status is `Sent`.
 
 ## Sending Certificates
@@ -169,8 +170,10 @@ Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
    folder, **PDF Link** is filled in and **Certificate Status** becomes `PDF ready`. Open and check each one.
    Nobody is emailed. Running it again rebuilds the PDFs (for example after a name correction or a design change).
 4. Optional: select a row, save your email under **Test email address**, and click **Send Test Certificate to Me**.
-5. Click **Count Approved Waiting**, then **LIVE: Send Approved Certificates**. The PDFs already made are reused.
-   If a name was changed after its PDF was made, a fresh PDF is made automatically before sending.
+5. Click **Count Approved Waiting**, then **LIVE: Send Approved Certificates**. Current `v2` PDFs are reused.
+   If a name was changed or a PDF has the older design, a fresh PDF is made automatically before sending.
+   Once the email succeeds, the sheet records `Sent`; the website reads that row and its PDF link directly,
+   so there is no separate upload to a second backend.
 6. If it says some are still waiting (large batches), click the LIVE button again.
 
 **Certificate Status** is filled in by the automation:

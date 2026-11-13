@@ -89,6 +89,29 @@
   white-space: nowrap;
 }
 .copy { max-width: calc(790 * var(--u)); margin: calc(18 * var(--u)) auto 0 !important; color: #43536a; font-size: calc(12.7 * var(--u)); line-height: 1.7; }
+.distinction { margin: calc(15 * var(--u)) 0 0 !important; color: #159a86; font-size: calc(8 * var(--u)); font-weight: 700; letter-spacing: calc(2 * var(--u)); text-transform: uppercase; }
+
+.completion { background: radial-gradient(circle at 50% 30%, #fffdf8 0, #f7f2e8 72%, #eee4d2 100%); border: calc(5 * var(--u)) solid #142b49; box-shadow: inset 0 0 0 calc(5 * var(--u)) #c89a43; }
+.completion::before { inset: calc(14 * var(--u)); border: calc(2 * var(--u)) solid #c89a43; }
+.completion::after { inset: calc(23 * var(--u)); border-color: rgba(20,43,73,.36); }
+.completion .corner::before, .completion .corner::after { background: #c89a43; }
+.completion .masthead { border-bottom: calc(2 * var(--u)) solid #c89a43; }
+.completion .academy, .completion .overline, .completion .distinction { color: #9d6d21; }
+.completion .awardWord { font-size: calc(58 * var(--u)); font-weight: 700; }
+.completion .rule { width: calc(128 * var(--u)); height: calc(3 * var(--u)); background: linear-gradient(90deg, transparent, #c89a43, transparent); }
+.completion .recipient { border-bottom: calc(2 * var(--u)) solid #c89a43; }
+.completion .seal { border: calc(3 * var(--u)) double #b7822d; background: #fff8e6; }
+.completion .seal div { border-color: #b7822d; }
+.completion .seal strong { color: #94651d; }
+.completion .metadata { border-top: calc(2 * var(--u)) solid #c89a43; }
+
+.participation { background: #f8fcfa; border: calc(2 * var(--u)) solid #159a86; }
+.participation .masthead { border-bottom-color: #b9dbd2; }
+.participation .awardWord { color: #0d6f66; font-size: calc(50 * var(--u)); font-weight: 500; }
+.participation .rule, .participation .corner::before, .participation .corner::after { background: #159a86; }
+.participation .recipient, .participation .seal, .participation .seal div { border-color: #159a86; }
+.participation .distinction { color: #0d6f66; }
+.participation .metadata { border-top-color: #b9dbd2; }
 
 .signing { display: flex; justify-content: space-between; align-items: flex-end; padding: calc(13 * var(--u)) calc(26 * var(--u)) calc(17 * var(--u)) calc(66 * var(--u)); }
 .signature { width: calc(320 * var(--u)); text-align: center; }
@@ -155,6 +178,5 @@
 }
 .metadata b { color: #142b49; }
 .verifyLink { text-align: center; }
-/* Bitly links are case-sensitive: never capitalise the link itself. */
-.verifyLink b { text-transform: none; letter-spacing: calc(0.5 * var(--u)); font-size: calc(8.5 * var(--u)); }
+.verifyLink b { text-transform: none; letter-spacing: 0; font-size: calc(8 * var(--u)); }
 .issued { text-align: right; }
