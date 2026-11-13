@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
 if (-not $DestinationPath) {
-  $fileName = if ($Award -eq "completion") { "aef-cohort-1-completion-background.png" } else { "aef-cohort-1-certificate-background.png" }
+  $fileName = if ($Award -eq "completion") { "aef-cohort-1-completion-background.png" } else { "aef-cohort-1-participation-background.png" }
   $DestinationPath = Join-Path $workspaceRoot "assets\signatures\$fileName"
 }
 

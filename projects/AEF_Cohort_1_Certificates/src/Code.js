@@ -32,7 +32,7 @@ var AEF_CERT_CONFIG = {
   siteUrl: "https://btd-certificates.vercel.app",
   folderName: "AEF Cohort 1 Certificates",
   completionBackgroundFileName: "aef-cohort-1-completion-background.png",
-  participationBackgroundFileName: "aef-cohort-1-certificate-background.png",
+  participationBackgroundFileName: "aef-cohort-1-participation-background.png",
   // A blank Google Slides file set to A4 landscape (29.7 x 21 cm), kept in the certificates folder.
   templateName: "AEF Certificate Template",
   senderName: "Behind the Data Academy",

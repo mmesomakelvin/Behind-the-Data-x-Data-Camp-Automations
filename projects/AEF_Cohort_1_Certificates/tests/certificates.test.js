@@ -144,6 +144,12 @@ test("certificate file name changes with the award so an old PDF cannot be sent"
   assert.match(app.certificatePdfName_(certRow({ projectCount: 2 })), /Completion\.pdf$/);
 });
 
+test("each award uses its own current design image", () => {
+  const app = loadProject();
+  assert.equal(app.backgroundFileNameForRow_(certRow({ projectCount: 1 })), "aef-cohort-1-completion-background.png");
+  assert.equal(app.backgroundFileNameForRow_(certRow({ projectCount: 0 })), "aef-cohort-1-participation-background.png");
+});
+
 test("repeat submissions become one fellow with a count of distinct projects", () => {
   const app = loadProject();
   const result = app.mergeCertificateRows_([], [

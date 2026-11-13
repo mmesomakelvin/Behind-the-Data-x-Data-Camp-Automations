@@ -69,7 +69,7 @@ not claim project work.
 1. Run `scripts/render-certificate-background.ps1` with `-Award completion` and then
    `-Award participation`. It saves each design **without** the name and number as
    `assets/signatures/aef-cohort-1-completion-background.png` and
-   `assets/signatures/aef-cohort-1-certificate-background.png`. Both images contain the
+   `assets/signatures/aef-cohort-1-participation-background.png`. Both images contain the
    signature, so they are private and not stored in git.
    On a computer that blocks PowerShell scripts by default, run:
 
@@ -113,8 +113,16 @@ Steps 1-3 are done (the script is attached and the code is pushed).
 4. Reload the spreadsheet. Open **AEF Cohort 1 Certificates > Open Automation Buttons**.
 5. Click **1. Setup Certificates** and approve the Google permissions. This creates the
    Certificates tab and the **AEF Cohort 1 Certificates** Drive folder.
-6. Upload both background files from `assets/signatures/` into that Drive folder. If an older
-   Participation background is already there, replace it with the newly rendered file.
+6. Upload both background files from `assets/signatures/` into that Drive folder. The older
+   `aef-cohort-1-certificate-background.png` can remain; the script uses the new Participation filename.
+   With the same local Google login as clasp, this command installs and verifies both files:
+
+   ```powershell
+   node scripts/upload-aef-certificate-backgrounds.mjs --upload
+   ```
+
+   Run `--list` instead of `--upload` to check the folder without changing files. The script
+   reads the local clasp login and never prints its tokens. The signed images remain private.
 7. In that same Drive folder, make the **certificate template**. This is needed because Google ignores
    page sizes when a script creates a presentation, so the A4 size has to come from a file a person set up:
    - **New > Google Slides > Blank presentation**
@@ -139,8 +147,9 @@ PDF download link. It **never** gets emails, approvals or errors. Only certifica
   - **After changing the code**, push it and then update this same deployment so the address stays the same:
 
     ```powershell
-    .\scripts\clasp-project.ps1 -Project AEF_Cohort_1_Certificates -Action push
-    .\scripts\clasp-project.ps1 -Project AEF_Cohort_1_Certificates -Action update-deployment -ExtraArgs AKfycbzXbA6zB7uo6B8Wk-2KpqURbr3KKpRe_ZGtE2zuSQdkXBxg5Sn67AwnN52LpqfeYnKg
+    cd projects\AEF_Cohort_1_Certificates
+    clasp.cmd push
+    clasp.cmd deploy -i AKfycbzXbA6zB7uo6B8Wk-2KpqURbr3KKpRe_ZGtE2zuSQdkXBxg5Sn67AwnN52LpqfeYnKg -d "Cohort 1 certificates"
     ```
 
 Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
