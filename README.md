@@ -62,7 +62,9 @@ can confirm a certificate is genuine. Both are working; the certificates have no
    every certificate can be checked before anyone receives it. Running it again replaces older
    `PDF ready` files with the current design, including the printed verification address and QR code.
 4. **Send.** The LIVE button emails each approved fellow their PDF once, and records `Sent`, the
-   time and the link. Nobody is ever emailed twice.
+   time and the link. Nobody is ever emailed twice. Completion and Participation have separate
+   emails; both greet the fellow by full name, link to their verification page and invite them to
+   follow the academy's LinkedIn page.
 5. **Verify.** From the moment a certificate is `Sent`, its number and QR code work on the website.
    The award is saved with the PDF, so later project-count changes do not change what the website shows.
    The website reads the sent sheet row and PDF link directly; no second upload is needed.

@@ -43,6 +43,10 @@ var CERT_LAYOUT = {
     fontSize: 5.625
   },
 
+  // The certificate number position above matches the Participation design. The Completion
+  // design's thicker gold frame moves its "Certificate ID:" label this much right and up.
+  completionCertificateIdShift: { x: 2.25, y: -2.25 },
+
   // Each fellow's QR code (links to their check page), just left of the seal,
   // above the printed "Scan to verify".
   qr: {
@@ -51,6 +55,17 @@ var CERT_LAYOUT = {
     size: 54
   }
 };
+
+/** Where the certificate number goes, so it sits just after each design's "Certificate ID:" label. */
+function certificateIdLayout_(isCompletion) {
+  var base = CERT_LAYOUT.certificateId;
+  var shift = isCompletion ? CERT_LAYOUT.completionCertificateIdShift : { x: 0, y: 0 };
+  var layout = {};
+  Object.keys(base).forEach(function (key) { layout[key] = base[key]; });
+  layout.left = base.left + shift.x;
+  layout.top = base.top + shift.y;
+  return layout;
+}
 
 /** Shrinks long names so they always stay on one line. */
 function nameFontSize_(name) {

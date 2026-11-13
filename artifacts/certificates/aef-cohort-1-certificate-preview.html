@@ -103,7 +103,7 @@
     nameBox.textContent = name;
     idBox.textContent = cid;
     place(nameBox, L.name, size);
-    place(idBox, L.certificateId, L.certificateId.fontSize);
+    place(idBox, certificateIdLayout_(document.getElementById('award').value === 'completion'), L.certificateId.fontSize);
     var qrBox = document.getElementById('qrBox');
     qrBox.style.left = L.qr.left + 'pt';
     qrBox.style.top = L.qr.top + 'pt';
@@ -117,7 +117,7 @@
   }
 
   document.getElementById('name').addEventListener('input', render);
-  document.getElementById('award').addEventListener('change', showBackground);
+  document.getElementById('award').addEventListener('change', function () { showBackground(); render(); });
   document.getElementById('cid').addEventListener('input', render);
   document.getElementById('boxes').addEventListener('change', function (e) {
     page.classList.toggle('show-boxes', e.target.checked);

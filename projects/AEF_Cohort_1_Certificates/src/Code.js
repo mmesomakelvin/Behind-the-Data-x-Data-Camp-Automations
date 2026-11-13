@@ -32,7 +32,7 @@ var AEF_CERT_CONFIG = {
   siteUrl: "https://certificate.behindthedata.tech",
   // Change this when the printed design or QR destination changes. It forces
   // old PDF-ready files to be rebuilt before the LIVE send button reuses them.
-  pdfVersion: "v2",
+  pdfVersion: "v3",
   folderName: "AEF Cohort 1 Certificates",
   completionBackgroundFileName: "aef-cohort-1-completion-background.png",
   participationBackgroundFileName: "aef-cohort-1-participation-background.png",
@@ -762,7 +762,7 @@ function getPdfFromLink_(link) {
 function sendCertificateEmail_(row, pdfBlob, recipientOverride) {
   MailApp.sendEmail({
     to: recipientOverride || String(row.email).trim(),
-    subject: AEF_CERT_EMAIL_SUBJECT,
+    subject: getAefCertificateEmailSubject(certificateAward_(row)),
     body: getAefCertificateEmailPlainText(row.nameOnCertificate, row.certificateId, certificateAward_(row)),
     htmlBody: getAefCertificateEmailHtml(row.nameOnCertificate, row.certificateId, certificateAward_(row)),
     name: AEF_CERT_CONFIG.senderName,
@@ -799,7 +799,8 @@ function createCertificatePdf_(name, certificateId, backgroundBlob, row) {
     var qr = CERT_LAYOUT.qr;
     slide.insertImage(fetchCertificateQr_(certificateId), qr.left * scale, qr.top * scale, qr.size * scale, qr.size * scale);
     addCertificateText_(slide, name, CERT_LAYOUT.name, nameFontSize_(name), SlidesApp.ParagraphAlignment.CENTER, scale);
-    addCertificateText_(slide, certificateId, CERT_LAYOUT.certificateId,
+    var isCompletion = !!row && certificateAward_(row) === AEF_CERT_CONFIG.completionAward;
+    addCertificateText_(slide, certificateId, certificateIdLayout_(isCompletion),
       CERT_LAYOUT.certificateId.fontSize, SlidesApp.ParagraphAlignment.START, scale);
     presentation.saveAndClose();
 
@@ -909,8 +910,16 @@ function getSelectedCertificateRow_() {
   return row.nameOnCertificate ? row : null;
 }
 
+/** Shows both emails (Completion first, then Participation) with a sample name. Sends nothing. */
 function previewAefCertificateEmail() {
-  var html = HtmlService.createHtmlOutput(getAefCertificateEmailHtml("Ada Lovelace", formatCertificateId_(1, "K7QX")))
+  var sampleId = formatCertificateId_(1, "K7QX");
+  var sections = [AEF_CERT_CONFIG.completionAward, AEF_CERT_CONFIG.participationAward].map(function (award) {
+    return '<h3 style="font-family:Arial,sans-serif;margin:16px 12px 4px;">' + award + "</h3>" +
+      '<p style="font-family:Arial,sans-serif;margin:0 12px 8px;color:#555;">Subject: ' +
+      escapeAefCertHtml_(getAefCertificateEmailSubject(award)) + "</p>" +
+      getAefCertificateEmailHtml("Ada Lovelace", sampleId, award);
+  });
+  var html = HtmlService.createHtmlOutput(sections.join("<hr>"))
     .setWidth(720)
     .setHeight(640);
   SpreadsheetApp.getUi().showModalDialog(html, "Certificate email preview");

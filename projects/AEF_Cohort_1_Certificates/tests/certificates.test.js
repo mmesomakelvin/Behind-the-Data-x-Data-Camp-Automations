@@ -140,8 +140,8 @@ test("the award follows accepted project count and manual participants get stabl
 
 test("certificate file name changes with the award so an old PDF cannot be sent", () => {
   const app = loadProject();
-  assert.match(app.certificatePdfName_(certRow({ projectCount: 0 })), /Participation - v2\.pdf$/);
-  assert.match(app.certificatePdfName_(certRow({ projectCount: 2 })), /Completion - v2\.pdf$/);
+  assert.match(app.certificatePdfName_(certRow({ projectCount: 0 })), /Participation - v3\.pdf$/);
+  assert.match(app.certificatePdfName_(certRow({ projectCount: 2 })), /Completion - v3\.pdf$/);
 });
 
 test("each award uses its own current design image", () => {
@@ -280,15 +280,16 @@ test("stops when time runs out and reports how many are left", () => {
   assert.deepEqual(calls.pdfs, ["A"]);
 });
 
-test("certificate email greets by first name, shows the ID and escapes HTML", () => {
+test("certificate email greets by full name, shows the ID and escapes HTML", () => {
   const app = loadProject();
   const html = app.getAefCertificateEmailHtml("Ada <b>Lovelace</b>", "AEF-2026-C1-0007");
-  assert.match(html, /Hello Ada,/);
+  assert.match(html, /Dear Ada &lt;b&gt;Lovelace&lt;\/b&gt;,/);
   assert.match(html, /AEF-2026-C1-0007/);
   assert.match(html, /Ayoade Adegbite/);
   assert.doesNotMatch(html, /<b>Lovelace/);
 
-  const text = app.getAefCertificateEmailPlainText("Ada Lovelace", "AEF-2026-C1-0007");
+  const text = app.getAefCertificateEmailPlainText("  Ada   Lovelace ", "AEF-2026-C1-0007");
+  assert.match(text, /^Dear Ada Lovelace,/);
   assert.match(text, /Certificate ID: AEF-2026-C1-0007/);
 });
 
@@ -299,7 +300,22 @@ test("completion and participation emails describe the correct award", () => {
   assert.match(completion, /Certificate of Completion/);
   assert.match(completion, /project work/);
   assert.match(participation, /Certificate of Participation/);
-  assert.doesNotMatch(participation, /project work|project you submitted/);
+  assert.doesNotMatch(participation, /project work|project you submitted|version control/i);
+  assert.match(app.getAefCertificateEmailSubject("Certificate of Completion"), /Completion/);
+  assert.match(app.getAefCertificateEmailSubject("Certificate of Participation"), /Participation/);
+});
+
+test("both emails include the verification link and the LinkedIn follow link", () => {
+  const app = loadProject();
+  ["Certificate of Completion", "Certificate of Participation"].forEach((award) => {
+    const html = app.getAefCertificateEmailHtml("Ada Lovelace", "AEF-2026-C1-0001-K7QX", award);
+    const text = app.getAefCertificateEmailPlainText("Ada Lovelace", "AEF-2026-C1-0001-K7QX", award);
+    for (const body of [html, text]) {
+      assert.match(body, /https:\/\/certificate\.behindthedata\.tech\/verify\/AEF-2026-C1-0001-K7QX/);
+      assert.match(body, /https:\/\/www\.linkedin\.com\/company\/behind-the-data-academy\//);
+      assert.doesNotMatch(body, /viewAsMember|lipi=/);
+    }
+  });
 });
 
 test("old IDs without a random code get one, unless already sent", () => {
@@ -459,7 +475,7 @@ function fakeDrive(existingName) {
 }
 
 test("a PDF that still matches the name is reused when sending", () => {
-  const { app, folder, trashed, created } = fakeDrive("AEF-2026-C1-0001 - Ada Lovelace - Completion - v2.pdf");
+  const { app, folder, trashed, created } = fakeDrive("AEF-2026-C1-0001 - Ada Lovelace - Completion - v3.pdf");
   const row = certRow({ pdfLink: "https://drive.google.com/file/d/OLDFILE1234567890123456789/view" });
   const pdf = app.certificatePdfForRow_(row, folder, () => "BG", false);
   assert.equal(pdf.blob, "OLD-BLOB");
@@ -498,4 +514,15 @@ test("the certificate email links to the fellow's own verification page", () => 
   const text = app.getAefCertificateEmailPlainText("Ada Lovelace", "AEF-2026-C1-0001-K7QX");
   assert.match(text, /https:\/\/certificate\.behindthedata\.tech\/verify\/AEF-2026-C1-0001-K7QX/);
   assert.equal(app.AEF_CERT_CONFIG.siteUrl, "https://certificate.behindthedata.tech");
+});
+
+test("the certificate number follows each design's Certificate ID label", () => {
+  const app = loadProject();
+  const participation = app.certificateIdLayout_(false);
+  const completion = app.certificateIdLayout_(true);
+  assert.equal(participation.left, app.CERT_LAYOUT.certificateId.left);
+  assert.equal(participation.top, app.CERT_LAYOUT.certificateId.top);
+  assert.ok(completion.left > participation.left, "Completion number moves right of its label");
+  assert.ok(completion.top < participation.top, "Completion number moves up to its label");
+  assert.equal(completion.fontSize, participation.fontSize);
 });

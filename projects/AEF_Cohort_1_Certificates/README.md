@@ -83,9 +83,14 @@ not claim project work.
    and placed above the printed "Scan to verify". Scanning it opens that fellow's own check page. The footer
    also prints **Verify at certificate.behindthedata.tech** for anyone checking manually.
 4. Text and QR positions are in `src/CertificateLayout.js`. Long names get a smaller size automatically.
+   The certificate number sits slightly higher and further right on Completion, to line up with that
+   design's thicker frame and its "Certificate ID:" label.
 
-The certificate email includes a **View or verify your certificate online** button linking to the fellow's
-own check page.
+Completion and Participation each get their own email, with their own subject line and wording.
+Both greet the fellow by the full name on their certificate, show the certificate ID, link to the
+fellow's own check page (as a button and as a plain link), and ask them to follow the
+[Behind the Data Academy LinkedIn page](https://www.linkedin.com/company/behind-the-data-academy/).
+**Preview Email** in the sheet shows both emails with a sample name and sends nothing.
 
 To see how any name will look, run a local server from the repository folder and open the preview page:
 
@@ -96,7 +101,7 @@ python -m http.server 8765 --bind 127.0.0.1
 
 If a design changes, render it again, upload the new image to the Drive folder, then use
 **Create PDFs for Approved (no email)** to rebuild and inspect the unsent PDFs. This also replaces
-PDFs already marked `PDF ready`; it does not email anyone. The current `v2` PDF filename makes
+PDFs already marked `PDF ready`; it does not email anyone. The current `v3` PDF filename makes
 the LIVE send button rebuild an older PDF if one was missed during the preview step.
 
 ## One-time Setup
@@ -170,7 +175,7 @@ Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
    folder, **PDF Link** is filled in and **Certificate Status** becomes `PDF ready`. Open and check each one.
    Nobody is emailed. Running it again rebuilds the PDFs (for example after a name correction or a design change).
 4. Optional: select a row, save your email under **Test email address**, and click **Send Test Certificate to Me**.
-5. Click **Count Approved Waiting**, then **LIVE: Send Approved Certificates**. Current `v2` PDFs are reused.
+5. Click **Count Approved Waiting**, then **LIVE: Send Approved Certificates**. Current `v3` PDFs are reused.
    If a name was changed or a PDF has the older design, a fresh PDF is made automatically before sending.
    Once the email succeeds, the sheet records `Sent`; the website reads that row and its PDF link directly,
    so there is no separate upload to a second backend.
@@ -189,7 +194,7 @@ Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
 
 - `src/Code.js` - certificate list, PDF creation, sending and menu
 - `src/CertificateLayout.js` - where the name and number go on the page
-- `src/CertificateEmailTemplate.js` - the certificate email
+- `src/CertificateEmailTemplate.js` - the Completion and Participation emails
 - `src/Lookup.js` - the verification website's lookup (public details only)
 - `src/AutomationButtons.html` - sidebar buttons
 - `src/appsscript.json` - Apps Script settings (turns on the Google Slides service)
