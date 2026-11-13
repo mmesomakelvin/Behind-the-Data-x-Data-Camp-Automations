@@ -54,7 +54,7 @@ export default function CertificatePreview({ certificate }: { certificate: Certi
               {certificate.name}
             </p>
             <p className={styles.copy}>{isCompletion ? <>
-              for completing the <strong>{programmeLabel}</strong> and demonstrating applied skills through accepted project work in data and analytics engineering.
+              for successfully completing the courses of the <strong>{programmeLabel}</strong> and its required project work in data and analytics engineering.
             </> : <>
               in recognition of participation in the <strong>{programmeLabel}</strong> and engagement with its learning programme in data and analytics engineering.
             </>}</p>
