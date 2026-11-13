@@ -62,6 +62,7 @@ can confirm a certificate is genuine. Both are working; the certificates have no
 4. **Send.** The LIVE button emails each approved fellow their PDF once, and records `Sent`, the
    time and the link. Nobody is ever emailed twice.
 5. **Verify.** From the moment a certificate is `Sent`, its number and QR code work on the website.
+   The award is saved with the PDF, so later project-count changes do not change what the website shows.
 
 ### The certificate
 

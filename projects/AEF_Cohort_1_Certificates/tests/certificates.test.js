@@ -87,6 +87,7 @@ test("the award follows accepted project count and manual participants get stabl
   assert.equal(app.certificateAward_(first.rows[0]), "Certificate of Participation");
   assert.equal(app.certificateAward_(certRow({ projectCount: 1 })), "Certificate of Completion");
   assert.equal(app.certificateAward_(certRow({ projectCount: 4 })), "Certificate of Completion");
+  assert.equal(app.certificateAward_(certRow({ status: "Sent", award: "Certificate of Completion", projectCount: 0 })), "Certificate of Completion");
   const second = app.mergeCertificateRows_(first.rows, []);
   assert.equal(second.rows[0].certificateId, first.rows[0].certificateId);
 });

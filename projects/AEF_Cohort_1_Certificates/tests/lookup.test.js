@@ -12,7 +12,7 @@ function loadProject(rows = [], storedKey = KEY) {
   const properties = { AEF_CERT_LOOKUP_KEY: storedKey, AEF_CERT_SPREADSHEET_ID: "sheet-id" };
   const sheetValues = rows.map((row) => [
     row.certificateId, row.nameOnCertificate, row.email, row.submittedName, row.projectCount,
-    row.approved, row.status, row.pdfLink, row.sentAt, row.error
+    row.approved, row.status, row.pdfLink, row.sentAt, row.error, row.award
   ]);
   const sheet = {
     getLastRow: () => sheetValues.length + 1,
@@ -52,6 +52,7 @@ function sentRow(overrides) {
     pdfLink: PDF_LINK,
     sentAt: "2026-09-20",
     error: "",
+    award: "Certificate of Completion",
     ...overrides
   };
 }
@@ -80,7 +81,19 @@ test("a sent certificate returns only its public details", () => {
 });
 
 test("a sent participant verifies as Participation", () => {
-  const app = loadProject([sentRow({ projectCount: 0 })]);
+  const app = loadProject([sentRow({ projectCount: 0, award: "Certificate of Participation" })]);
+  const reply = callLookup(app, { id: "AEF-2026-C1-0001-K7QX", key: KEY });
+  assert.equal(reply.certificate.award, "Certificate of Participation");
+});
+
+test("the recorded award stays fixed after sending even if project count changes", () => {
+  const app = loadProject([sentRow({ projectCount: 0, award: "Certificate of Completion" })]);
+  const reply = callLookup(app, { id: "AEF-2026-C1-0001-K7QX", key: KEY });
+  assert.equal(reply.certificate.award, "Certificate of Completion");
+});
+
+test("older sent certificates without an award keep their original Participation label", () => {
+  const app = loadProject([sentRow({ award: "" })]);
   const reply = callLookup(app, { id: "AEF-2026-C1-0001-K7QX", key: KEY });
   assert.equal(reply.certificate.award, "Certificate of Participation");
 });

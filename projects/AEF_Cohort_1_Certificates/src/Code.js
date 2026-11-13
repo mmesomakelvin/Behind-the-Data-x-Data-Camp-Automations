@@ -39,13 +39,13 @@ var AEF_CERT_CONFIG = {
   headers: [
     "Certificate ID", "Name on certificate", "Email", "Name as submitted",
     "Projects submitted", "Approved", "Certificate Status", "PDF Link",
-    "Sent At", "Error"
+    "Sent At", "Error", "Award"
   ]
 };
 
 var AEF_CERT_FIELDS = [
   "certificateId", "nameOnCertificate", "email", "submittedName",
-  "projectCount", "approved", "status", "pdfLink", "sentAt", "error"
+  "projectCount", "approved", "status", "pdfLink", "sentAt", "error", "award"
 ];
 
 var AEF_CERT_STATUS = { pdfReady: "PDF ready", sent: "Sent", error: "Error" };
@@ -107,7 +107,10 @@ function setupAefCertificates() {
 
 function getOrCreateCertificateSheet_(ss) {
   var sheet = ss.getSheetByName(AEF_CERT_CONFIG.certificateSheetName);
-  if (sheet) return sheet;
+  if (sheet) {
+    ensureAwardColumn_(sheet);
+    return sheet;
+  }
 
   var headers = AEF_CERT_CONFIG.headers;
   sheet = ss.insertSheet(AEF_CERT_CONFIG.certificateSheetName);
@@ -121,7 +124,19 @@ function getOrCreateCertificateSheet_(ss) {
   sheet.setColumnWidth(3, 240);
   sheet.setColumnWidth(4, 220);
   sheet.setColumnWidth(10, 320);
+  sheet.setColumnWidth(11, 190);
   return sheet;
+}
+
+function ensureAwardColumn_(sheet) {
+  if (sheet.getMaxColumns() < AEF_CERT_CONFIG.headers.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), AEF_CERT_CONFIG.headers.length - sheet.getMaxColumns());
+  }
+  var cell = sheet.getRange(1, AEF_CERT_CONFIG.headers.length);
+  var header = String(cell.getValue() || "").trim();
+  if (header && header !== "Award") throw new Error('Column K must be free for the "Award" header.');
+  if (!header) cell.setValue("Award").setFontWeight("bold").setBackground("#0f2747").setFontColor("#ffffff");
+  sheet.setColumnWidth(AEF_CERT_CONFIG.headers.length, 190);
 }
 
 function getOrCreateCertificateFolder_() {
@@ -433,6 +448,11 @@ function normaliseEmail_(email) {
 }
 
 function certificateAward_(row) {
+  if (row.status === AEF_CERT_STATUS.sent) {
+    return row.award === AEF_CERT_CONFIG.completionAward
+      ? AEF_CERT_CONFIG.completionAward
+      : AEF_CERT_CONFIG.participationAward;
+  }
   return Number(row.projectCount) > 0
     ? AEF_CERT_CONFIG.completionAward
     : AEF_CERT_CONFIG.participationAward;
@@ -498,6 +518,7 @@ function sendApprovedAefCertificates() {
   return withAefCertLock_(function () {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(AEF_CERT_CONFIG.certificateSheetName);
     if (!sheet) throw new Error("Run Setup and build the certificate list first.");
+    ensureAwardColumn_(sheet);
 
     var started = Date.now();
     var backgrounds = {};
@@ -543,6 +564,7 @@ function processPendingCertificates_(rows, deps) {
       if (problem) throw new Error(problem);
 
       var pdf = deps.getOrCreatePdf(row);
+      row.award = certificateAward_(row);
       if (row.pdfLink !== pdf.url) {
         row.pdfLink = pdf.url;
         row.status = AEF_CERT_STATUS.pdfReady;
@@ -583,6 +605,7 @@ function createApprovedAefCertificatePdfs() {
   return withAefCertLock_(function () {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(AEF_CERT_CONFIG.certificateSheetName);
     if (!sheet) throw new Error("Run Setup and build the certificate list first.");
+    ensureAwardColumn_(sheet);
 
     var started = Date.now();
     var backgrounds = {};
@@ -621,6 +644,7 @@ function processPdfsOnly_(rows, deps) {
       var problem = certificateRowProblem_(row);
       if (problem) throw new Error(problem);
       row.pdfLink = deps.createPdf(row).url;
+      row.award = certificateAward_(row);
       row.status = AEF_CERT_STATUS.pdfReady;
       row.error = "";
       result.made++;

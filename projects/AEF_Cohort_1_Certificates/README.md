@@ -55,6 +55,11 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
 | PDF Link | Automation | The saved certificate in Google Drive |
 | Sent At | Automation | When the email went out |
 | Error | Automation | Why a row could not be sent |
+| Award | Automation | Completion or Participation, recorded with the PDF so verification stays accurate after sending |
+
+On the next Setup, Refresh, PDF creation or Send run, the script adds the **Award** heading
+in column K if it is missing. Keep column K free before that run. Older certificates already
+marked `Sent` keep their original Participation label when this column is blank.
 
 ## How The Certificate Is Made
 
