@@ -79,6 +79,24 @@ test("only fellows with at least one accepted submission are listed", () => {
   assert.equal(result.rows[0].email, "ok@example.com");
 });
 
+test("the award follows accepted project count and manual participants get stable IDs", () => {
+  const app = loadProject();
+  const participant = certRow({ certificateId: "", email: "learner@example.com", nameOnCertificate: "Learner One", projectCount: 0 });
+  const first = app.mergeCertificateRows_([participant], []);
+  assert.match(first.rows[0].certificateId, /^AEF-2026-C1-0001-[A-HJKMNP-Z2-9]{4}$/);
+  assert.equal(app.certificateAward_(first.rows[0]), "Certificate of Participation");
+  assert.equal(app.certificateAward_(certRow({ projectCount: 1 })), "Certificate of Completion");
+  assert.equal(app.certificateAward_(certRow({ projectCount: 4 })), "Certificate of Completion");
+  const second = app.mergeCertificateRows_(first.rows, []);
+  assert.equal(second.rows[0].certificateId, first.rows[0].certificateId);
+});
+
+test("certificate file name changes with the award so an old PDF cannot be sent", () => {
+  const app = loadProject();
+  assert.match(app.certificatePdfName_(certRow({ projectCount: 0 })), /Participation\.pdf$/);
+  assert.match(app.certificatePdfName_(certRow({ projectCount: 2 })), /Completion\.pdf$/);
+});
+
 test("repeat submissions become one fellow with a count of distinct projects", () => {
   const app = loadProject();
   const result = app.mergeCertificateRows_([], [
@@ -219,6 +237,16 @@ test("certificate email greets by first name, shows the ID and escapes HTML", ()
 
   const text = app.getAefCertificateEmailPlainText("Ada Lovelace", "AEF-2026-C1-0007");
   assert.match(text, /Certificate ID: AEF-2026-C1-0007/);
+});
+
+test("completion and participation emails describe the correct award", () => {
+  const app = loadProject();
+  const completion = app.getAefCertificateEmailHtml("Ada Lovelace", "AEF-2026-C1-0001-K7QX", "Certificate of Completion");
+  const participation = app.getAefCertificateEmailHtml("Ada Lovelace", "AEF-2026-C1-0002-K7QX", "Certificate of Participation");
+  assert.match(completion, /Certificate of Completion/);
+  assert.match(completion, /project work/);
+  assert.match(participation, /Certificate of Participation/);
+  assert.doesNotMatch(participation, /project work|project you submitted/);
 });
 
 test("old IDs without a random code get one, unless already sent", () => {
@@ -378,7 +406,7 @@ function fakeDrive(existingName) {
 }
 
 test("a PDF that still matches the name is reused when sending", () => {
-  const { app, folder, trashed, created } = fakeDrive("AEF-2026-C1-0001 - Ada Lovelace.pdf");
+  const { app, folder, trashed, created } = fakeDrive("AEF-2026-C1-0001 - Ada Lovelace - Completion.pdf");
   const row = certRow({ pdfLink: "https://drive.google.com/file/d/OLDFILE1234567890123456789/view" });
   const pdf = app.certificatePdfForRow_(row, folder, () => "BG", false);
   assert.equal(pdf.blob, "OLD-BLOB");
@@ -393,6 +421,13 @@ test("a PDF with an old name is replaced, so a corrected name is never sent wron
   assert.equal(pdf.blob, "BLOB AEF-2026-C1-0001 Ada Lovelace");
   assert.deepEqual(trashed, ["AEF-2026-C1-0001 - ada lovelace.pdf"]);
   assert.equal(created.length, 1);
+});
+
+test("a failed replacement keeps the old PDF available for review", () => {
+  const { app, folder, trashed } = fakeDrive("AEF-2026-C1-0001 - Ada Lovelace.pdf");
+  const row = certRow({ pdfLink: "https://drive.google.com/file/d/OLDFILE1234567890123456789/view" });
+  assert.throws(() => app.certificatePdfForRow_(row, folder, () => { throw new Error("New background missing"); }, false), /New background missing/);
+  assert.deepEqual(trashed, []);
 });
 
 test("only an A4 landscape template is accepted", () => {

@@ -1,6 +1,9 @@
 param(
   [string]$DestinationPath = "",
 
+  [ValidateSet("completion", "participation")]
+  [string]$Award = "completion",
+
   [int]$Scale = 3
 )
 
@@ -12,7 +15,8 @@ $ErrorActionPreference = "Stop"
 
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
 if (-not $DestinationPath) {
-  $DestinationPath = Join-Path $workspaceRoot "assets\signatures\aef-cohort-1-certificate-background.png"
+  $fileName = if ($Award -eq "completion") { "aef-cohort-1-completion-background.png" } else { "aef-cohort-1-certificate-background.png" }
+  $DestinationPath = Join-Path $workspaceRoot "assets\signatures\$fileName"
 }
 
 $edgeCandidates = @(
@@ -25,7 +29,7 @@ if (-not $edge) {
 }
 
 $samplePath = Join-Path $workspaceRoot "artifacts\certificates\aef-cohort-1-certificate-sample.html"
-$sampleUrl = ([System.Uri]$samplePath).AbsoluteUri + "#background"
+$sampleUrl = ([System.Uri]$samplePath).AbsoluteUri + "?award=$Award#background"
 
 # A4 landscape is 1123 x 794 CSS pixels.
 # Start-Process keeps Edge's harmless console warnings from stopping the script.

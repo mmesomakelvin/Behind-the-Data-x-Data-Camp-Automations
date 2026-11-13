@@ -54,7 +54,8 @@ can confirm a certificate is genuine. Both are working; the certificates have no
    code, so numbers cannot be guessed). The same number is written back into a **Certificate ID**
    column on the tracker. A fellow who submitted several times gets one row and one number.
 2. **Check and approve.** The team corrects the spelling in **Name on certificate** and ticks
-   **Approved**. Nothing is emailed by ticking.
+   **Approved**. Fellows with accepted projects receive Completion. Confirmed fellows with no
+   accepted project can be entered manually with project count `0` for Participation. Nothing is emailed by ticking.
 3. **Make the PDFs (no email).** One button creates each approved fellow's certificate, saves it in
    the **AEF Cohort 1 Certificates** Google Drive folder and fills in the **PDF Link** column, so
    every certificate can be checked before anyone receives it.
@@ -64,16 +65,18 @@ can confirm a certificate is genuine. Both are working; the certificates have no
 
 ### The certificate
 
-- **Design:** `artifacts/certificates/aef-cohort-1-certificate-sample.html`, A4 landscape
-  (29.7 x 21 cm), Poppins font, ivory paper with navy, teal and gold.
+- **Designs:** `artifacts/certificates/aef-cohort-1-certificate-sample.html`, A4 landscape
+  (29.7 x 21 cm), Poppins font. Completion has a richer navy and gold look; Participation
+  has a lighter teal look. Both briefly cover the fellowship's data and engineering courses.
 - **Signatory:** Ayoade Adegbite, Founder, Behind The Data Academy.
 - **On every certificate:** the fellow's name, their certificate number, an **AEF Verified** seal,
   a **QR code** that opens that fellow's own check page, and the printed line
   **Verify at bit.ly/4xwnpM4** (the short link to the website's search page).
 - **Preview any name:** `artifacts/certificates/aef-cohort-1-certificate-preview.html`
   (serve the repo with `python -m http.server 8765`).
-- **Design image:** `scripts/render-certificate-background.ps1` renders the design without the name,
-  number and QR code. The result is uploaded to the Drive folder and used for every certificate.
+- **Design images:** `scripts/render-certificate-background.ps1 -Award completion` and
+  `-Award participation` render the designs without the name, number and QR code. Upload both
+  private output images to the certificate Drive folder before making PDFs.
 - **Private files:** signature images and the rendered design live in `assets/signatures/`, which is
   **not stored in git**, because they contain the signature.
 

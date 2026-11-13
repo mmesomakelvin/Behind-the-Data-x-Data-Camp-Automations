@@ -24,11 +24,13 @@ var AEF_CERT_CONFIG = {
   // Public details shown by the verification website; they match the printed certificate.
   programme: "Analytics Engineering Fellowship",
   cohortLabel: "2026 · Cohort 1",
-  award: "Certificate of Participation",
+  completionAward: "Certificate of Completion",
+  participationAward: "Certificate of Participation",
   issuedLabel: "September 2026",
   siteUrl: "https://btd-certificates.vercel.app",
   folderName: "AEF Cohort 1 Certificates",
-  backgroundFileName: "aef-cohort-1-certificate-background.png",
+  completionBackgroundFileName: "aef-cohort-1-completion-background.png",
+  participationBackgroundFileName: "aef-cohort-1-certificate-background.png",
   // A blank Google Slides file set to A4 landscape (29.7 x 21 cm), kept in the certificates folder.
   templateName: "AEF Certificate Template",
   senderName: "Behind the Data Academy",
@@ -93,12 +95,12 @@ function setupAefCertificates() {
     getOrCreateCertificateSheet_(ss);
     rememberSpreadsheetId_(ss);
     var folder = getOrCreateCertificateFolder_();
-    var background = findBackgroundFile_(folder);
+    var completion = findBackgroundFile_(folder, AEF_CERT_CONFIG.completionAward);
+    var participation = findBackgroundFile_(folder, AEF_CERT_CONFIG.participationAward);
 
     var message = "Certificates tab is ready.\n\nDrive folder: " + folder.getUrl() + "\n\n";
-    message += background
-      ? "Background image found. You can build the certificate list next."
-      : 'Next: upload "' + AEF_CERT_CONFIG.backgroundFileName + '" into that folder, then build the certificate list.';
+    message += "Completion design: " + (completion ? "found" : "upload " + AEF_CERT_CONFIG.completionBackgroundFileName) + ".\n";
+    message += "Participation design: " + (participation ? "found" : "upload " + AEF_CERT_CONFIG.participationBackgroundFileName) + ".";
     return notifyAefCert_(message);
   });
 }
@@ -138,15 +140,25 @@ function getOrCreateCertificateFolder_() {
   return folder;
 }
 
-function findBackgroundFile_(folder) {
-  var files = folder.getFilesByName(AEF_CERT_CONFIG.backgroundFileName);
+function backgroundFileNameForRow_(row) {
+  return certificateAward_(row) === AEF_CERT_CONFIG.completionAward
+    ? AEF_CERT_CONFIG.completionBackgroundFileName
+    : AEF_CERT_CONFIG.participationBackgroundFileName;
+}
+
+function findBackgroundFile_(folder, award) {
+  var fileName = award === AEF_CERT_CONFIG.completionAward
+    ? AEF_CERT_CONFIG.completionBackgroundFileName
+    : AEF_CERT_CONFIG.participationBackgroundFileName;
+  var files = folder.getFilesByName(fileName);
   return files.hasNext() ? files.next() : null;
 }
 
-function getBackgroundBlob_() {
-  var file = findBackgroundFile_(getOrCreateCertificateFolder_());
+function getBackgroundBlob_(row) {
+  var fileName = backgroundFileNameForRow_(row);
+  var file = findBackgroundFile_(getOrCreateCertificateFolder_(), certificateAward_(row));
   if (!file) {
-    throw new Error('Upload "' + AEF_CERT_CONFIG.backgroundFileName +
+    throw new Error('Upload "' + fileName +
       '" into the "' + AEF_CERT_CONFIG.folderName + '" Drive folder first.');
   }
   return file.getBlob();
@@ -333,6 +345,14 @@ function mergeCertificateRows_(existingRows, trackerRows) {
     return Math.max(max, certificateNumber_(row.certificateId));
   }, 0) + 1;
 
+  // A fellow without an accepted project can be added by name and email on the
+  // Certificates tab. Give that row an ID without changing their zero count.
+  rows.forEach(function (row) {
+    if (!row.certificateId && normaliseEmail_(row.email) && String(row.nameOnCertificate || "").trim()) {
+      row.certificateId = formatCertificateId_(nextNumber++, randomCertificateCode_());
+    }
+  });
+
   var newFellows = [];
   order.forEach(function (email) {
     var fellow = fellows[email];
@@ -412,6 +432,12 @@ function normaliseEmail_(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+function certificateAward_(row) {
+  return Number(row.projectCount) > 0
+    ? AEF_CERT_CONFIG.completionAward
+    : AEF_CERT_CONFIG.participationAward;
+}
+
 function toTime_(value) {
   var time = value instanceof Date ? value.getTime() : new Date(value).getTime();
   return isNaN(time) ? Infinity : time;
@@ -474,7 +500,7 @@ function sendApprovedAefCertificates() {
     if (!sheet) throw new Error("Run Setup and build the certificate list first.");
 
     var started = Date.now();
-    var background = null;
+    var backgrounds = {};
     var folder = getOrCreateCertificateFolder_();
 
     var result = processPendingCertificates_(readCertificateRows_(sheet), {
@@ -482,8 +508,9 @@ function sendApprovedAefCertificates() {
       now: function () { return new Date(); },
       getOrCreatePdf: function (row) {
         return certificatePdfForRow_(row, folder, function () {
-          background = background || getBackgroundBlob_();
-          return background;
+          var award = certificateAward_(row);
+          backgrounds[award] = backgrounds[award] || getBackgroundBlob_(row);
+          return backgrounds[award];
         }, false);
       },
       sendEmail: sendCertificateEmail_,
@@ -558,15 +585,16 @@ function createApprovedAefCertificatePdfs() {
     if (!sheet) throw new Error("Run Setup and build the certificate list first.");
 
     var started = Date.now();
-    var background = null;
+    var backgrounds = {};
     var folder = getOrCreateCertificateFolder_();
 
     var result = processPdfsOnly_(readCertificateRows_(sheet), {
       hasTime: function () { return Date.now() - started < AEF_CERT_CONFIG.timeBudgetMs; },
       createPdf: function (row) {
         return certificatePdfForRow_(row, folder, function () {
-          background = background || getBackgroundBlob_();
-          return background;
+          var award = certificateAward_(row);
+          backgrounds[award] = backgrounds[award] || getBackgroundBlob_(row);
+          return backgrounds[award];
         }, true);
       },
       saveRow: function (index, row) { writeCertificateRow_(sheet, index, row); }
@@ -607,8 +635,9 @@ function processPdfsOnly_(rows, deps) {
   return result;
 }
 
-function certificatePdfName_(certificateId, name) {
-  return String(certificateId).trim() + " - " + String(name).trim() + ".pdf";
+function certificatePdfName_(row) {
+  return String(row.certificateId).trim() + " - " + String(row.nameOnCertificate).trim() +
+    " - " + certificateAward_(row).replace("Certificate of ", "") + ".pdf";
 }
 
 /**
@@ -616,16 +645,15 @@ function certificatePdfName_(certificateId, name) {
  * (or when forced) bins the old file and makes a fresh one.
  */
 function certificatePdfForRow_(row, folder, getBackground, forceNew) {
-  var expectedName = certificatePdfName_(row.certificateId, row.nameOnCertificate);
+  var expectedName = certificatePdfName_(row);
   var existing = getPdfFromLink_(row.pdfLink);
   if (existing && !forceNew && existing.getName() === expectedName) {
     shareCertificateFile_(existing);
     return { blob: existing.getBlob(), url: existing.getUrl() };
   }
-  if (existing) existing.setTrashed(true);
-
-  var file = folder.createFile(createCertificatePdf_(row.nameOnCertificate, row.certificateId, getBackground()));
+  var file = folder.createFile(createCertificatePdf_(row.nameOnCertificate, row.certificateId, getBackground(), row));
   shareCertificateFile_(file);
+  if (existing) existing.setTrashed(true);
   return { blob: file.getBlob(), url: file.getUrl() };
 }
 
@@ -644,8 +672,8 @@ function sendCertificateEmail_(row, pdfBlob, recipientOverride) {
   MailApp.sendEmail({
     to: recipientOverride || String(row.email).trim(),
     subject: AEF_CERT_EMAIL_SUBJECT,
-    body: getAefCertificateEmailPlainText(row.nameOnCertificate, row.certificateId),
-    htmlBody: getAefCertificateEmailHtml(row.nameOnCertificate, row.certificateId),
+    body: getAefCertificateEmailPlainText(row.nameOnCertificate, row.certificateId, certificateAward_(row)),
+    htmlBody: getAefCertificateEmailHtml(row.nameOnCertificate, row.certificateId, certificateAward_(row)),
     name: AEF_CERT_CONFIG.senderName,
     attachments: [pdfBlob]
   });
@@ -660,7 +688,7 @@ function sendCertificateEmail_(row, pdfBlob, recipientOverride) {
  * Builds one certificate from a copy of the A4 template presentation and returns it as a PDF.
  * (Google ignores page sizes when creating presentations, so the size comes from the template.)
  */
-function createCertificatePdf_(name, certificateId, backgroundBlob) {
+function createCertificatePdf_(name, certificateId, backgroundBlob, row) {
   var template = getCertificateTemplate_();
   var copy = template.makeCopy("Certificate " + certificateId);
 
@@ -684,7 +712,9 @@ function createCertificatePdf_(name, certificateId, backgroundBlob) {
       CERT_LAYOUT.certificateId.fontSize, SlidesApp.ParagraphAlignment.START, scale);
     presentation.saveAndClose();
 
-    return copy.getAs(MimeType.PDF).setName(certificatePdfName_(certificateId, name));
+    return copy.getAs(MimeType.PDF).setName(certificatePdfName_(row || {
+      certificateId: certificateId, nameOnCertificate: name, projectCount: 0
+    }));
   } finally {
     copy.setTrashed(true);
   }
@@ -774,7 +804,7 @@ function sendAefCertificateTestEmail() {
   var problem = certificateRowProblem_(row);
   if (problem) throw new Error(problem);
 
-  var pdf = createCertificatePdf_(row.nameOnCertificate, row.certificateId, getBackgroundBlob_());
+  var pdf = createCertificatePdf_(row.nameOnCertificate, row.certificateId, getBackgroundBlob_(row), row);
   sendCertificateEmail_(row, pdf, recipient);
   return notifyAefCert_("Test certificate for " + row.nameOnCertificate + " sent to " + recipient + ".");
 }

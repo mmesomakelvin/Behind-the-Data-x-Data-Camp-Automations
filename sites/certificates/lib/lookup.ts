@@ -82,7 +82,7 @@ const DEMO_CERTIFICATE: Certificate = {
   name: "Ada Lovelace",
   programme: "Analytics Engineering Fellowship",
   cohort: "2026 · Cohort 1",
-  award: "Certificate of Participation",
+  award: "Certificate of Completion",
   issued: "September 2026",
   pdfUrl: "#demo-pdf",
 };

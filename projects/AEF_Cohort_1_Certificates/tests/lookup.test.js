@@ -70,12 +70,19 @@ test("a sent certificate returns only its public details", () => {
     ["award", "cohort", "id", "issued", "name", "pdfUrl", "programme"]);
   assert.equal(reply.certificate.name, "Ada Lovelace");
   assert.equal(reply.certificate.programme, "Analytics Engineering Fellowship");
+  assert.equal(reply.certificate.award, "Certificate of Completion");
   assert.equal(reply.certificate.pdfUrl,
     "https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345");
 
   const text = JSON.stringify(reply);
   assert.doesNotMatch(text, /@/, "no email address may ever be returned");
   assert.doesNotMatch(text, /ada lovelace/, "the submitted spelling is private");
+});
+
+test("a sent participant verifies as Participation", () => {
+  const app = loadProject([sentRow({ projectCount: 0 })]);
+  const reply = callLookup(app, { id: "AEF-2026-C1-0001-K7QX", key: KEY });
+  assert.equal(reply.certificate.award, "Certificate of Participation");
 });
 
 test("lower case and spaces in the typed ID still match", () => {

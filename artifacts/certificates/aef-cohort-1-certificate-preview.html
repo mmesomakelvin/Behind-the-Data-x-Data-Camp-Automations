@@ -37,6 +37,7 @@
 </header>
 
 <div class="controls">
+  <label>Award <select id="award" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;font:14px Poppins,Arial,sans-serif"><option value="completion">Completion</option><option value="participation">Participation</option></select></label>
   <label>Name on certificate <input id="name" value="Ada Lovelace"></label>
   <label>Certificate ID <input id="cid" value="AEF-2026-C1-0001-K7QX"></label>
   <label style="flex-direction:row;align-items:center;gap:6px;text-transform:none;letter-spacing:0"><input type="checkbox" id="boxes" style="width:auto"> Show text boxes</label>
@@ -68,13 +69,19 @@
 
   page.style.width = L.page.width + 'pt';
   page.style.height = L.page.height + 'pt';
-  page.style.backgroundImage = 'url(../../assets/signatures/aef-cohort-1-certificate-background.png)';
+  function backgroundPath() {
+    return document.getElementById('award').value === 'completion'
+      ? '../../assets/signatures/aef-cohort-1-completion-background.png'
+      : '../../assets/signatures/aef-cohort-1-certificate-background.png';
+  }
+  function showBackground() { page.style.backgroundImage = 'url(' + backgroundPath() + ')'; }
+  showBackground();
 
   var probe = new Image();
   probe.onerror = function () {
     page.innerHTML = '<div class="missing">Background image not found. Run <code>scripts/render-certificate-background.ps1</code> first.</div>';
   };
-  probe.src = '../../assets/signatures/aef-cohort-1-certificate-background.png';
+  probe.src = backgroundPath();
 
   function place(el, spec, fontSize) {
     el.style.left = spec.left + 'pt';
@@ -110,6 +117,7 @@
   }
 
   document.getElementById('name').addEventListener('input', render);
+  document.getElementById('award').addEventListener('change', showBackground);
   document.getElementById('cid').addEventListener('input', render);
   document.getElementById('boxes').addEventListener('change', function (e) {
     page.classList.toggle('show-boxes', e.target.checked);
@@ -120,6 +128,8 @@
   var params = new URLSearchParams(location.search);
   if (params.get('name')) document.getElementById('name').value = params.get('name');
   if (params.get('id')) document.getElementById('cid').value = params.get('id');
+  if (params.get('award') === 'participation') document.getElementById('award').value = 'participation';
+  showBackground();
   document.fonts.ready.then(render);
   render();
 </script>

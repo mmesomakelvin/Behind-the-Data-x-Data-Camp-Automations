@@ -10,10 +10,15 @@ function getAefCertificateVerifyUrl(certificateId) {
   return AEF_CERT_VERIFY_BASE_URL + encodeURIComponent(String(certificateId || "").trim());
 }
 
-function getAefCertificateEmailHtml(fullName, certificateId) {
+function getAefCertificateEmailHtml(fullName, certificateId, award) {
   const firstName = escapeAefCertHtml_(getAefCertFirstName_(fullName));
   const safeId = escapeAefCertHtml_(certificateId);
   const verifyUrl = escapeAefCertHtml_(getAefCertificateVerifyUrl(certificateId));
+  const isCompletion = award === "Certificate of Completion";
+  const awardLabel = isCompletion ? "Certificate of Completion" : "Certificate of Participation";
+  const learningNote = isCompletion
+    ? "It recognises your applied project work and the skills you developed in data literacy, SQL, Python, cloud data tools and version control."
+    : "It recognises your participation and learning across data literacy, SQL, Python, cloud data tools and version control.";
 
   return `<!DOCTYPE html>
 <html>
@@ -35,8 +40,8 @@ function getAefCertificateEmailHtml(fullName, certificateId) {
           <tr>
             <td style="padding:30px 28px 22px 28px;">
               <p style="margin:0 0 14px;font-size:18px;line-height:1.6;color:#111827;">Hello ${firstName},</p>
-              <p style="margin:0 0 12px;font-size:15px;line-height:1.75;color:#374151;">Thank you for being part of the <strong>Analytics Engineering Fellowship 2026, Cohort 1</strong>. Your <strong>Certificate of Participation</strong> is attached to this email as a PDF.</p>
-              <p style="margin:0 0 18px;font-size:15px;line-height:1.75;color:#374151;">It recognises your commitment to practical learning, the project work you submitted, and the analytics engineering skills you built during the fellowship.</p>
+              <p style="margin:0 0 12px;font-size:15px;line-height:1.75;color:#374151;">Thank you for being part of the <strong>Analytics Engineering Fellowship 2026, Cohort 1</strong>. Your <strong>${awardLabel}</strong> is attached to this email as a PDF.</p>
+              <p style="margin:0 0 18px;font-size:15px;line-height:1.75;color:#374151;">${learningNote}</p>
 
               <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;background:#ecfdf5;border-left:4px solid #159a86;">
                 <tr>
@@ -67,12 +72,16 @@ function getAefCertificateEmailHtml(fullName, certificateId) {
 </html>`;
 }
 
-function getAefCertificateEmailPlainText(fullName, certificateId) {
+function getAefCertificateEmailPlainText(fullName, certificateId, award) {
+  const isCompletion = award === "Certificate of Completion";
+  const awardLabel = isCompletion ? "Certificate of Completion" : "Certificate of Participation";
+  const learningNote = isCompletion
+    ? "It recognises your applied project work and the skills you developed in data literacy, SQL, Python, cloud data tools and version control."
+    : "It recognises your participation and learning across data literacy, SQL, Python, cloud data tools and version control.";
   return "Hello " + getAefCertFirstName_(fullName) + ",\n\n" +
     "Thank you for being part of the Analytics Engineering Fellowship 2026, Cohort 1. " +
-    "Your Certificate of Participation is attached to this email as a PDF.\n\n" +
-    "It recognises your commitment to practical learning, the project work you submitted, " +
-    "and the analytics engineering skills you built during the fellowship.\n\n" +
+    "Your " + awardLabel + " is attached to this email as a PDF.\n\n" +
+    learningNote + "\n\n" +
     "Certificate ID: " + certificateId + "\n" +
     "Please keep this ID for your records.\n\n" +
     "View or verify your certificate online: " + getAefCertificateVerifyUrl(certificateId) + "\n\n" +

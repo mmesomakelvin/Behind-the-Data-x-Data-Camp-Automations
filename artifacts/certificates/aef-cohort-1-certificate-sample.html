@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AEF Cohort 1 Certificate Sample</title>
+<title>AEF Cohort 1 Certificate Designs</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&display=swap');
   @page { size:A4 landscape; margin:0; }
@@ -67,6 +67,28 @@
   /* Bitly links are case-sensitive: never capitalise the link itself. */
   .metadata .verify-link b { text-transform:none; letter-spacing:.5px; font-size:8.5px; }
   .metadata span:last-child { text-align:right; }
+  .certificate.completion { background:radial-gradient(circle at 50% 30%,#fffdf8 0,#f7f2e8 72%,#eee4d2 100%); border:5px solid #142b49; box-shadow:inset 0 0 0 5px #c89a43; }
+  .certificate.completion:before { inset:14px; border:2px solid #c89a43; }
+  .certificate.completion:after { inset:23px; border:1px solid rgba(20,43,73,.36); }
+  .completion .corner:before,.completion .corner:after { background:#c89a43; }
+  .completion .masthead { border-bottom:2px solid #c89a43; }
+  .completion .programme small,.completion .award .overline { color:#9d6d21; }
+  .completion .award h1 { color:#142b49; font-size:58px; font-weight:700; }
+  .completion .award .rule { width:128px; height:3px; background:linear-gradient(90deg,transparent,#c89a43,transparent); }
+  .completion .recipient { border-bottom:2px solid #c89a43; }
+  .completion .distinction { color:#94651d; }
+  .completion .seal { border:3px double #b7822d; background:#fff8e6; box-shadow:0 0 0 5px rgba(200,154,67,.14); }
+  .completion .seal div { border-color:#b7822d; }
+  .completion .seal strong { color:#94651d; }
+  .completion .metadata { border-top:2px solid #c89a43; }
+  .certificate.participation { background:#f8fcfa; border:2px solid #159a86; }
+  .participation .masthead { border-bottom-color:#b9dbd2; }
+  .participation .award h1 { color:#0d6f66; font-size:50px; font-weight:500; }
+  .participation .award .rule { background:#159a86; }
+  .participation .recipient { border-bottom-color:#159a86; }
+  .participation .distinction { color:#0d6f66; }
+  .participation .seal,.participation .seal div { border-color:#159a86; }
+  .participation .metadata { border-top-color:#b9dbd2; }
   .preview-note { margin-top:16px; text-align:center; color:#64748b; font-size:12px; }
   @media(max-width:1050px){ .certificate{min-height:540px;padding:31px 40px 25px}.masthead{grid-template-columns:72px 1fr auto}.logo{width:68px;height:68px}.award{padding:20px 34px 14px}.award h1{font-size:43px}.recipient{font-size:36px}.signing{padding:8px 44px 11px} }
 </style>
@@ -77,8 +99,8 @@
 <p class="subtitle">The full certificate now uses Poppins. The central award area, recipient name and signing section are larger, and the paper background has been removed from Ayoade Adegbite's signature.</p>
 
 <div class="preview-stage">
-  <div class="certificate-choice" data-choice="approve-poppins-v9" onclick="toggleSelect(this)">
-    <div class="certificate">
+  <div class="certificate-choice">
+    <div class="certificate completion">
       <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
       <div class="inner">
         <header class="masthead">
@@ -89,12 +111,12 @@
 
         <section class="award">
           <p class="overline">Certificate of</p>
-          <h1>Participation</h1>
+          <h1>Completion</h1>
           <div class="rule"></div>
           <p class="presented">This certificate is proudly presented to</p>
           <div class="recipient">Ada Lovelace</div>
-          <p class="award-copy">in recognition of participation in the <strong>Analytics Engineering Fellowship 2026, Cohort 1</strong>, and commitment to practical learning, project work and the development of analytics engineering skills.</p>
-          <p class="distinction">Learning · Practical Project Work · Community Participation</p>
+          <p class="award-copy">for completing the <strong>Analytics Engineering Fellowship 2026, Cohort 1</strong> and demonstrating applied skills through accepted project work in data and analytics engineering.</p>
+          <p class="distinction">Data Literacy · SQL · Python · Cloud Data Tools · Version Control</p>
         </section>
 
         <section class="signing">
@@ -113,6 +135,15 @@
 
 <p class="preview-note">The downloadable PDF will use this same layout and typography.</p>
 <script>
+  var awardType = new URLSearchParams(location.search).get('award') === 'participation' ? 'participation' : 'completion';
+  var certificate = document.querySelector('.certificate');
+  certificate.classList.toggle('completion', awardType === 'completion');
+  certificate.classList.toggle('participation', awardType === 'participation');
+  if (awardType === 'participation') {
+    document.querySelector('.award h1').textContent = 'Participation';
+    document.querySelector('.award-copy').innerHTML = 'in recognition of participation in the <strong>Analytics Engineering Fellowship 2026, Cohort 1</strong> and engagement with its learning programme in data and analytics engineering.';
+    document.querySelector('.distinction').textContent = 'Data Literacy · SQL · Python · Cloud Data Tools';
+  }
   // Open with #background to hide the per-fellow text; used to render the automation's background image.
   if (location.hash === '#background') {
     document.querySelector('.recipient').innerHTML = '&nbsp;';

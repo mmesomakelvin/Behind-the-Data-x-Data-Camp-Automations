@@ -56,7 +56,7 @@ function buildLookupReply_(rows, rawId) {
       name: String(match.nameOnCertificate || "").replace(/\s+/g, " ").trim(),
       programme: AEF_CERT_CONFIG.programme,
       cohort: AEF_CERT_CONFIG.cohortLabel,
-      award: AEF_CERT_CONFIG.award,
+      award: certificateAward_(match),
       issued: AEF_CERT_CONFIG.issuedLabel,
       pdfUrl: pdfDownloadUrl_(match.pdfLink)
     }

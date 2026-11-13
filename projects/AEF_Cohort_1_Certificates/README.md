@@ -1,6 +1,6 @@
 # AEF_Cohort_1_Certificates
 
-Google Apps Script project that creates and emails Certificates of Participation to
+Google Apps Script project that creates and emails Certificates of Completion and Participation to
 Analytics Engineering Fellowship (AEF) Cohort 1 fellows.
 
 ## Script ID
@@ -17,6 +17,11 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
   "Accepted" means the team marked the row **Ok** in the Review Tracker's **Status** dropdown
   (column I). Blank or any other value is left out. The form's automatic "OK" in the
   Issues column is ignored on purpose. A fellow who submitted several times appears once (matched by email).
+- Gives fellows with one or more accepted projects a **Certificate of Completion**. For a
+  confirmed fellow with no accepted project, add their name and email to the **Certificates**
+  tab, enter `0` under **Projects submitted**, then run **Build / Refresh Certificate List**.
+  That assigns an ID and gives them a **Certificate of Participation**. The submissions sheet
+  alone cannot confirm who attended without submitting a project.
 - Gives each fellow a permanent certificate number with a random code, such as `AEF-2026-C1-0001-K7QX`,
   numbered in the order they first submitted. The code stops anyone guessing other fellows'
   numbers on the verification website. Refreshing the list never changes a number.
@@ -44,7 +49,7 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
 | Name on certificate | Automation, then **you** | Exactly what is printed. Fix spelling here |
 | Email | Automation | Where the certificate is sent |
 | Name as submitted | Automation | The name the fellow typed on the form (for comparison) |
-| Projects submitted | Automation | Number of different accepted projects |
+| Projects submitted | Automation or `0` for manual participants | Number of different accepted projects; one or more means Completion, zero means Participation |
 | Approved | **You** | Tick when the row is ready to send |
 | Certificate Status | Automation | blank, `PDF ready`, `Sent` or `Error` |
 | PDF Link | Automation | The saved certificate in Google Drive |
@@ -53,11 +58,22 @@ This script is attached to the **AEF Submissions** spreadsheet (the one with the
 
 ## How The Certificate Is Made
 
-The design lives in `artifacts/certificates/aef-cohort-1-certificate-sample.html`.
+Both designs live in `artifacts/certificates/aef-cohort-1-certificate-sample.html`.
+Completion uses a navy and gold frame; Participation has a lighter teal look. Both briefly
+cover data literacy, SQL, Python, cloud data tools and version control. Participation does
+not claim project work.
 
-1. `scripts/render-certificate-background.ps1` saves the design **without** the name and
-   number as `assets/signatures/aef-cohort-1-certificate-background.png`. This image contains
-   the signature, so it is private and not stored in git.
+1. Run `scripts/render-certificate-background.ps1` with `-Award completion` and then
+   `-Award participation`. It saves each design **without** the name and number as
+   `assets/signatures/aef-cohort-1-completion-background.png` and
+   `assets/signatures/aef-cohort-1-certificate-background.png`. Both images contain the
+   signature, so they are private and not stored in git.
+   On a computer that blocks PowerShell scripts by default, run:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\render-certificate-background.ps1 -Award completion
+   powershell -ExecutionPolicy Bypass -File .\scripts\render-certificate-background.ps1 -Award participation
+   ```
 2. The automation copies the **AEF Certificate Template** (an A4 landscape Google Slides file), puts that image on it, adds the fellow's
    name and certificate number in Poppins, and saves it as a PDF. The temporary Slides file is deleted.
 3. Each fellow's **QR code** is fetched from the verification website (`https://btd-certificates.vercel.app/api/qr/<ID>`)
@@ -76,7 +92,8 @@ python -m http.server 8765 --bind 127.0.0.1
 # then open http://127.0.0.1:8765/artifacts/certificates/aef-cohort-1-certificate-preview.html
 ```
 
-If the design changes, re-run `scripts/render-certificate-background.ps1` and upload the new image to the Drive folder.
+If a design changes, render it again, upload the new image to the Drive folder, then use
+**Create PDFs for Approved (no email)** to rebuild and inspect the unsent PDFs.
 
 ## One-time Setup
 
@@ -93,7 +110,8 @@ Steps 1-3 are done (the script is attached and the code is pushed).
 4. Reload the spreadsheet. Open **AEF Cohort 1 Certificates > Open Automation Buttons**.
 5. Click **1. Setup Certificates** and approve the Google permissions. This creates the
    Certificates tab and the **AEF Cohort 1 Certificates** Drive folder.
-6. Upload `assets/signatures/aef-cohort-1-certificate-background.png` into that Drive folder.
+6. Upload both background files from `assets/signatures/` into that Drive folder. If an older
+   Participation background is already there, replace it with the newly rendered file.
 7. In that same Drive folder, make the **certificate template**. This is needed because Google ignores
    page sizes when a script creates a presentation, so the A4 size has to come from a file a person set up:
    - **New > Google Slides > Blank presentation**
@@ -132,6 +150,8 @@ Plan: `docs/plans/2026-09-18-feat-certificate-verification-website-plan.md`.
 
 1. Mark submissions **Ok** in the Review Tracker's Status column. Each person is added to the
    Certificates tab automatically (or click **2. Build / Refresh Certificate List** to update everyone at once).
+   For confirmed participants without accepted projects, enter their name, email and project
+   count `0` in a new Certificates row, then refresh the list.
 2. Check each **Name on certificate** and tick **Approved** for rows that are ready. Ticking sends nothing.
 3. Click **Create PDFs for Approved (no email)**. Each approved person's PDF is made and saved in the Drive
    folder, **PDF Link** is filled in and **Certificate Status** becomes `PDF ready`. Open and check each one.
